@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="CadenaFrio.Api/CadenaFrio.Api.csproj" />
+  <Project Path="CadenaFrio.Domain/CadenaFrio.Domain.csproj" />
+  <Project Path="CadenaFrio.Infrastructure/CadenaFrio.Infrastructure.csproj" />
+</Solution>
