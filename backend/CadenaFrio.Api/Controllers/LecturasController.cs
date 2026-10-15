@@ -1,4 +1,4 @@
-using CadenaFrio.Api.Contracts;
+using CadenaFrio.Shared.Contracts;
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
