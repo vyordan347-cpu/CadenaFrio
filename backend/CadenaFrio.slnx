@@ -2,4 +2,6 @@
   <Project Path="CadenaFrio.Api/CadenaFrio.Api.csproj" />
   <Project Path="CadenaFrio.Domain/CadenaFrio.Domain.csproj" />
   <Project Path="CadenaFrio.Infrastructure/CadenaFrio.Infrastructure.csproj" />
+  <Project Path="CadenaFrio.Shared/CadenaFrio.Shared.csproj" />
+  <Project Path="CadenaFrio.Web/CadenaFrio.Web.csproj" />
 </Solution>
