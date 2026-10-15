@@ -105,13 +105,28 @@
     color: #616e7c;
 }
 
-/* Alerta activa: fuera de rango (HU03). */
-.estado-alerta {
+/* Advertencia: fuera del rango óptimo, dentro del límite (HU03). */
+.estado-advertencia {
+    border-top-color: #e8890c;
+}
+
+.estado-advertencia .temperatura,
+.estado-advertencia .estado {
+    color: #c56a00;
+}
+
+.estado-advertencia .alerta-detalle {
+    background: #fff4e6;
+    color: #a35200;
+}
+
+/* Ruptura: fuera del rango límite (HU03). */
+.estado-ruptura {
     border-top-color: #c92a2a;
 }
 
-.estado-alerta .temperatura,
-.estado-alerta .estado {
+.estado-ruptura .temperatura,
+.estado-ruptura .estado {
     color: #c92a2a;
 }
 
@@ -121,4 +136,83 @@
 
 .estado-error .equipo {
     color: #c92a2a;
+}
+
+/* Rupturas pendientes de revisión (RF08). */
+.pendiente {
+    width: 100%;
+    max-width: 480px;
+    margin-top: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    border-left: 6px solid #c92a2a;
+    background: #ffffff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    box-sizing: border-box;
+    font-size: 0.95rem;
+}
+
+.pendiente p {
+    margin: 0.2rem 0;
+}
+
+.pendiente-titulo {
+    color: #c92a2a;
+    font-weight: 700;
+}
+
+.pendiente label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.75rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.pendiente ::deep textarea {
+    padding: 0.6rem 0.7rem;
+    border: 1px solid #cbd2d9;
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 400;
+    resize: vertical;
+}
+
+.pendiente ::deep .validation-message,
+.error-revision {
+    color: #c92a2a;
+    font-size: 0.85rem;
+    font-weight: 400;
+}
+
+.acciones {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.pendiente button {
+    padding: 0.55rem 1rem;
+    border: none;
+    border-radius: 8px;
+    background: #1f2933;
+    color: #ffffff;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.pendiente button.registrar {
+    margin-top: 0.75rem;
+    background: #c92a2a;
+}
+
+.pendiente button.secundario {
+    background: #e4e7eb;
+    color: #1f2933;
+}
+
+.pendiente button:disabled {
+    opacity: 0.6;
+    cursor: default;
 }

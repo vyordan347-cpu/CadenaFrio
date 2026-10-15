@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CadenaFrio.Domain.Entities;
+using CadenaFrio.Domain.Valores;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authorization;
@@ -40,14 +41,16 @@ public class EquiposController : ControllerBase
             return NotFound(new { mensaje = "Equipo no encontrado." });
         }
 
-        var (minimo, maximo) = await _db.ObtenerLimitesAsync(id);
+        var limites = await _db.ObtenerLimitesAsync(id);
 
         var respuesta = new TemperaturaActualDto
         {
             EquipoId = equipo.Id,
             NombreEquipo = equipo.Nombre,
-            RangoMinimo = minimo,
-            RangoMaximo = maximo
+            OptimoMinimo = limites.OptimoMinimo,
+            OptimoMaximo = limites.OptimoMaximo,
+            LimiteMinimo = limites.LimiteMinimo,
+            LimiteMaximo = limites.LimiteMaximo
         };
 
         // La lectura más reciente según cuándo se midió, no cuándo llegó:
@@ -77,10 +80,10 @@ public class EquiposController : ControllerBase
             respuesta.AlertaActiva = new AlertaActivaDto
             {
                 Tipo = (TipoAlertaDto)(int)alerta.Tipo,
+                Nivel = (NivelAlertaDto)(int)alerta.Nivel,
                 Inicio = alerta.Inicio,
-                ValorExtremo = alerta.ValorExtremo,
-                RangoMinimo = alerta.RangoMinimo,
-                RangoMaximo = alerta.RangoMaximo
+                FechaRuptura = alerta.FechaRuptura,
+                ValorExtremo = alerta.ValorExtremo
             };
         }
 
@@ -124,7 +127,7 @@ public class EquiposController : ControllerBase
 
     // POST /api/equipos/{id}/rango  (HU02, RF04, RF05)
     // Registra un rango nuevo. Nunca modifica uno existente: cada cambio queda en el historial.
-    // Las validaciones del DTO (rango físico, mínimo < máximo) ya se aplicaron
+    // Las validaciones del DTO (rango físico y relación entre óptimo y límite) ya se aplicaron
     // automáticamente gracias a [ApiController].
     // Solo el personal autorizado (responsable o administrador) puede usarlo: los demás reciben 403.
     [Authorize(Policy = Politicas.PuedeConfigurarRangos)]
@@ -143,23 +146,30 @@ public class EquiposController : ControllerBase
             return BadRequest(new { mensaje = "No se puede configurar el rango de un equipo inactivo." });
         }
 
-        var minima = solicitud.TemperaturaMinima!.Value;
-        var maxima = solicitud.TemperaturaMaxima!.Value;
+        var nuevos = new LimitesTemperatura(
+            solicitud.OptimoMinimo!.Value,
+            solicitud.OptimoMaximo!.Value,
+            solicitud.LimiteMinimo!.Value,
+            solicitud.LimiteMaximo!.Value);
 
-        // Si el rango es igual al vigente, no se registra nada: el historial
-        // solo debe contener cambios reales.
+        // Si los rangos son iguales a los vigentes, no se registra nada: el historial
+        // solo debe contener cambios reales. Al ser un record, LimitesTemperatura
+        // se compara por sus valores, no por referencia.
         // 409 Conflict indica que la solicitud no tiene sentido con el estado actual.
         var vigente = await _db.ObtenerRangoVigenteAsync(id);
-        if (vigente is not null && vigente.TemperaturaMinima == minima && vigente.TemperaturaMaxima == maxima)
+        if (vigente is not null
+            && new LimitesTemperatura(vigente.OptimoMinimo, vigente.OptimoMaximo, vigente.LimiteMinimo, vigente.LimiteMaximo) == nuevos)
         {
-            return Conflict(new { mensaje = "El rango indicado es igual al vigente. No se registró ningún cambio." });
+            return Conflict(new { mensaje = "Los rangos indicados son iguales a los vigentes. No se registró ningún cambio." });
         }
 
         var rango = new RangoTemperatura
         {
             EquipoId = id,
-            TemperaturaMinima = minima,
-            TemperaturaMaxima = maxima,
+            OptimoMinimo = nuevos.OptimoMinimo,
+            OptimoMaximo = nuevos.OptimoMaximo,
+            LimiteMinimo = nuevos.LimiteMinimo,
+            LimiteMaximo = nuevos.LimiteMaximo,
             // Quién hizo el cambio se toma de la sesión, no de lo que envíe la pantalla.
             ModificadoPor = User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity!.Name!,
             FechaCambio = DateTime.UtcNow
@@ -175,8 +185,10 @@ public class EquiposController : ControllerBase
     private static RangoTemperaturaDto ConvertirADto(RangoTemperatura rango) => new()
     {
         EquipoId = rango.EquipoId,
-        TemperaturaMinima = rango.TemperaturaMinima,
-        TemperaturaMaxima = rango.TemperaturaMaxima,
+        OptimoMinimo = rango.OptimoMinimo,
+        OptimoMaximo = rango.OptimoMaximo,
+        LimiteMinimo = rango.LimiteMinimo,
+        LimiteMaximo = rango.LimiteMaximo,
         FechaCambio = rango.FechaCambio,
         ModificadoPor = rango.ModificadoPor,
         EsPorDefecto = false
@@ -185,8 +197,10 @@ public class EquiposController : ControllerBase
     private static RangoTemperaturaDto RangoPorDefecto(int equipoId) => new()
     {
         EquipoId = equipoId,
-        TemperaturaMinima = RangoTemperatura.MinimaPorDefecto,
-        TemperaturaMaxima = RangoTemperatura.MaximaPorDefecto,
+        OptimoMinimo = LimitesTemperatura.PorDefecto.OptimoMinimo,
+        OptimoMaximo = LimitesTemperatura.PorDefecto.OptimoMaximo,
+        LimiteMinimo = LimitesTemperatura.PorDefecto.LimiteMinimo,
+        LimiteMaximo = LimitesTemperatura.PorDefecto.LimiteMaximo,
         EsPorDefecto = true
     };
 }

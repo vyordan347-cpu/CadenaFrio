@@ -47,6 +47,11 @@ public class CadenaFrioDbContext : DbContext
         {
             rango.Property(r => r.ModificadoPor).IsRequired().HasMaxLength(100);
 
+            // El rango límite conserva los nombres de columna originales, para que la
+            // migración solo agregue columnas nuevas y no se pierdan los datos existentes.
+            rango.Property(r => r.LimiteMinimo).HasColumnName("TemperaturaMinima");
+            rango.Property(r => r.LimiteMaximo).HasColumnName("TemperaturaMaxima");
+
             // Un equipo tiene muchos rangos (el vigente y su historial).
             // Restrict protege el historial de cambios igual que con las lecturas.
             rango.HasOne(r => r.Equipo)
@@ -57,8 +62,9 @@ public class CadenaFrioDbContext : DbContext
             // Permite encontrar rápido el rango vigente (el más reciente de cada equipo).
             rango.HasIndex(r => new { r.EquipoId, r.FechaCambio });
 
-            // Regla en la propia base de datos: el mínimo debe ser menor que el máximo.
+            // Regla en la propia base de datos: el límite mínimo debe ser menor que el máximo.
             // Aunque alguien inserte datos sin pasar por la API, SQLite lo rechazará.
+            // (La relación entre el rango óptimo y el límite se valida en la API y en la web.)
             rango.ToTable(t => t.HasCheckConstraint(
                 "CK_RangoTemperatura_MinimaMenorQueMaxima",
                 "\"TemperaturaMinima\" < \"TemperaturaMaxima\""));
@@ -66,6 +72,13 @@ public class CadenaFrioDbContext : DbContext
 
         modelBuilder.Entity<Alerta>(alerta =>
         {
+            // Igual que en los rangos: se conservan los nombres de columna originales.
+            alerta.Property(a => a.LimiteMinimo).HasColumnName("RangoMinimo");
+            alerta.Property(a => a.LimiteMaximo).HasColumnName("RangoMaximo");
+
+            alerta.Property(a => a.AtendidaPor).HasMaxLength(100);
+            alerta.Property(a => a.ObservacionAtencion).HasMaxLength(500);
+
             // El historial de alertas también se protege contra borrados.
             alerta.HasOne(a => a.Equipo)
                   .WithMany(e => e.Alertas)

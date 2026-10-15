@@ -45,6 +45,14 @@
                             Alerta desde @FormatoFecha.HoraPeru(alerta.Inicio)
                             (@FormatoFecha.Antiguedad(alerta.Inicio))
                         </p>
+                        @if (alerta.FechaRuptura is { } fechaRuptura && fechaRuptura > alerta.Inicio)
+                        {
+                            @* Margen que tuvo el personal entre la advertencia y la ruptura. *@
+                            <p>
+                                Ruptura desde @FormatoFecha.HoraPeru(fechaRuptura),
+                                @((int)(fechaRuptura - alerta.Inicio).TotalMinutes) min después de la advertencia
+                            </p>
+                        }
                         <p>
                             @(alerta.Tipo == TipoAlertaDto.TemperaturaAlta ? "Máxima" : "Mínima") registrada:
                             @alerta.ValorExtremo.ToString("0.0") °C
@@ -59,9 +67,62 @@
             }
 
             <p class="rango">
-                Rango permitido: @datos.RangoMinimo.ToString("0.0") °C a @datos.RangoMaximo.ToString("0.0") °C
+                Óptimo: @datos.OptimoMinimo.ToString("0.0") a @datos.OptimoMaximo.ToString("0.0") °C
+                · Límite: @datos.LimiteMinimo.ToString("0.0") a @datos.LimiteMaximo.ToString("0.0") °C
             </p>
         </div>
+    }
+
+    @* Rupturas pendientes de revisión (RF08). No desaparecen solas aunque la
+       temperatura ya se haya normalizado: alguien debe revisarlas y registrar qué hizo. *@
+    @foreach (var pendiente in pendientes)
+    {
+        <section class="pendiente">
+            <p class="pendiente-titulo">Ruptura pendiente de revisión</p>
+            <p>
+                @if (pendiente.Fin is { } fin)
+                {
+                    @:@FormatoFecha.HoraPeru(pendiente.Inicio) a @FormatoFecha.HoraPeru(fin)
+                    @:(@((int)(fin - pendiente.Inicio).TotalMinutes) min)
+                }
+                else
+                {
+                    @:Desde @FormatoFecha.HoraPeru(pendiente.Inicio) (en curso)
+                }
+            </p>
+            <p>
+                Temperatura @(pendiente.Tipo == TipoAlertaDto.TemperaturaAlta ? "máxima" : "mínima"):
+                <strong>@pendiente.ValorExtremo.ToString("0.0") °C</strong>
+                (límite @pendiente.LimiteMinimo.ToString("0.0") a @pendiente.LimiteMaximo.ToString("0.0") °C)
+            </p>
+
+            @if (alertaEnRevision == pendiente.Id)
+            {
+                <EditForm Model="revision" OnValidSubmit="() => RegistrarRevisionAsync(pendiente.Id)">
+                    <DataAnnotationsValidator />
+                    <label>
+                        Acciones realizadas
+                        <InputTextArea @bind-Value="revision.Observacion" rows="3"
+                                       placeholder="Ej.: Se trasladaron las vacunas al termo y se informó a la Red de Salud." />
+                        <ValidationMessage For="() => revision.Observacion" />
+                    </label>
+                    <div class="acciones">
+                        <button type="submit" disabled="@guardandoRevision">
+                            @(guardandoRevision ? "Guardando…" : "Guardar revisión")
+                        </button>
+                        <button type="button" class="secundario" @onclick="CancelarRevision">Cancelar</button>
+                    </div>
+                </EditForm>
+                @if (errorRevision is not null)
+                {
+                    <p class="error-revision">@errorRevision</p>
+                }
+            }
+            else
+            {
+                <button class="registrar" @onclick="() => IniciarRevision(pendiente.Id)">Registrar revisión</button>
+            }
+        </section>
     }
 
     <p class="pie">Se actualiza automáticamente cada 10 segundos.</p>
@@ -75,7 +136,14 @@
     private static readonly TimeSpan IntervaloActualizacion = TimeSpan.FromSeconds(10);
 
     private TemperaturaActualDto? datos;
+    private List<AlertaPendienteDto> pendientes = new();
     private string? error;
+
+    // Revisión en curso: qué alerta se está atendiendo y lo que escribe el usuario.
+    private int? alertaEnRevision;
+    private AtenderAlertaRequest revision = new();
+    private bool guardandoRevision;
+    private string? errorRevision;
     private readonly CancellationTokenSource cancelacion = new();
 
     protected override async Task OnInitializedAsync()
@@ -110,6 +178,8 @@
         {
             datos = await Http.GetFromJsonAsync<TemperaturaActualDto>(
                 $"api/equipos/{EquipoId}/temperatura-actual", cancelacion.Token);
+            pendientes = await Http.GetFromJsonAsync<List<AlertaPendienteDto>>(
+                $"api/alertas/pendientes?equipoId={EquipoId}", cancelacion.Token) ?? new();
             error = null;
         }
         catch (OperationCanceledException)
@@ -124,7 +194,8 @@
     // La alerta tiene prioridad visual sobre cualquier otro estado.
     private string ClaseEstado => datos switch
     {
-        { AlertaActiva: not null } => "estado-alerta",
+        { AlertaActiva.Nivel: NivelAlertaDto.Ruptura } => "estado-ruptura",
+        { AlertaActiva.Nivel: NivelAlertaDto.Advertencia } => "estado-advertencia",
         { Estado: EstadoLectura.Actualizada } => "estado-actualizada",
         { Estado: EstadoLectura.Desactualizada } => "estado-desactualizada",
         _ => "estado-sindatos"
@@ -132,12 +203,59 @@
 
     private string TextoEstado => datos switch
     {
-        { AlertaActiva.Tipo: TipoAlertaDto.TemperaturaAlta } => "Fuera de rango: temperatura alta",
-        { AlertaActiva.Tipo: TipoAlertaDto.TemperaturaBaja } => "Fuera de rango: temperatura baja",
+        // Los textos siguen lo que indica la normativa para cada nivel.
+        { AlertaActiva.Nivel: NivelAlertaDto.Ruptura } =>
+            "Ruptura de la cadena de frío: activar el plan de contingencia",
+        { AlertaActiva: { Nivel: NivelAlertaDto.Advertencia, Tipo: TipoAlertaDto.TemperaturaAlta } } =>
+            "Advertencia: temperatura alta. Revisar el termostato",
+        { AlertaActiva: { Nivel: NivelAlertaDto.Advertencia, Tipo: TipoAlertaDto.TemperaturaBaja } } =>
+            "Advertencia: temperatura baja. Revisar el termostato",
         { Estado: EstadoLectura.Actualizada } => "Lectura actualizada",
         { Estado: EstadoLectura.Desactualizada } => "Lectura desactualizada: no llegan datos del dispositivo",
         _ => "Sin datos"
     };
+
+    private void IniciarRevision(int alertaId)
+    {
+        alertaEnRevision = alertaId;
+        revision = new AtenderAlertaRequest();
+        errorRevision = null;
+    }
+
+    private void CancelarRevision()
+    {
+        alertaEnRevision = null;
+        errorRevision = null;
+    }
+
+    private async Task RegistrarRevisionAsync(int alertaId)
+    {
+        guardandoRevision = true;
+        errorRevision = null;
+
+        try
+        {
+            var respuesta = await Http.PostAsJsonAsync($"api/alertas/{alertaId}/atender", revision);
+
+            if (respuesta.IsSuccessStatusCode)
+            {
+                alertaEnRevision = null;
+                await CargarAsync();
+            }
+            else
+            {
+                errorRevision = "No se pudo registrar la revisión. Intente nuevamente.";
+            }
+        }
+        catch (Exception)
+        {
+            errorRevision = "No se pudo conectar con el servidor.";
+        }
+        finally
+        {
+            guardandoRevision = false;
+        }
+    }
 
     public void Dispose()
     {

@@ -23,8 +23,18 @@ namespace CadenaFrio.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("AtendidaPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("EquipoId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaAtencion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaRuptura")
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("Fin")
                         .HasColumnType("TEXT");
@@ -32,10 +42,25 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.Property<DateTime>("Inicio")
                         .HasColumnType("TEXT");
 
-                    b.Property<double>("RangoMaximo")
+                    b.Property<double>("LimiteMaximo")
+                        .HasColumnType("REAL")
+                        .HasColumnName("RangoMaximo");
+
+                    b.Property<double>("LimiteMinimo")
+                        .HasColumnType("REAL")
+                        .HasColumnName("RangoMinimo");
+
+                    b.Property<int>("Nivel")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ObservacionAtencion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("OptimoMaximo")
                         .HasColumnType("REAL");
 
-                    b.Property<double>("RangoMinimo")
+                    b.Property<double>("OptimoMinimo")
                         .HasColumnType("REAL");
 
                     b.Property<int>("Tipo")
@@ -142,15 +167,23 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.Property<DateTime>("FechaCambio")
                         .HasColumnType("TEXT");
 
+                    b.Property<double>("LimiteMaximo")
+                        .HasColumnType("REAL")
+                        .HasColumnName("TemperaturaMaxima");
+
+                    b.Property<double>("LimiteMinimo")
+                        .HasColumnType("REAL")
+                        .HasColumnName("TemperaturaMinima");
+
                     b.Property<string>("ModificadoPor")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<double>("TemperaturaMaxima")
+                    b.Property<double>("OptimoMaximo")
                         .HasColumnType("REAL");
 
-                    b.Property<double>("TemperaturaMinima")
+                    b.Property<double>("OptimoMinimo")
                         .HasColumnType("REAL");
 
                     b.HasKey("Id");

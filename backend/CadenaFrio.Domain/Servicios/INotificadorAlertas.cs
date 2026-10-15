@@ -9,5 +9,9 @@ namespace CadenaFrio.Domain.Servicios;
 public interface INotificadorAlertas
 {
     Task AlertaAbiertaAsync(Alerta alerta, string nombreEquipo);
+
+    // El aviso más urgente: una advertencia pasó a ruptura de la cadena de frío.
+    Task AlertaEscaladaAsync(Alerta alerta, string nombreEquipo);
+
     Task AlertaCerradaAsync(Alerta alerta, string nombreEquipo);
 }

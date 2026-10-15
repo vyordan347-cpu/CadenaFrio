@@ -1,5 +1,6 @@
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Enums;
+using CadenaFrio.Domain.Valores;
 using Microsoft.EntityFrameworkCore;
 
 namespace CadenaFrio.Infrastructure.Data;
@@ -18,13 +19,13 @@ public static class ConsultasCadenaFrio
             .ThenByDescending(r => r.Id)
             .FirstOrDefaultAsync();
 
-    // Límites a aplicar: los del rango vigente o, si no hay, los de por defecto (RF04).
-    public static async Task<(double Minimo, double Maximo)> ObtenerLimitesAsync(this CadenaFrioDbContext db, int equipoId)
+    // Rangos a aplicar: los del rango vigente o, si no hay, los de por defecto (RF04).
+    public static async Task<LimitesTemperatura> ObtenerLimitesAsync(this CadenaFrioDbContext db, int equipoId)
     {
         var rango = await db.ObtenerRangoVigenteAsync(equipoId);
         return rango is null
-            ? (RangoTemperatura.MinimaPorDefecto, RangoTemperatura.MaximaPorDefecto)
-            : (rango.TemperaturaMinima, rango.TemperaturaMaxima);
+            ? LimitesTemperatura.PorDefecto
+            : new LimitesTemperatura(rango.OptimoMinimo, rango.OptimoMaximo, rango.LimiteMinimo, rango.LimiteMaximo);
     }
 
     // Alerta de temperatura (alta o baja) que sigue activa en el equipo, si la hay.

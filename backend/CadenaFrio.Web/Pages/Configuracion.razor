@@ -24,15 +24,25 @@
     }
     else
     {
-        @* 1. Rango vigente *@
+        @* 1. Rangos vigentes *@
         <section class="tarjeta">
-            <h2>Rango vigente</h2>
-            <p class="rango">
-                @vigente.TemperaturaMinima.ToString("0.0") °C a @vigente.TemperaturaMaxima.ToString("0.0") °C
+            <h2>Rangos vigentes</h2>
+            <div class="rangos">
+                <div>
+                    <p class="etiqueta">Óptimo</p>
+                    <p class="rango">@vigente.OptimoMinimo.ToString("0.0") a @vigente.OptimoMaximo.ToString("0.0") °C</p>
+                </div>
+                <div>
+                    <p class="etiqueta">Límite</p>
+                    <p class="rango">@vigente.LimiteMinimo.ToString("0.0") a @vigente.LimiteMaximo.ToString("0.0") °C</p>
+                </div>
+            </div>
+            <p class="detalle">
+                Fuera del óptimo se emite una advertencia; fuera del límite, una ruptura de la cadena de frío.
             </p>
             @if (vigente.EsPorDefecto)
             {
-                <p class="detalle">Rango por defecto: nadie lo ha configurado todavía.</p>
+                <p class="detalle">Rangos por defecto: nadie los ha configurado todavía.</p>
             }
             else
             {
@@ -44,7 +54,7 @@
 
         @* 2. Formulario para registrar un rango nuevo *@
         <section class="tarjeta">
-            <h2>Nuevo rango</h2>
+            <h2>Nuevos rangos</h2>
 
             @* EditForm valida con las mismas reglas del DTO compartido que usa la API.
                OnValidSubmit solo se ejecuta si todas las validaciones pasan. *@
@@ -52,23 +62,40 @@
             <EditForm Model="solicitud" OnValidSubmit="GuardarAsync">
                 <DataAnnotationsValidator />
 
-                <div class="campos">
-                    <label>
-                        Temperatura mínima (°C)
-                        <InputNumber @bind-Value="solicitud.TemperaturaMinima" step="0.1" />
-                        <ValidationMessage For="() => solicitud.TemperaturaMinima" />
-                    </label>
+                <fieldset>
+                    <legend>Rango óptimo (funcionamiento normal)</legend>
+                    <div class="campos">
+                        <label>
+                            Mínimo (°C)
+                            <InputNumber @bind-Value="solicitud.OptimoMinimo" step="0.1" />
+                            <ValidationMessage For="() => solicitud.OptimoMinimo" />
+                        </label>
+                        <label>
+                            Máximo (°C)
+                            <InputNumber @bind-Value="solicitud.OptimoMaximo" step="0.1" />
+                            <ValidationMessage For="() => solicitud.OptimoMaximo" />
+                        </label>
+                    </div>
+                </fieldset>
 
-                    <label>
-                        Temperatura máxima (°C)
-                        <InputNumber @bind-Value="solicitud.TemperaturaMaxima" step="0.1" />
-                        <ValidationMessage For="() => solicitud.TemperaturaMaxima" />
-                    </label>
-
-                </div>
+                <fieldset>
+                    <legend>Rango límite (fuera de él hay ruptura)</legend>
+                    <div class="campos">
+                        <label>
+                            Mínimo (°C)
+                            <InputNumber @bind-Value="solicitud.LimiteMinimo" step="0.1" />
+                            <ValidationMessage For="() => solicitud.LimiteMinimo" />
+                        </label>
+                        <label>
+                            Máximo (°C)
+                            <InputNumber @bind-Value="solicitud.LimiteMaximo" step="0.1" />
+                            <ValidationMessage For="() => solicitud.LimiteMaximo" />
+                        </label>
+                    </div>
+                </fieldset>
 
                 <button type="submit" disabled="@guardando">
-                    @(guardando ? "Guardando…" : "Guardar rango")
+                    @(guardando ? "Guardando…" : "Guardar rangos")
                 </button>
             </EditForm>
 
@@ -96,8 +123,8 @@
                         <thead>
                             <tr>
                                 <th>Fecha</th>
-                                <th>Mínima</th>
-                                <th>Máxima</th>
+                                <th>Óptimo</th>
+                                <th>Límite</th>
                                 <th>Registrado por</th>
                             </tr>
                         </thead>
@@ -106,8 +133,8 @@
                             {
                                 <tr>
                                     <td>@FormatoFecha.HoraPeru(cambio.FechaCambio!.Value)</td>
-                                    <td>@cambio.TemperaturaMinima.ToString("0.0") °C</td>
-                                    <td>@cambio.TemperaturaMaxima.ToString("0.0") °C</td>
+                                    <td>@cambio.OptimoMinimo.ToString("0.0") a @cambio.OptimoMaximo.ToString("0.0") °C</td>
+                                    <td>@cambio.LimiteMinimo.ToString("0.0") a @cambio.LimiteMaximo.ToString("0.0") °C</td>
                                     <td>@cambio.ModificadoPor</td>
                                 </tr>
                             }
@@ -123,7 +150,7 @@
     // Por ahora se configura el equipo de prueba.
     // Cuando haya varios equipos, se agregará un selector.
     private const int EquipoId = 1;
-    private const string ErrorGenerico = "No se pudo guardar el rango. Intente nuevamente.";
+    private const string ErrorGenerico = "No se pudieron guardar los rangos. Intente nuevamente.";
 
     private string? nombreEquipo;
     private RangoTemperaturaDto? vigente;
@@ -146,8 +173,10 @@
             await CargarRangosAsync();
 
             // El formulario empieza con los valores vigentes, para modificar a partir de ellos.
-            solicitud.TemperaturaMinima = vigente?.TemperaturaMinima;
-            solicitud.TemperaturaMaxima = vigente?.TemperaturaMaxima;
+            solicitud.OptimoMinimo = vigente?.OptimoMinimo;
+            solicitud.OptimoMaximo = vigente?.OptimoMaximo;
+            solicitud.LimiteMinimo = vigente?.LimiteMinimo;
+            solicitud.LimiteMaximo = vigente?.LimiteMaximo;
         }
         catch (Exception)
         {
@@ -173,7 +202,7 @@
 
             if (respuesta.IsSuccessStatusCode)
             {
-                mensajeExito = "Rango guardado correctamente.";
+                mensajeExito = "Rangos guardados correctamente.";
                 await CargarRangosAsync();
             }
             else

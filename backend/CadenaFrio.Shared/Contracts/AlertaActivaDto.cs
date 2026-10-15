@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace CadenaFrio.Shared.Contracts;
 
-// Tipo de alerta tal como lo ve la web. Se envía como texto ("TemperaturaAlta").
+// Dirección de la alerta. Se envía como texto ("TemperaturaAlta").
 [JsonConverter(typeof(JsonStringEnumConverter<TipoAlertaDto>))]
 public enum TipoAlertaDto
 {
@@ -10,18 +10,26 @@ public enum TipoAlertaDto
     TemperaturaBaja = 2
 }
 
+// Gravedad de la alerta. Se envía como texto ("Ruptura").
+[JsonConverter(typeof(JsonStringEnumConverter<NivelAlertaDto>))]
+public enum NivelAlertaDto
+{
+    Advertencia = 1,
+    Ruptura = 2
+}
+
 // Alerta que sigue activa en un equipo (HU03).
 public class AlertaActivaDto
 {
     public TipoAlertaDto Tipo { get; set; }
+    public NivelAlertaDto Nivel { get; set; }
 
     // Desde cuándo está activa (UTC).
     public DateTime Inicio { get; set; }
 
-    // Temperatura más alejada del rango durante la alerta.
-    public double ValorExtremo { get; set; }
+    // Desde cuándo hay ruptura (UTC). Nulo si sigue en advertencia.
+    public DateTime? FechaRuptura { get; set; }
 
-    // Rango vigente cuando se abrió la alerta.
-    public double RangoMinimo { get; set; }
-    public double RangoMaximo { get; set; }
+    // Temperatura más alejada del rango durante el episodio.
+    public double ValorExtremo { get; set; }
 }

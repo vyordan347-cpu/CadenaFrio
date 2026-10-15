@@ -19,8 +19,20 @@ public class NotificadorRegistro : INotificadorAlertas
     public Task AlertaAbiertaAsync(Alerta alerta, string nombreEquipo)
     {
         _logger.LogWarning(
-            "ALERTA ABIERTA | {Equipo} | {Tipo} | {Temperatura} °C fuera del rango {Minimo} a {Maximo} °C",
-            nombreEquipo, alerta.Tipo, alerta.ValorExtremo, alerta.RangoMinimo, alerta.RangoMaximo);
+            "ALERTA ABIERTA ({Nivel}) | {Equipo} | {Tipo} | {Temperatura} °C | óptimo {OptimoMin} a {OptimoMax} °C, límite {LimiteMin} a {LimiteMax} °C",
+            alerta.Nivel, nombreEquipo, alerta.Tipo, alerta.ValorExtremo,
+            alerta.OptimoMinimo, alerta.OptimoMaximo, alerta.LimiteMinimo, alerta.LimiteMaximo);
+
+        return Task.CompletedTask;
+    }
+
+    public Task AlertaEscaladaAsync(Alerta alerta, string nombreEquipo)
+    {
+        var margen = alerta.FechaRuptura!.Value - alerta.Inicio;
+
+        _logger.LogError(
+            "RUPTURA DE CADENA DE FRÍO | {Equipo} | {Tipo} | {Temperatura} °C | {Minutos:0.#} min después de la advertencia",
+            nombreEquipo, alerta.Tipo, alerta.ValorExtremo, margen.TotalMinutes);
 
         return Task.CompletedTask;
     }
@@ -30,8 +42,8 @@ public class NotificadorRegistro : INotificadorAlertas
         var duracion = alerta.Fin!.Value - alerta.Inicio;
 
         _logger.LogInformation(
-            "ALERTA CERRADA | {Equipo} | {Tipo} | duró {Minutos:0.#} min | valor extremo {Temperatura} °C",
-            nombreEquipo, alerta.Tipo, duracion.TotalMinutes, alerta.ValorExtremo);
+            "ALERTA CERRADA ({Nivel}) | {Equipo} | {Tipo} | duró {Minutos:0.#} min | valor extremo {Temperatura} °C",
+            alerta.Nivel, nombreEquipo, alerta.Tipo, duracion.TotalMinutes, alerta.ValorExtremo);
 
         return Task.CompletedTask;
     }

@@ -2,28 +2,53 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CadenaFrio.Shared.Contracts;
 
-// Datos que envía la pantalla de configuración para registrar un rango nuevo (HU02).
-// Quién hace el cambio ya no viene aquí: la API lo toma del usuario con sesión iniciada.
-// IValidatableObject permite validar reglas que involucran varios campos a la vez.
+// Datos que envía la pantalla de configuración para registrar nuevos rangos (HU02).
+// Quién hace el cambio no viene aquí: la API lo toma del usuario con sesión iniciada.
 public class ConfigurarRangoRequest : IValidatableObject
 {
-    [Required(ErrorMessage = "La temperatura mínima es obligatoria.")]
-    [Range(-50.0, 60.0, ErrorMessage = "La temperatura mínima debe estar entre -50 °C y 60 °C.")]
-    public double? TemperaturaMinima { get; set; }
+    private const string MensajeRangoFisico = "Debe estar entre -50 °C y 60 °C.";
 
-    [Required(ErrorMessage = "La temperatura máxima es obligatoria.")]
-    [Range(-50.0, 60.0, ErrorMessage = "La temperatura máxima debe estar entre -50 °C y 60 °C.")]
-    public double? TemperaturaMaxima { get; set; }
+    [Required(ErrorMessage = "Obligatorio.")]
+    [Range(-50.0, 60.0, ErrorMessage = MensajeRangoFisico)]
+    public double? OptimoMinimo { get; set; }
 
-    // Regla entre campos: el mínimo debe ser menor que el máximo (RF04).
+    [Required(ErrorMessage = "Obligatorio.")]
+    [Range(-50.0, 60.0, ErrorMessage = MensajeRangoFisico)]
+    public double? OptimoMaximo { get; set; }
+
+    [Required(ErrorMessage = "Obligatorio.")]
+    [Range(-50.0, 60.0, ErrorMessage = MensajeRangoFisico)]
+    public double? LimiteMinimo { get; set; }
+
+    [Required(ErrorMessage = "Obligatorio.")]
+    [Range(-50.0, 60.0, ErrorMessage = MensajeRangoFisico)]
+    public double? LimiteMaximo { get; set; }
+
+    // Reglas entre campos (RF04):
+    // límite mínimo ≤ óptimo mínimo < óptimo máximo ≤ límite máximo.
+    // Se permite igualar el óptimo con el límite cuando un lado no necesita franja de advertencia.
     // Solo se ejecuta si las validaciones de arriba ya pasaron.
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        if (TemperaturaMinima >= TemperaturaMaxima)
+        if (OptimoMinimo >= OptimoMaximo)
         {
             yield return new ValidationResult(
-                "La temperatura mínima debe ser menor que la máxima.",
-                new[] { nameof(TemperaturaMinima), nameof(TemperaturaMaxima) });
+                "El óptimo mínimo debe ser menor que el óptimo máximo.",
+                new[] { nameof(OptimoMinimo), nameof(OptimoMaximo) });
+        }
+
+        if (LimiteMinimo > OptimoMinimo)
+        {
+            yield return new ValidationResult(
+                "El límite mínimo no puede ser mayor que el óptimo mínimo.",
+                new[] { nameof(LimiteMinimo) });
+        }
+
+        if (LimiteMaximo < OptimoMaximo)
+        {
+            yield return new ValidationResult(
+                "El límite máximo no puede ser menor que el óptimo máximo.",
+                new[] { nameof(LimiteMaximo) });
         }
     }
 }

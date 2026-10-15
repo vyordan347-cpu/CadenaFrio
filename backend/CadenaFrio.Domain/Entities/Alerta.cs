@@ -2,8 +2,9 @@ using CadenaFrio.Domain.Enums;
 
 namespace CadenaFrio.Domain.Entities;
 
-// Situación que requiere atención del personal (HU03, RF06, RF08).
-// Se abre con la primera lectura fuera de rango y se cierra cuando la temperatura vuelve al rango.
+// Episodio que requiere atención del personal (HU03, RF06, RF08).
+// Se abre al salir del rango óptimo, puede escalar a ruptura y se cierra
+// cuando la temperatura vuelve al rango óptimo.
 public class Alerta
 {
     public int Id { get; set; }
@@ -13,17 +14,38 @@ public class Alerta
 
     public TipoAlerta Tipo { get; set; }
 
-    // Hora de medición de la primera lectura fuera de rango (UTC).
+    // Nivel más grave alcanzado durante el episodio. Nunca baja: si hubo ruptura,
+    // las vacunas ya estuvieron expuestas aunque la temperatura mejore después.
+    public NivelAlerta Nivel { get; set; }
+
+    // Hora de medición de la primera lectura fuera del rango óptimo (UTC).
     public DateTime Inicio { get; set; }
 
-    // Hora en que la temperatura volvió al rango (UTC). Nulo mientras la alerta siga activa.
+    // Hora en que el episodio llegó a ruptura (UTC). Nulo si nunca la alcanzó.
+    // La diferencia con Inicio es el margen que tuvo el personal para actuar.
+    public DateTime? FechaRuptura { get; set; }
+
+    // Hora en que la temperatura volvió al rango óptimo (UTC). Nulo mientras siga activa.
     public DateTime? Fin { get; set; }
 
-    // La temperatura más alejada del rango durante la alerta (el pico más alto o el más bajo).
+    // La temperatura más alejada del rango durante el episodio.
     public double ValorExtremo { get; set; }
 
-    // Rango vigente cuando se abrió la alerta. Se guarda porque el rango puede cambiar
+    // Rangos vigentes cuando se abrió la alerta. Se guardan porque pueden cambiar
     // después, y la alerta debe seguir explicando por qué se abrió.
-    public double RangoMinimo { get; set; }
-    public double RangoMaximo { get; set; }
+    public double OptimoMinimo { get; set; }
+    public double OptimoMaximo { get; set; }
+
+    // En la base de datos siguen llamándose RangoMinimo y RangoMaximo (ver el DbContext).
+    public double LimiteMinimo { get; set; }
+    public double LimiteMaximo { get; set; }
+
+    // Revisión del personal (RF08). Que la alerta termine (Fin) es un hecho físico;
+    // que esté atendida es una responsabilidad humana: alguien la revisó y registró qué hizo.
+    // Toda ruptura queda pendiente hasta que se atiende, aunque ya haya terminado.
+    // Si se atendió durante la advertencia y luego escaló, vuelve a quedar pendiente
+    // (FechaAtencion anterior a FechaRuptura).
+    public string? AtendidaPor { get; set; }
+    public DateTime? FechaAtencion { get; set; }
+    public string? ObservacionAtencion { get; set; }
 }

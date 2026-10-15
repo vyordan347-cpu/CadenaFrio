@@ -25,10 +25,12 @@ public class TemperaturaActualDto
 
     public EstadoLectura Estado { get; set; }
 
-    // Rango vigente del equipo (el configurado o el de por defecto).
-    public double RangoMinimo { get; set; }
-    public double RangoMaximo { get; set; }
+    // Rangos vigentes del equipo (los configurados o los de por defecto).
+    public double OptimoMinimo { get; set; }
+    public double OptimoMaximo { get; set; }
+    public double LimiteMinimo { get; set; }
+    public double LimiteMaximo { get; set; }
 
-    // Alerta de temperatura activa. Nula si la temperatura está dentro del rango.
+    // Alerta de temperatura activa. Nula si la temperatura está dentro del rango óptimo.
     public AlertaActivaDto? AlertaActiva { get; set; }
 }

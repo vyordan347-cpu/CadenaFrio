@@ -143,3 +143,35 @@ th {
     color: #52606d;
     font-weight: 600;
 }
+
+/* Rangos vigentes lado a lado */
+.rangos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.5rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.etiqueta {
+    margin: 0;
+    color: #52606d;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Grupos del formulario: rango óptimo y rango límite */
+fieldset {
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem 0;
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+}
+
+legend {
+    padding: 0 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1f2933;
+}

@@ -6,9 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CadenaFrio.Infrastructure.Servicios;
 
-// Regla de negocio de la HU03: decide si una lectura abre, actualiza o cierra una alerta.
-// Está separado del controlador para poder reutilizarlo (por ejemplo, con las
-// lecturas del termo en el Sprint 7) y probarlo de forma independiente.
+// Regla de negocio de la HU03: decide si una lectura abre, escala, actualiza o cierra
+// una alerta. Está separado del controlador para poder reutilizarlo (por ejemplo,
+// con las lecturas del termo en el Sprint 7) y probarlo de forma independiente.
 public class MotorAlertas
 {
     private readonly CadenaFrioDbContext _db;
@@ -34,47 +34,59 @@ public class MotorAlertas
             return;
         }
 
-        var (minimo, maximo) = await _db.ObtenerLimitesAsync(lectura.EquipoId);
+        var limites = await _db.ObtenerLimitesAsync(lectura.EquipoId);
 
-        // Condición de la lectura: alta, baja o dentro del rango (null).
-        TipoAlerta? condicion =
-            lectura.Temperatura > maximo ? TipoAlerta.TemperaturaAlta :
-            lectura.Temperatura < minimo ? TipoAlerta.TemperaturaBaja :
-            null;
+        // Dirección (alta o baja) y nivel (advertencia o ruptura) de la lectura.
+        // Ambos nulos si está dentro del rango óptimo.
+        var (tipo, nivel) = limites.Clasificar(lectura.Temperatura);
 
         var alertaAbierta = await _db.ObtenerAlertaTemperaturaAbiertaAsync(lectura.EquipoId);
 
         Alerta? alertaCerrada = null;
         Alerta? alertaNueva = null;
+        Alerta? alertaEscalada = null;
 
-        // 1. Cerrar: hay una alerta abierta y la condición ya no es la misma
-        //    (la temperatura volvió al rango, o saltó de alta a baja).
-        if (alertaAbierta is not null && alertaAbierta.Tipo != condicion)
+        // 1. Cerrar: hay una alerta abierta y la dirección ya no es la misma
+        //    (la temperatura volvió al rango óptimo, o saltó de alta a baja).
+        if (alertaAbierta is not null && alertaAbierta.Tipo != tipo)
         {
             alertaAbierta.Fin = lectura.FechaMedicion;
             alertaCerrada = alertaAbierta;
         }
 
-        if (condicion is not null)
+        if (tipo is not null)
         {
-            if (alertaAbierta is not null && alertaAbierta.Tipo == condicion)
+            if (alertaAbierta is not null && alertaAbierta.Tipo == tipo)
             {
-                // 2. Actualizar: la alerta sigue; se guarda el valor más extremo alcanzado.
-                alertaAbierta.ValorExtremo = condicion == TipoAlerta.TemperaturaAlta
+                // 2. Actualizar: el episodio continúa; se guarda el valor más extremo alcanzado.
+                alertaAbierta.ValorExtremo = tipo == TipoAlerta.TemperaturaAlta
                     ? Math.Max(alertaAbierta.ValorExtremo, lectura.Temperatura)
                     : Math.Min(alertaAbierta.ValorExtremo, lectura.Temperatura);
+
+                // 3. Escalar: de advertencia a ruptura. Nunca baja de nivel.
+                if (nivel == NivelAlerta.Ruptura && alertaAbierta.Nivel == NivelAlerta.Advertencia)
+                {
+                    alertaAbierta.Nivel = NivelAlerta.Ruptura;
+                    alertaAbierta.FechaRuptura = lectura.FechaMedicion;
+                    alertaEscalada = alertaAbierta;
+                }
             }
             else
             {
-                // 3. Abrir: alerta inmediata con la primera lectura fuera de rango.
+                // 4. Abrir: alerta inmediata con la primera lectura fuera del rango óptimo.
+                //    Si la temperatura ya cruzó el límite, se abre directamente como ruptura.
                 alertaNueva = new Alerta
                 {
                     EquipoId = lectura.EquipoId,
-                    Tipo = condicion.Value,
+                    Tipo = tipo.Value,
+                    Nivel = nivel!.Value,
                     Inicio = lectura.FechaMedicion,
+                    FechaRuptura = nivel == NivelAlerta.Ruptura ? lectura.FechaMedicion : null,
                     ValorExtremo = lectura.Temperatura,
-                    RangoMinimo = minimo,
-                    RangoMaximo = maximo
+                    OptimoMinimo = limites.OptimoMinimo,
+                    OptimoMaximo = limites.OptimoMaximo,
+                    LimiteMinimo = limites.LimiteMinimo,
+                    LimiteMaximo = limites.LimiteMaximo
                 };
                 _db.Alertas.Add(alertaNueva);
             }
@@ -83,7 +95,7 @@ public class MotorAlertas
         await _db.SaveChangesAsync();
 
         // Se notifica después de guardar: solo se avisa de lo que quedó registrado.
-        if (alertaCerrada is null && alertaNueva is null)
+        if (alertaCerrada is null && alertaNueva is null && alertaEscalada is null)
         {
             return;
         }
@@ -101,6 +113,11 @@ public class MotorAlertas
         if (alertaNueva is not null)
         {
             await _notificador.AlertaAbiertaAsync(alertaNueva, nombreEquipo);
+        }
+
+        if (alertaEscalada is not null)
+        {
+            await _notificador.AlertaEscaladaAsync(alertaEscalada, nombreEquipo);
         }
     }
 }
