@@ -1,0 +1,71 @@
+@page "/login"
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Autenticacion
+@inject ProveedorEstadoAutenticacion Autenticacion
+@inject NavigationManager Navegacion
+
+<PageTitle>Cadena de frío - Iniciar sesión</PageTitle>
+
+<div class="contenedor">
+    <div class="tarjeta">
+        <h1>Cadena de Frío</h1>
+        <p class="subtitulo">Inicie sesión para continuar</p>
+
+        <EditForm Model="solicitud" OnValidSubmit="IngresarAsync">
+            <DataAnnotationsValidator />
+
+            <label>
+                Usuario
+                <InputText @bind-Value="solicitud.NombreUsuario" autocomplete="username" />
+                <ValidationMessage For="() => solicitud.NombreUsuario" />
+            </label>
+
+            <label>
+                Contraseña
+                <InputText type="password" @bind-Value="solicitud.Contrasena" autocomplete="current-password" />
+                <ValidationMessage For="() => solicitud.Contrasena" />
+            </label>
+
+            <button type="submit" disabled="@ingresando">
+                @(ingresando ? "Ingresando…" : "Ingresar")
+            </button>
+        </EditForm>
+
+        @if (error is not null)
+        {
+            <div class="aviso-error">@error</div>
+        }
+    </div>
+</div>
+
+@code {
+    // Página a la que el usuario quería ir antes de que se le pidiera iniciar sesión.
+    [SupplyParameterFromQuery]
+    public string? Volver { get; set; }
+
+    private LoginRequest solicitud = new();
+    private bool ingresando;
+    private string? error;
+
+    private async Task IngresarAsync()
+    {
+        ingresando = true;
+        error = null;
+
+        error = await Autenticacion.IniciarSesionAsync(solicitud);
+
+        if (error is null)
+        {
+            Navegacion.NavigateTo(DestinoSeguro());
+        }
+
+        ingresando = false;
+    }
+
+    // Solo se permite volver a páginas de esta misma app. Si "volver" apuntara
+    // a otro sitio (por ejemplo "//sitio-falso.com"), se va al inicio.
+    private string DestinoSeguro() =>
+        string.IsNullOrWhiteSpace(Volver) || Volver.Contains(':') || Volver.StartsWith('/') || Volver.StartsWith('\\')
+            ? string.Empty
+            : Volver;
+}

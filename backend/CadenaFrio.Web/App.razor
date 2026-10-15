@@ -1,6 +1,22 @@
-﻿<Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using CadenaFrio.Web.Autenticacion
+<Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)"/>
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+    <NotAuthorized>
+        @if (context.User.Identity?.IsAuthenticated != true)
+        {
+            <RedirigirALogin />
+        }
+        else
+        {
+            <p style="padding: 2rem; text-align: center;">No tiene permiso para ver esta página.</p>
+        }
+    </NotAuthorized>
+    <Authorizing>
+        <p style="padding: 2rem; text-align: center;">Verificando sesión…</p>
+    </Authorizing>
+</AuthorizeRouteView>
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
 </Router>

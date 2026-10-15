@@ -1,16 +1,44 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@using CadenaFrio.Shared.Contracts
+@using Microsoft.AspNetCore.Components.Authorization
+@using CadenaFrio.Web.Autenticacion
+@inject ProveedorEstadoAutenticacion Autenticacion
+@inject NavigationManager Navegacion
 
 @* Estructura común a todas las pantallas: barra superior con menú y contenido. *@
 
 <header class="barra">
     <span class="marca">Cadena de Frío</span>
-    <nav class="menu">
-        @* NavLink marca automáticamente con la clase "active" el enlace de la página actual. *@
-        <NavLink href="" Match="NavLinkMatch.All">Temperatura</NavLink>
-        <NavLink href="configuracion">Configuración</NavLink>
-    </nav>
+
+    @* AuthorizeView muestra su contenido solo si hay sesión iniciada. *@
+    <AuthorizeView>
+        <Authorized>
+            <nav class="menu">
+                @* NavLink marca automáticamente con la clase "active" el enlace de la página actual. *@
+                <NavLink href="" Match="NavLinkMatch.All">Temperatura</NavLink>
+
+                @* "Configuración" solo aparece para quien tiene permiso de cambiar rangos. *@
+                <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos" Context="permiso">
+                    <NavLink href="configuracion">Configuración</NavLink>
+                </AuthorizeView>
+            </nav>
+
+            <div class="sesion">
+                <span class="usuario">@context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value</span>
+                <button class="salir" @onclick="CerrarSesionAsync">Salir</button>
+            </div>
+        </Authorized>
+    </AuthorizeView>
 </header>
 
 <div class="cuerpo">
     @Body
 </div>
+
+@code {
+    private async Task CerrarSesionAsync()
+    {
+        await Autenticacion.CerrarSesionAsync();
+        Navegacion.NavigateTo("login");
+    }
+}

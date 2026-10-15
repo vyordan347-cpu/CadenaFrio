@@ -1,0 +1,12 @@
+@inject NavigationManager Navegacion
+
+@* Se muestra cuando alguien sin sesión intenta entrar a una página protegida.
+   Lo lleva al login, recordando a qué página quería ir. *@
+
+@code {
+    protected override void OnInitialized()
+    {
+        var paginaSolicitada = Navegacion.ToBaseRelativePath(Navegacion.Uri);
+        Navegacion.NavigateTo($"login?volver={Uri.EscapeDataString(paginaSolicitada)}");
+    }
+}

@@ -16,6 +16,7 @@ public class CadenaFrioDbContext : DbContext
     public DbSet<Lectura> Lecturas => Set<Lectura>();
     public DbSet<RangoTemperatura> RangosTemperatura => Set<RangoTemperatura>();
     public DbSet<Alerta> Alertas => Set<Alerta>();
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -81,6 +82,20 @@ public class CadenaFrioDbContext : DbContext
             // Para consultar el historial de alertas por fechas (Sprint 5).
             alerta.HasIndex(a => new { a.EquipoId, a.Inicio });
         });
+
+        modelBuilder.Entity<Usuario>(usuario =>
+        {
+            usuario.Property(u => u.NombreCompleto).IsRequired().HasMaxLength(100);
+            usuario.Property(u => u.NombreUsuario).IsRequired().HasMaxLength(50);
+            usuario.Property(u => u.ContrasenaHash).IsRequired();
+
+            // Dos personas no pueden tener el mismo nombre de usuario.
+            usuario.HasIndex(u => u.NombreUsuario).IsUnique();
+        });
+
+        // Los usuarios de prueba no se crean aquí, sino al iniciar la API
+        // (SembradorUsuarios), porque el cifrado de contraseñas genera un valor
+        // distinto cada vez y los datos semilla de una migración deben ser fijos.
 
         // Equipo de prueba para enviar lecturas simuladas mientras no hay hardware.
         // La fecha es fija porque los datos semilla no pueden cambiar entre migraciones.

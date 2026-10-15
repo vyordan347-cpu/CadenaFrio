@@ -1,7 +1,12 @@
+using CadenaFrio.Api.Inicializacion;
+using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Servicios;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Infrastructure.Notificaciones;
 using CadenaFrio.Infrastructure.Servicios;
+using CadenaFrio.Shared.Contracts;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +22,44 @@ builder.Services.AddScoped<MotorAlertas>();
 // solo se reemplaza NotificadorRegistro por la nueva implementación.
 builder.Services.AddScoped<INotificadorAlertas, NotificadorRegistro>();
 
+// Cifrado de contraseñas (RNF05).
+builder.Services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
+
+// Autenticación con cookie (RF03).
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(opciones =>
+    {
+        opciones.Cookie.Name = "CadenaFrio.Sesion";
+        // HttpOnly: el código JavaScript del navegador no puede leer la cookie.
+        opciones.Cookie.HttpOnly = true;
+        // Strict: la cookie no se envía desde otros sitios (protege contra ataques CSRF).
+        opciones.Cookie.SameSite = SameSiteMode.Strict;
+        // La sesión dura 8 horas (un turno) y se renueva mientras el usuario esté activo.
+        opciones.ExpireTimeSpan = TimeSpan.FromHours(8);
+        opciones.SlidingExpiration = true;
+
+        // Por defecto, ASP.NET redirige a una página de login del servidor.
+        // Como es una API, se responde 401 (sin sesión) o 403 (sin permiso).
+        opciones.Events.OnRedirectToLogin = contexto =>
+        {
+            contexto.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        opciones.Events.OnRedirectToAccessDenied = contexto =>
+        {
+            contexto.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        };
+    });
+
+// Permisos por rol.
+builder.Services.AddAuthorization(opciones =>
+{
+    opciones.AddPolicy(Politicas.PuedeConfigurarRangos, politica =>
+        politica.RequireRole(Roles.ResponsableInmunizaciones, Roles.Administrador));
+});
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
@@ -27,6 +70,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     // Permite depurar la app Blazor desde el navegador.
     app.UseWebAssemblyDebugging();
+
+    // Usuarios de prueba, uno por rol.
+    await SembradorUsuarios.SembrarAsync(app.Services);
 }
 else
 {
@@ -39,7 +85,10 @@ else
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
+// El orden importa: primero se identifica al usuario, luego se revisan sus permisos.
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 // Cualquier ruta que no sea de la API se entrega a Blazor,

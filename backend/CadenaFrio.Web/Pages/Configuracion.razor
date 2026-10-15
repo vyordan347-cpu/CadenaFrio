@@ -1,4 +1,6 @@
 @page "/configuracion"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = Politicas.PuedeConfigurarRangos)]
 @using System.Net
 @using System.Net.Http.Json
 @using System.Text.Json
@@ -46,6 +48,7 @@
 
             @* EditForm valida con las mismas reglas del DTO compartido que usa la API.
                OnValidSubmit solo se ejecuta si todas las validaciones pasan. *@
+            @* Quién hace el cambio ya no se escribe: la API lo toma de la sesión iniciada. *@
             <EditForm Model="solicitud" OnValidSubmit="GuardarAsync">
                 <DataAnnotationsValidator />
 
@@ -62,11 +65,6 @@
                         <ValidationMessage For="() => solicitud.TemperaturaMaxima" />
                     </label>
 
-                    <label class="campo-ancho">
-                        Registrado por
-                        <InputText @bind-Value="solicitud.ModificadoPor" placeholder="Nombre y apellido" />
-                        <ValidationMessage For="() => solicitud.ModificadoPor" />
-                    </label>
                 </div>
 
                 <button type="submit" disabled="@guardando">

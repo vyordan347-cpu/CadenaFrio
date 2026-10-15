@@ -90,3 +90,23 @@ Content-Type: application/json
 
 ### 12. Historial de cambios (200)
 GET {{host}}/api/equipos/1/rangos
+### 13. Iniciar sesión como responsable (REST Client guarda la cookie para las siguientes pruebas)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "nombreUsuario": "responsable",
+  "contrasena": "Responsable123!"
+}
+
+### 14. Iniciar sesión como enfermera (luego la prueba 9 debe responder 403)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "nombreUsuario": "enfermera",
+  "contrasena": "Enfermera123!"
+}
+
+### 15. Quién tiene la sesión iniciada
+GET {{host}}/api/auth/yo

@@ -1,12 +1,17 @@
+using System.Security.Claims;
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Shared.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace CadenaFrio.Api.Controllers;
 
+// [Authorize] en la clase: todos estos endpoints requieren sesión iniciada.
+// (Las lecturas del ESP32 no pasan por aquí: usan su clave de dispositivo.)
 [ApiController]
+[Authorize]
 [Route("api/equipos")]
 public class EquiposController : ControllerBase
 {
@@ -119,8 +124,10 @@ public class EquiposController : ControllerBase
 
     // POST /api/equipos/{id}/rango  (HU02, RF04, RF05)
     // Registra un rango nuevo. Nunca modifica uno existente: cada cambio queda en el historial.
-    // Las validaciones del DTO (rango físico, mínimo < máximo, nombre) ya se aplicaron
+    // Las validaciones del DTO (rango físico, mínimo < máximo) ya se aplicaron
     // automáticamente gracias a [ApiController].
+    // Solo el personal autorizado (responsable o administrador) puede usarlo: los demás reciben 403.
+    [Authorize(Policy = Politicas.PuedeConfigurarRangos)]
     [HttpPost("{id:int}/rango")]
     public async Task<ActionResult<RangoTemperaturaDto>> ConfigurarRango(int id, ConfigurarRangoRequest solicitud)
     {
@@ -153,7 +160,8 @@ public class EquiposController : ControllerBase
             EquipoId = id,
             TemperaturaMinima = minima,
             TemperaturaMaxima = maxima,
-            ModificadoPor = solicitud.ModificadoPor!.Trim(),
+            // Quién hizo el cambio se toma de la sesión, no de lo que envíe la pantalla.
+            ModificadoPor = User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity!.Name!,
             FechaCambio = DateTime.UtcNow
         };
 
