@@ -92,6 +92,39 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.ToTable("Lecturas");
                 });
 
+            modelBuilder.Entity("CadenaFrio.Domain.Entities.RangoTemperatura", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EquipoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCambio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("TemperaturaMaxima")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("TemperaturaMinima")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EquipoId", "FechaCambio");
+
+                    b.ToTable("RangosTemperatura", t =>
+                        {
+                            t.HasCheckConstraint("CK_RangoTemperatura_MinimaMenorQueMaxima", "\"TemperaturaMinima\" < \"TemperaturaMaxima\"");
+                        });
+                });
+
             modelBuilder.Entity("CadenaFrio.Domain.Entities.Lectura", b =>
                 {
                     b.HasOne("CadenaFrio.Domain.Entities.Equipo", "Equipo")
@@ -103,9 +136,22 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.Navigation("Equipo");
                 });
 
+            modelBuilder.Entity("CadenaFrio.Domain.Entities.RangoTemperatura", b =>
+                {
+                    b.HasOne("CadenaFrio.Domain.Entities.Equipo", "Equipo")
+                        .WithMany("Rangos")
+                        .HasForeignKey("EquipoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Equipo");
+                });
+
             modelBuilder.Entity("CadenaFrio.Domain.Entities.Equipo", b =>
                 {
                     b.Navigation("Lecturas");
+
+                    b.Navigation("Rangos");
                 });
 #pragma warning restore 612, 618
         }
