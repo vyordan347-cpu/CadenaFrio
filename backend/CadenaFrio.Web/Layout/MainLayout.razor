@@ -1,3 +1,16 @@
 ﻿@inherits LayoutComponentBase
 
-@Body
+@* Estructura común a todas las pantallas: barra superior con menú y contenido. *@
+
+<header class="barra">
+    <span class="marca">Cadena de Frío</span>
+    <nav class="menu">
+        @* NavLink marca automáticamente con la clase "active" el enlace de la página actual. *@
+        <NavLink href="" Match="NavLinkMatch.All">Temperatura</NavLink>
+        <NavLink href="configuracion">Configuración</NavLink>
+    </nav>
+</header>
+
+<div class="cuerpo">
+    @Body
+</div>

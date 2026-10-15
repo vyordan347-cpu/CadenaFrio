@@ -1,0 +1,145 @@
+.pagina {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #1f2933;
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.6rem;
+}
+
+h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.1rem;
+}
+
+.subtitulo {
+    margin: 0.25rem 0 1.25rem;
+    color: #52606d;
+}
+
+.tarjeta {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.rango {
+    margin: 0 0 0.35rem;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.detalle {
+    margin: 0;
+    color: #52606d;
+    font-size: 0.95rem;
+}
+
+/* Formulario */
+.campos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.campo-ancho {
+    grid-column: 1 / -1;
+}
+
+label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* Los inputs los dibujan componentes de Blazor (InputNumber, InputText),
+   por eso se usa ::deep para alcanzarlos. */
+label ::deep input {
+    padding: 0.6rem 0.7rem;
+    border: 1px solid #cbd2d9;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 400;
+}
+
+label ::deep input:focus {
+    outline: 2px solid #3e7bfa;
+    border-color: transparent;
+}
+
+/* Blazor marca con "invalid" los campos que no pasan la validación. */
+label ::deep input.invalid {
+    border-color: #c92a2a;
+}
+
+label ::deep .validation-message {
+    color: #c92a2a;
+    font-size: 0.85rem;
+    font-weight: 400;
+}
+
+button {
+    padding: 0.65rem 1.25rem;
+    border: none;
+    border-radius: 8px;
+    background: #1f2933;
+    color: #ffffff;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Avisos */
+.aviso {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+.aviso-exito {
+    background: #ebfbee;
+    color: #2b8a3e;
+}
+
+.aviso-error {
+    background: #fff5f5;
+    color: #c92a2a;
+}
+
+/* Tabla de historial: se desplaza horizontalmente en pantallas angostas. */
+.tabla-contenedor {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+th,
+td {
+    padding: 0.6rem 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #e4e7eb;
+    white-space: nowrap;
+}
+
+th {
+    color: #52606d;
+    font-weight: 600;
+}

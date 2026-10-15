@@ -1,0 +1,227 @@
+@page "/configuracion"
+@using System.Net
+@using System.Net.Http.Json
+@using System.Text.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Utilidades
+@inject HttpClient Http
+
+<PageTitle>Cadena de frío - Configuración de rangos</PageTitle>
+
+<div class="pagina">
+    <h1>Configuración de rangos</h1>
+    <p class="subtitulo">@(nombreEquipo ?? "Cargando equipo…")</p>
+
+    @if (errorCarga is not null)
+    {
+        <div class="aviso aviso-error">@errorCarga</div>
+    }
+    else if (vigente is null)
+    {
+        <p class="detalle">Cargando…</p>
+    }
+    else
+    {
+        @* 1. Rango vigente *@
+        <section class="tarjeta">
+            <h2>Rango vigente</h2>
+            <p class="rango">
+                @vigente.TemperaturaMinima.ToString("0.0") °C a @vigente.TemperaturaMaxima.ToString("0.0") °C
+            </p>
+            @if (vigente.EsPorDefecto)
+            {
+                <p class="detalle">Rango por defecto: nadie lo ha configurado todavía.</p>
+            }
+            else
+            {
+                <p class="detalle">
+                    Configurado por @vigente.ModificadoPor el @FormatoFecha.HoraPeru(vigente.FechaCambio!.Value)
+                </p>
+            }
+        </section>
+
+        @* 2. Formulario para registrar un rango nuevo *@
+        <section class="tarjeta">
+            <h2>Nuevo rango</h2>
+
+            @* EditForm valida con las mismas reglas del DTO compartido que usa la API.
+               OnValidSubmit solo se ejecuta si todas las validaciones pasan. *@
+            <EditForm Model="solicitud" OnValidSubmit="GuardarAsync">
+                <DataAnnotationsValidator />
+
+                <div class="campos">
+                    <label>
+                        Temperatura mínima (°C)
+                        <InputNumber @bind-Value="solicitud.TemperaturaMinima" step="0.1" />
+                        <ValidationMessage For="() => solicitud.TemperaturaMinima" />
+                    </label>
+
+                    <label>
+                        Temperatura máxima (°C)
+                        <InputNumber @bind-Value="solicitud.TemperaturaMaxima" step="0.1" />
+                        <ValidationMessage For="() => solicitud.TemperaturaMaxima" />
+                    </label>
+
+                    <label class="campo-ancho">
+                        Registrado por
+                        <InputText @bind-Value="solicitud.ModificadoPor" placeholder="Nombre y apellido" />
+                        <ValidationMessage For="() => solicitud.ModificadoPor" />
+                    </label>
+                </div>
+
+                <button type="submit" disabled="@guardando">
+                    @(guardando ? "Guardando…" : "Guardar rango")
+                </button>
+            </EditForm>
+
+            @if (mensajeExito is not null)
+            {
+                <div class="aviso aviso-exito">@mensajeExito</div>
+            }
+            @if (mensajeError is not null)
+            {
+                <div class="aviso aviso-error">@mensajeError</div>
+            }
+        </section>
+
+        @* 3. Historial de cambios *@
+        <section class="tarjeta">
+            <h2>Historial de cambios</h2>
+            @if (historial.Count == 0)
+            {
+                <p class="detalle">Aún no se han registrado cambios.</p>
+            }
+            else
+            {
+                <div class="tabla-contenedor">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Mínima</th>
+                                <th>Máxima</th>
+                                <th>Registrado por</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var cambio in historial)
+                            {
+                                <tr>
+                                    <td>@FormatoFecha.HoraPeru(cambio.FechaCambio!.Value)</td>
+                                    <td>@cambio.TemperaturaMinima.ToString("0.0") °C</td>
+                                    <td>@cambio.TemperaturaMaxima.ToString("0.0") °C</td>
+                                    <td>@cambio.ModificadoPor</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    // Por ahora se configura el equipo de prueba.
+    // Cuando haya varios equipos, se agregará un selector.
+    private const int EquipoId = 1;
+    private const string ErrorGenerico = "No se pudo guardar el rango. Intente nuevamente.";
+
+    private string? nombreEquipo;
+    private RangoTemperaturaDto? vigente;
+    private List<RangoTemperaturaDto> historial = new();
+    private ConfigurarRangoRequest solicitud = new();
+
+    private bool guardando;
+    private string? errorCarga;
+    private string? mensajeExito;
+    private string? mensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var temperatura = await Http.GetFromJsonAsync<TemperaturaActualDto>(
+                $"api/equipos/{EquipoId}/temperatura-actual");
+            nombreEquipo = temperatura?.NombreEquipo;
+
+            await CargarRangosAsync();
+
+            // El formulario empieza con los valores vigentes, para modificar a partir de ellos.
+            solicitud.TemperaturaMinima = vigente?.TemperaturaMinima;
+            solicitud.TemperaturaMaxima = vigente?.TemperaturaMaxima;
+        }
+        catch (Exception)
+        {
+            errorCarga = "No se pudo cargar la configuración. Revise que el servidor esté en funcionamiento.";
+        }
+    }
+
+    private async Task CargarRangosAsync()
+    {
+        vigente = await Http.GetFromJsonAsync<RangoTemperaturaDto>($"api/equipos/{EquipoId}/rango");
+        historial = await Http.GetFromJsonAsync<List<RangoTemperaturaDto>>($"api/equipos/{EquipoId}/rangos") ?? new();
+    }
+
+    private async Task GuardarAsync()
+    {
+        guardando = true;
+        mensajeExito = null;
+        mensajeError = null;
+
+        try
+        {
+            var respuesta = await Http.PostAsJsonAsync($"api/equipos/{EquipoId}/rango", solicitud);
+
+            if (respuesta.IsSuccessStatusCode)
+            {
+                mensajeExito = "Rango guardado correctamente.";
+                await CargarRangosAsync();
+            }
+            else
+            {
+                mensajeError = await LeerMensajeDeErrorAsync(respuesta);
+            }
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo conectar con el servidor.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    // La API responde errores en dos formatos: { "mensaje": ... } (los nuestros)
+    // y Problem Details con "errors" (validaciones automáticas). Se leen ambos.
+    private static async Task<string> LeerMensajeDeErrorAsync(HttpResponseMessage respuesta)
+    {
+        try
+        {
+            using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+            var raiz = documento.RootElement;
+
+            if (raiz.TryGetProperty("mensaje", out var mensaje))
+            {
+                return mensaje.GetString() ?? ErrorGenerico;
+            }
+
+            if (raiz.TryGetProperty("errors", out var errores))
+            {
+                foreach (var campo in errores.EnumerateObject())
+                {
+                    foreach (var detalle in campo.Value.EnumerateArray())
+                    {
+                        return detalle.GetString() ?? ErrorGenerico;
+                    }
+                }
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return ErrorGenerico;
+    }
+}

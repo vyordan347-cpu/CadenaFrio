@@ -74,14 +74,7 @@ public class EquiposController : ControllerBase
             return NotFound(new { mensaje = "Equipo no encontrado." });
         }
  
-        // El vigente es el más reciente. El Id desempata si dos cambios
-        // tuvieran exactamente la misma fecha.
-        var rango = await _db.RangosTemperatura
-            .AsNoTracking()
-            .Where(r => r.EquipoId == id)
-            .OrderByDescending(r => r.FechaCambio)
-            .ThenByDescending(r => r.Id)
-            .FirstOrDefaultAsync();
+        var rango = await ObtenerRangoVigenteAsync(id);
  
         return Ok(rango is null ? RangoPorDefecto(id) : ConvertirADto(rango));
     }
@@ -125,11 +118,23 @@ public class EquiposController : ControllerBase
             return BadRequest(new { mensaje = "No se puede configurar el rango de un equipo inactivo." });
         }
  
+        var minima = solicitud.TemperaturaMinima!.Value;
+        var maxima = solicitud.TemperaturaMaxima!.Value;
+ 
+        // Si el rango es igual al vigente, no se registra nada: el historial
+        // solo debe contener cambios reales.
+        // 409 Conflict indica que la solicitud no tiene sentido con el estado actual.
+        var vigente = await ObtenerRangoVigenteAsync(id);
+        if (vigente is not null && vigente.TemperaturaMinima == minima && vigente.TemperaturaMaxima == maxima)
+        {
+            return Conflict(new { mensaje = "El rango indicado es igual al vigente. No se registró ningún cambio." });
+        }
+ 
         var rango = new RangoTemperatura
         {
             EquipoId = id,
-            TemperaturaMinima = solicitud.TemperaturaMinima!.Value,
-            TemperaturaMaxima = solicitud.TemperaturaMaxima!.Value,
+            TemperaturaMinima = minima,
+            TemperaturaMaxima = maxima,
             ModificadoPor = solicitud.ModificadoPor!.Trim(),
             FechaCambio = DateTime.UtcNow
         };
@@ -140,6 +145,16 @@ public class EquiposController : ControllerBase
         // 201 Created: indica que se creó un recurso nuevo y dónde consultarlo.
         return CreatedAtAction(nameof(ObtenerRango), new { id }, ConvertirADto(rango));
     }
+ 
+    // El vigente es el más reciente. El Id desempata si dos cambios
+    // tuvieran exactamente la misma fecha.
+    private Task<RangoTemperatura?> ObtenerRangoVigenteAsync(int equipoId) =>
+        _db.RangosTemperatura
+            .AsNoTracking()
+            .Where(r => r.EquipoId == equipoId)
+            .OrderByDescending(r => r.FechaCambio)
+            .ThenByDescending(r => r.Id)
+            .FirstOrDefaultAsync();
  
     private static RangoTemperaturaDto ConvertirADto(RangoTemperatura rango) => new()
     {
@@ -159,4 +174,3 @@ public class EquiposController : ControllerBase
         EsPorDefecto = true
     };
 }
- 

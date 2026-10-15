@@ -1,0 +1,45 @@
+.barra {
+    height: 3.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.25rem;
+    background: #1f2933;
+    color: #ffffff;
+    font-family: "Segoe UI", Arial, sans-serif;
+    box-sizing: border-box;
+}
+
+.marca {
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.menu {
+    display: flex;
+    gap: 0.25rem;
+}
+
+/* ::deep es necesario porque los enlaces los dibuja el componente NavLink,
+   no este layout, y el CSS aislado no los alcanzaría de otro modo. */
+.menu ::deep a {
+    color: #cbd2d9;
+    text-decoration: none;
+    padding: 0.45rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+.menu ::deep a:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.menu ::deep a.active {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.cuerpo {
+    background: #f4f6f8;
+}
