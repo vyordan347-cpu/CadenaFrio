@@ -1,6 +1,8 @@
 using CadenaFrio.Api.Inicializacion;
+using CadenaFrio.Api.Vigilancia;
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Servicios;
+using CadenaFrio.Infrastructure.Configuracion;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Infrastructure.Notificaciones;
 using CadenaFrio.Infrastructure.Servicios;
@@ -15,8 +17,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<CadenaFrioDbContext>(opciones =>
     opciones.UseSqlite(builder.Configuration.GetConnectionString("CadenaFrio")));
 
+// Tiempos del monitoreo, desde la sección "Monitoreo" de appsettings.json.
+builder.Services.Configure<OpcionesMonitoreo>(builder.Configuration.GetSection("Monitoreo"));
+
 // Motor de alertas (HU03).
 builder.Services.AddScoped<MotorAlertas>();
+
+// Detector de silencio y su vigilante en segundo plano (HU04, HU05).
+builder.Services.AddScoped<DetectorSilencio>();
+builder.Services.AddHostedService<VigilanteSenal>();
 
 // Canal de notificación de alertas. Para usar WhatsApp u otro canal,
 // solo se reemplaza NotificadorRegistro por la nueva implementación.

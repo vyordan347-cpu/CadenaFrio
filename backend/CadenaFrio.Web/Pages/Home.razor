@@ -37,6 +37,16 @@
                 <p class="temperatura">@datos.Temperatura?.ToString("0.0") °C</p>
                 <p class="estado">@TextoEstado</p>
 
+                @if (datos.SinSenalDesde is { } sinSenalDesde)
+                {
+                    @* Aviso de silencio (HU04, HU05). Se muestra junto a cualquier alerta de temperatura. *@
+                    <div class="aviso-senal">
+                        <p><strong>Sin señal del dispositivo</strong> desde @FormatoFecha.HoraPeru(sinSenalDesde)
+                            (@FormatoFecha.Antiguedad(sinSenalDesde))</p>
+                        <p>Posible corte de energía o falla de conexión. La temperatura mostrada es la última conocida.</p>
+                    </div>
+                }
+
                 @if (datos.AlertaActiva is { } alerta)
                 {
                     @* Detalle de la alerta activa (HU03). *@
@@ -78,7 +88,11 @@
     @foreach (var pendiente in pendientes)
     {
         <section class="pendiente">
-            <p class="pendiente-titulo">Ruptura pendiente de revisión</p>
+            <p class="pendiente-titulo">
+                @(pendiente.Tipo == TipoAlertaDto.SinSenal
+                    ? "Silencio prolongado pendiente de revisión"
+                    : "Ruptura pendiente de revisión")
+            </p>
             <p>
                 @if (pendiente.Fin is { } fin)
                 {
@@ -90,11 +104,22 @@
                     @:Desde @FormatoFecha.HoraPeru(pendiente.Inicio) (en curso)
                 }
             </p>
-            <p>
-                Temperatura @(pendiente.Tipo == TipoAlertaDto.TemperaturaAlta ? "máxima" : "mínima"):
-                <strong>@pendiente.ValorExtremo.ToString("0.0") °C</strong>
-                (límite @pendiente.LimiteMinimo.ToString("0.0") a @pendiente.LimiteMaximo.ToString("0.0") °C)
-            </p>
+            @if (pendiente.Tipo == TipoAlertaDto.SinSenal)
+            {
+                <p>
+                    El dispositivo no envió datos. Última temperatura conocida:
+                    <strong>@pendiente.ValorExtremo.ToString("0.0") °C</strong>.
+                    Verifique físicamente el estado de las vacunas.
+                </p>
+            }
+            else
+            {
+                <p>
+                    Temperatura @(pendiente.Tipo == TipoAlertaDto.TemperaturaAlta ? "máxima" : "mínima"):
+                    <strong>@pendiente.ValorExtremo.ToString("0.0") °C</strong>
+                    (límite @pendiente.LimiteMinimo.ToString("0.0") a @pendiente.LimiteMaximo.ToString("0.0") °C)
+                </p>
+            }
 
             @if (alertaEnRevision == pendiente.Id)
             {
@@ -196,6 +221,7 @@
     {
         { AlertaActiva.Nivel: NivelAlertaDto.Ruptura } => "estado-ruptura",
         { AlertaActiva.Nivel: NivelAlertaDto.Advertencia } => "estado-advertencia",
+        { SinSenalDesde: not null } => "estado-sinsenal",
         { Estado: EstadoLectura.Actualizada } => "estado-actualizada",
         { Estado: EstadoLectura.Desactualizada } => "estado-desactualizada",
         _ => "estado-sindatos"
@@ -210,6 +236,7 @@
             "Advertencia: temperatura alta. Revisar el termostato",
         { AlertaActiva: { Nivel: NivelAlertaDto.Advertencia, Tipo: TipoAlertaDto.TemperaturaBaja } } =>
             "Advertencia: temperatura baja. Revisar el termostato",
+        { SinSenalDesde: not null } => "Última temperatura conocida",
         { Estado: EstadoLectura.Actualizada } => "Lectura actualizada",
         { Estado: EstadoLectura.Desactualizada } => "Lectura desactualizada: no llegan datos del dispositivo",
         _ => "Sin datos"

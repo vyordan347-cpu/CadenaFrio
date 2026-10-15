@@ -23,6 +23,10 @@ public class MotorAlertas
     // Evalúa una lectura que ya fue guardada.
     public async Task EvaluarAsync(Lectura lectura)
     {
+        // 0. Si había una alerta de silencio, se cierra: llegó un dato, así que el
+        //    dispositivo está vivo. Se cierra incluso con lecturas sincronizadas tarde.
+        await CerrarSinSenalAsync(lectura);
+
         // Si ya existe una lectura medida después de esta, se trata de una lectura
         // sincronizada tarde (HU06). No se usa para abrir ni cerrar alertas, para no
         // alterar el estado actual con información del pasado. Se tratará en el Sprint 4.
@@ -64,10 +68,12 @@ public class MotorAlertas
                     : Math.Min(alertaAbierta.ValorExtremo, lectura.Temperatura);
 
                 // 3. Escalar: de advertencia a ruptura. Nunca baja de nivel.
+                //    Desde ese momento exige revisión del personal (RF08).
                 if (nivel == NivelAlerta.Ruptura && alertaAbierta.Nivel == NivelAlerta.Advertencia)
                 {
                     alertaAbierta.Nivel = NivelAlerta.Ruptura;
                     alertaAbierta.FechaRuptura = lectura.FechaMedicion;
+                    alertaAbierta.RevisionRequeridaDesde = lectura.FechaMedicion;
                     alertaEscalada = alertaAbierta;
                 }
             }
@@ -82,6 +88,7 @@ public class MotorAlertas
                     Nivel = nivel!.Value,
                     Inicio = lectura.FechaMedicion,
                     FechaRuptura = nivel == NivelAlerta.Ruptura ? lectura.FechaMedicion : null,
+                    RevisionRequeridaDesde = nivel == NivelAlerta.Ruptura ? lectura.FechaMedicion : null,
                     ValorExtremo = lectura.Temperatura,
                     OptimoMinimo = limites.OptimoMinimo,
                     OptimoMaximo = limites.OptimoMaximo,
@@ -119,5 +126,27 @@ public class MotorAlertas
         {
             await _notificador.AlertaEscaladaAsync(alertaEscalada, nombreEquipo);
         }
+    }
+
+    private async Task CerrarSinSenalAsync(Lectura lectura)
+    {
+        var sinSenal = await _db.Alertas.FirstOrDefaultAsync(a =>
+            a.EquipoId == lectura.EquipoId && a.Tipo == TipoAlerta.SinSenal && a.Fin == null);
+
+        if (sinSenal is null)
+        {
+            return;
+        }
+
+        // El silencio terminó cuando el servidor volvió a recibir datos.
+        sinSenal.Fin = lectura.FechaRecepcion;
+        await _db.SaveChangesAsync();
+
+        var nombreEquipo = await _db.Equipos
+            .Where(e => e.Id == lectura.EquipoId)
+            .Select(e => e.Nombre)
+            .FirstAsync();
+
+        await _notificador.AlertaCerradaAsync(sinSenal, nombreEquipo);
     }
 }

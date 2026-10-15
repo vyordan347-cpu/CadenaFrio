@@ -9,7 +9,7 @@ public enum EstadoLectura
 {
     SinDatos = 0,       // El equipo nunca envió lecturas.
     Actualizada = 1,    // La última lectura es reciente.
-    Desactualizada = 2  // No llegan lecturas desde hace más de 5 minutos.
+    Desactualizada = 2  // No llegan lecturas desde hace más del tiempo configurado (5 min).
 }
 
 // Lo que la web necesita para mostrar la temperatura actual de un equipo (HU01, HU03).
@@ -33,4 +33,7 @@ public class TemperaturaActualDto
 
     // Alerta de temperatura activa. Nula si la temperatura está dentro del rango óptimo.
     public AlertaActivaDto? AlertaActiva { get; set; }
+
+    // Desde cuándo no llegan datos del dispositivo (UTC). Nulo si la señal es normal.
+    public DateTime? SinSenalDesde { get; set; }
 }

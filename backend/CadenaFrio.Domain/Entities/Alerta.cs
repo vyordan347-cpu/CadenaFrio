@@ -40,11 +40,15 @@ public class Alerta
     public double LimiteMinimo { get; set; }
     public double LimiteMaximo { get; set; }
 
+    // Desde cuándo la alerta exige revisión del personal (UTC). Nulo si no la exige.
+    // - Temperatura: desde que llegó a ruptura.
+    // - Sin señal: desde que el silencio superó el tiempo permitido (por ejemplo, 30 min).
+    public DateTime? RevisionRequeridaDesde { get; set; }
+
     // Revisión del personal (RF08). Que la alerta termine (Fin) es un hecho físico;
     // que esté atendida es una responsabilidad humana: alguien la revisó y registró qué hizo.
-    // Toda ruptura queda pendiente hasta que se atiende, aunque ya haya terminado.
-    // Si se atendió durante la advertencia y luego escaló, vuelve a quedar pendiente
-    // (FechaAtencion anterior a FechaRuptura).
+    // Queda pendiente si exige revisión y nunca se atendió, o si se atendió antes de que
+    // la exigiera (por ejemplo, se atendió la advertencia y luego escaló a ruptura).
     public string? AtendidaPor { get; set; }
     public DateTime? FechaAtencion { get; set; }
     public string? ObservacionAtencion { get; set; }

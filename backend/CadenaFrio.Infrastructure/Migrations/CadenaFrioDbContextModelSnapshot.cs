@@ -63,6 +63,9 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.Property<double>("OptimoMinimo")
                         .HasColumnType("REAL");
 
+                    b.Property<DateTime?>("RevisionRequeridaDesde")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Tipo")
                         .HasColumnType("INTEGER");
 
@@ -151,6 +154,8 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("EquipoId", "FechaMedicion");
+
+                    b.HasIndex("EquipoId", "FechaRecepcion");
 
                     b.ToTable("Lecturas");
                 });

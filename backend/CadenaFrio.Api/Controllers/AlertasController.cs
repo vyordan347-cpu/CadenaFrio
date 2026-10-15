@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using CadenaFrio.Domain.Enums;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authorization;
@@ -23,16 +22,17 @@ public class AlertasController : ControllerBase
     }
 
     // GET /api/alertas/pendientes?equipoId=1
-    // Rupturas sin revisar: nunca atendidas, o atendidas antes de que escalaran a ruptura.
-    // Incluye las que ya terminaron: que la temperatura se normalice no significa que alguien lo vio.
+    // Alertas que exigen revisión y no la tienen: nunca atendidas, o atendidas antes de
+    // que la exigieran. Incluye rupturas y silencios prolongados, y también las que ya
+    // terminaron: que la situación se normalice no significa que alguien lo vio.
     [HttpGet("pendientes")]
     public async Task<ActionResult<List<AlertaPendienteDto>>> ObtenerPendientes([FromQuery] int equipoId)
     {
         var pendientes = await _db.Alertas
             .AsNoTracking()
             .Where(a => a.EquipoId == equipoId
-                        && a.Nivel == NivelAlerta.Ruptura
-                        && (a.FechaAtencion == null || a.FechaAtencion < a.FechaRuptura))
+                        && a.RevisionRequeridaDesde != null
+                        && (a.FechaAtencion == null || a.FechaAtencion < a.RevisionRequeridaDesde))
             .OrderBy(a => a.Inicio)
             .Select(a => new AlertaPendienteDto
             {
@@ -62,9 +62,9 @@ public class AlertasController : ControllerBase
             return NotFound(new { mensaje = "Alerta no encontrada." });
         }
 
-        // Una ruptura ya atendida después de escalar no necesita otra revisión.
+        // Una alerta atendida después de que exigiera revisión no necesita otra.
         var yaAtendida = alerta.FechaAtencion is not null
-                         && (alerta.FechaRuptura is null || alerta.FechaAtencion >= alerta.FechaRuptura);
+                         && (alerta.RevisionRequeridaDesde is null || alerta.FechaAtencion >= alerta.RevisionRequeridaDesde);
         if (yaAtendida)
         {
             return Conflict(new { mensaje = $"Esta alerta ya fue atendida por {alerta.AtendidaPor}." });

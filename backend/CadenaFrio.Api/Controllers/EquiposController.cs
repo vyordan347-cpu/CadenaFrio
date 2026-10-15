@@ -1,11 +1,14 @@
 using System.Security.Claims;
 using CadenaFrio.Domain.Entities;
+using CadenaFrio.Domain.Enums;
 using CadenaFrio.Domain.Valores;
+using CadenaFrio.Infrastructure.Configuracion;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace CadenaFrio.Api.Controllers;
 
@@ -16,15 +19,13 @@ namespace CadenaFrio.Api.Controllers;
 [Route("api/equipos")]
 public class EquiposController : ControllerBase
 {
-    // Si la última lectura es más antigua que esto, se considera desactualizada.
-    // El dispositivo envía una lectura por minuto, así que 5 minutos sin datos ya es anormal.
-    private static readonly TimeSpan LimiteActualizacion = TimeSpan.FromMinutes(5);
-
     private readonly CadenaFrioDbContext _db;
+    private readonly OpcionesMonitoreo _opciones;
 
-    public EquiposController(CadenaFrioDbContext db)
+    public EquiposController(CadenaFrioDbContext db, IOptions<OpcionesMonitoreo> opciones)
     {
         _db = db;
+        _opciones = opciones.Value;
     }
 
     // GET /api/equipos/{id}/temperatura-actual  (HU01, HU03, RF02)
@@ -69,7 +70,8 @@ public class EquiposController : ControllerBase
 
         respuesta.Temperatura = ultimaLectura.Temperatura;
         respuesta.FechaMedicion = ultimaLectura.FechaMedicion;
-        respuesta.Estado = DateTime.UtcNow - ultimaLectura.FechaMedicion > LimiteActualizacion
+        // Mismo límite que usa el vigilante de señal: un solo valor, en appsettings.json.
+        respuesta.Estado = DateTime.UtcNow - ultimaLectura.FechaMedicion > _opciones.LimiteSinSenal
             ? EstadoLectura.Desactualizada
             : EstadoLectura.Actualizada;
 
@@ -86,6 +88,13 @@ public class EquiposController : ControllerBase
                 ValorExtremo = alerta.ValorExtremo
             };
         }
+
+        // Alerta de silencio activa, si la hay (HU04, HU05).
+        respuesta.SinSenalDesde = await _db.Alertas
+            .AsNoTracking()
+            .Where(a => a.EquipoId == id && a.Tipo == TipoAlerta.SinSenal && a.Fin == null)
+            .Select(a => (DateTime?)a.Inicio)
+            .FirstOrDefaultAsync();
 
         return Ok(respuesta);
     }

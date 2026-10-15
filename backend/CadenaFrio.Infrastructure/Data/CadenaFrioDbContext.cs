@@ -41,6 +41,9 @@ public class CadenaFrioDbContext : DbContext
 
             // Acelera las consultas más frecuentes: última lectura e historial por fechas.
             lectura.HasIndex(l => new { l.EquipoId, l.FechaMedicion });
+
+            // Para que el vigilante encuentre rápido cuándo se recibió el último dato de cada equipo.
+            lectura.HasIndex(l => new { l.EquipoId, l.FechaRecepcion });
         });
 
         modelBuilder.Entity<RangoTemperatura>(rango =>

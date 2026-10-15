@@ -216,3 +216,29 @@
     opacity: 0.6;
     cursor: default;
 }
+
+/* Sin señal del dispositivo (HU04, HU05). */
+.estado-sinsenal {
+    border-top-color: #e8590c;
+}
+
+.estado-sinsenal .temperatura {
+    color: #9aa5b1;
+}
+
+.estado-sinsenal .estado {
+    color: #616e7c;
+}
+
+.aviso-senal {
+    margin: 0 0 1rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background: #fff4e6;
+    color: #a33d00;
+    font-size: 0.95rem;
+}
+
+.aviso-senal p {
+    margin: 0.15rem 0;
+}

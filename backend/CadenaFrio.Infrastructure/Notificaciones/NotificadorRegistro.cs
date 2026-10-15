@@ -1,4 +1,5 @@
 using CadenaFrio.Domain.Entities;
+using CadenaFrio.Domain.Enums;
 using CadenaFrio.Domain.Servicios;
 using Microsoft.Extensions.Logging;
 
@@ -18,21 +19,41 @@ public class NotificadorRegistro : INotificadorAlertas
 
     public Task AlertaAbiertaAsync(Alerta alerta, string nombreEquipo)
     {
-        _logger.LogWarning(
-            "ALERTA ABIERTA ({Nivel}) | {Equipo} | {Tipo} | {Temperatura} °C | óptimo {OptimoMin} a {OptimoMax} °C, límite {LimiteMin} a {LimiteMax} °C",
-            alerta.Nivel, nombreEquipo, alerta.Tipo, alerta.ValorExtremo,
-            alerta.OptimoMinimo, alerta.OptimoMaximo, alerta.LimiteMinimo, alerta.LimiteMaximo);
+        if (alerta.Tipo == TipoAlerta.SinSenal)
+        {
+            _logger.LogWarning(
+                "SIN SEÑAL | {Equipo} | sin datos desde {Inicio:HH:mm} UTC (posible corte de energía o falla de conexión) | última temperatura {Temperatura} °C",
+                nombreEquipo, alerta.Inicio, alerta.ValorExtremo);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "ALERTA ABIERTA ({Nivel}) | {Equipo} | {Tipo} | {Temperatura} °C | óptimo {OptimoMin} a {OptimoMax} °C, límite {LimiteMin} a {LimiteMax} °C",
+                alerta.Nivel, nombreEquipo, alerta.Tipo, alerta.ValorExtremo,
+                alerta.OptimoMinimo, alerta.OptimoMaximo, alerta.LimiteMinimo, alerta.LimiteMaximo);
+        }
 
         return Task.CompletedTask;
     }
 
     public Task AlertaEscaladaAsync(Alerta alerta, string nombreEquipo)
     {
-        var margen = alerta.FechaRuptura!.Value - alerta.Inicio;
+        if (alerta.Tipo == TipoAlerta.SinSenal)
+        {
+            var silencio = alerta.RevisionRequeridaDesde!.Value - alerta.Inicio;
 
-        _logger.LogError(
-            "RUPTURA DE CADENA DE FRÍO | {Equipo} | {Tipo} | {Temperatura} °C | {Minutos:0.#} min después de la advertencia",
-            nombreEquipo, alerta.Tipo, alerta.ValorExtremo, margen.TotalMinutes);
+            _logger.LogError(
+                "SILENCIO PROLONGADO | {Equipo} | {Minutos:0} min sin datos | verificar físicamente las vacunas",
+                nombreEquipo, silencio.TotalMinutes);
+        }
+        else
+        {
+            var margen = alerta.FechaRuptura!.Value - alerta.Inicio;
+
+            _logger.LogError(
+                "RUPTURA DE CADENA DE FRÍO | {Equipo} | {Tipo} | {Temperatura} °C | {Minutos:0.#} min después de la advertencia",
+                nombreEquipo, alerta.Tipo, alerta.ValorExtremo, margen.TotalMinutes);
+        }
 
         return Task.CompletedTask;
     }
@@ -41,9 +62,18 @@ public class NotificadorRegistro : INotificadorAlertas
     {
         var duracion = alerta.Fin!.Value - alerta.Inicio;
 
-        _logger.LogInformation(
-            "ALERTA CERRADA ({Nivel}) | {Equipo} | {Tipo} | duró {Minutos:0.#} min | valor extremo {Temperatura} °C",
-            alerta.Nivel, nombreEquipo, alerta.Tipo, duracion.TotalMinutes, alerta.ValorExtremo);
+        if (alerta.Tipo == TipoAlerta.SinSenal)
+        {
+            _logger.LogInformation(
+                "SEÑAL RECUPERADA | {Equipo} | estuvo {Minutos:0.#} min sin datos",
+                nombreEquipo, duracion.TotalMinutes);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "ALERTA CERRADA ({Nivel}) | {Equipo} | {Tipo} | duró {Minutos:0.#} min | valor extremo {Temperatura} °C",
+                alerta.Nivel, nombreEquipo, alerta.Tipo, duracion.TotalMinutes, alerta.ValorExtremo);
+        }
 
         return Task.CompletedTask;
     }

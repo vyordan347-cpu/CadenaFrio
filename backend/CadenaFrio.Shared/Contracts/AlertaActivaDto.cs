@@ -7,7 +7,8 @@ namespace CadenaFrio.Shared.Contracts;
 public enum TipoAlertaDto
 {
     TemperaturaAlta = 1,
-    TemperaturaBaja = 2
+    TemperaturaBaja = 2,
+    SinSenal = 3
 }
 
 // Gravedad de la alerta. Se envía como texto ("Ruptura").
