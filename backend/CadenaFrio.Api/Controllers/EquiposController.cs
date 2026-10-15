@@ -1,3 +1,4 @@
+using CadenaFrio.Domain.Entities;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Mvc;
@@ -62,4 +63,100 @@ public class EquiposController : ControllerBase
  
         return Ok(respuesta);
     }
+ 
+    // GET /api/equipos/{id}/rango  (HU02)
+    // Devuelve el rango vigente, o el de por defecto si nunca se configuró.
+    [HttpGet("{id:int}/rango")]
+    public async Task<ActionResult<RangoTemperaturaDto>> ObtenerRango(int id)
+    {
+        if (!await _db.Equipos.AnyAsync(e => e.Id == id))
+        {
+            return NotFound(new { mensaje = "Equipo no encontrado." });
+        }
+ 
+        // El vigente es el más reciente. El Id desempata si dos cambios
+        // tuvieran exactamente la misma fecha.
+        var rango = await _db.RangosTemperatura
+            .AsNoTracking()
+            .Where(r => r.EquipoId == id)
+            .OrderByDescending(r => r.FechaCambio)
+            .ThenByDescending(r => r.Id)
+            .FirstOrDefaultAsync();
+ 
+        return Ok(rango is null ? RangoPorDefecto(id) : ConvertirADto(rango));
+    }
+ 
+    // GET /api/equipos/{id}/rangos  (HU02, RF05)
+    // Historial de cambios de rango, del más reciente al más antiguo.
+    [HttpGet("{id:int}/rangos")]
+    public async Task<ActionResult<List<RangoTemperaturaDto>>> ObtenerHistorialRangos(int id)
+    {
+        if (!await _db.Equipos.AnyAsync(e => e.Id == id))
+        {
+            return NotFound(new { mensaje = "Equipo no encontrado." });
+        }
+ 
+        var historial = await _db.RangosTemperatura
+            .AsNoTracking()
+            .Where(r => r.EquipoId == id)
+            .OrderByDescending(r => r.FechaCambio)
+            .ThenByDescending(r => r.Id)
+            .ToListAsync();
+ 
+        return Ok(historial.Select(ConvertirADto).ToList());
+    }
+ 
+    // POST /api/equipos/{id}/rango  (HU02, RF04, RF05)
+    // Registra un rango nuevo. Nunca modifica uno existente: cada cambio queda en el historial.
+    // Las validaciones del DTO (rango físico, mínimo < máximo, nombre) ya se aplicaron
+    // automáticamente gracias a [ApiController].
+    [HttpPost("{id:int}/rango")]
+    public async Task<ActionResult<RangoTemperaturaDto>> ConfigurarRango(int id, ConfigurarRangoRequest solicitud)
+    {
+        var equipo = await _db.Equipos.FirstOrDefaultAsync(e => e.Id == id);
+ 
+        if (equipo is null)
+        {
+            return NotFound(new { mensaje = "Equipo no encontrado." });
+        }
+ 
+        if (!equipo.Activo)
+        {
+            return BadRequest(new { mensaje = "No se puede configurar el rango de un equipo inactivo." });
+        }
+ 
+        var rango = new RangoTemperatura
+        {
+            EquipoId = id,
+            TemperaturaMinima = solicitud.TemperaturaMinima!.Value,
+            TemperaturaMaxima = solicitud.TemperaturaMaxima!.Value,
+            ModificadoPor = solicitud.ModificadoPor!.Trim(),
+            FechaCambio = DateTime.UtcNow
+        };
+ 
+        _db.RangosTemperatura.Add(rango);
+        await _db.SaveChangesAsync();
+ 
+        // 201 Created: indica que se creó un recurso nuevo y dónde consultarlo.
+        return CreatedAtAction(nameof(ObtenerRango), new { id }, ConvertirADto(rango));
+    }
+ 
+    private static RangoTemperaturaDto ConvertirADto(RangoTemperatura rango) => new()
+    {
+        EquipoId = rango.EquipoId,
+        TemperaturaMinima = rango.TemperaturaMinima,
+        TemperaturaMaxima = rango.TemperaturaMaxima,
+        FechaCambio = rango.FechaCambio,
+        ModificadoPor = rango.ModificadoPor,
+        EsPorDefecto = false
+    };
+ 
+    private static RangoTemperaturaDto RangoPorDefecto(int equipoId) => new()
+    {
+        EquipoId = equipoId,
+        TemperaturaMinima = RangoTemperatura.MinimaPorDefecto,
+        TemperaturaMaxima = RangoTemperatura.MaximaPorDefecto,
+        EsPorDefecto = true
+    };
 }
+ 

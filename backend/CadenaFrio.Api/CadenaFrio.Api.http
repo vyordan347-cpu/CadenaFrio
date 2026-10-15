@@ -56,3 +56,37 @@ GET {{host}}/api/equipos/1/temperatura-actual
 
 ### 7. Equipo que no existe (debe responder 404)
 GET {{host}}/api/equipos/99/temperatura-actual
+### 8. Rango vigente: aún no configurado, debe decir "esPorDefecto": true (200)
+GET {{host}}/api/equipos/1/rango
+
+### 9. Configurar un rango nuevo (debe responder 201)
+POST {{host}}/api/equipos/1/rango
+Content-Type: application/json
+
+{
+  "temperaturaMinima": 2.0,
+  "temperaturaMaxima": 8.0,
+  "modificadoPor": "Jordan Viza"
+}
+
+### 10. Mínimo mayor que el máximo (debe responder 400)
+POST {{host}}/api/equipos/1/rango
+Content-Type: application/json
+
+{
+  "temperaturaMinima": 9.0,
+  "temperaturaMaxima": 4.0,
+  "modificadoPor": "Jordan Viza"
+}
+
+### 11. Sin indicar quién hace el cambio (debe responder 400)
+POST {{host}}/api/equipos/1/rango
+Content-Type: application/json
+
+{
+  "temperaturaMinima": 2.0,
+  "temperaturaMaxima": 8.0
+}
+
+### 12. Historial de cambios (200)
+GET {{host}}/api/equipos/1/rangos
