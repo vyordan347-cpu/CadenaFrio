@@ -1,7 +1,138 @@
 ﻿@page "/"
+@using System.Net.Http.Json
+@using CadenaFrio.Shared.Contracts
+@inject HttpClient Http
+@implements IDisposable
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Cadena de frío - Temperatura actual</PageTitle>
 
-<h1>Hello, world!</h1>
+<main class="contenedor">
+    @if (error is not null)
+    {
+        <div class="tarjeta estado-error">
+            <p class="equipo">No se pudo obtener la temperatura</p>
+            <p class="detalle">Revise que el servidor esté en funcionamiento. Se reintentará en unos segundos.</p>
+        </div>
+    }
+    else if (datos is null)
+    {
+        <p class="cargando">Cargando…</p>
+    }
+    else
+    {
+        <div class="tarjeta @ClaseEstado">
+            <p class="equipo">@datos.NombreEquipo</p>
 
-Welcome to your new app.
+            @if (datos.Estado == EstadoLectura.SinDatos)
+            {
+                <p class="temperatura">-- °C</p>
+                <p class="estado">Sin datos</p>
+                <p class="detalle">Este equipo todavía no ha enviado lecturas.</p>
+            }
+            else
+            {
+                <p class="temperatura">@datos.Temperatura?.ToString("0.0") °C</p>
+                <p class="estado">@TextoEstado</p>
+                <p class="detalle">
+                    Última lectura: @HoraPeru(datos.FechaMedicion!.Value)
+                    (@Antiguedad(datos.FechaMedicion.Value))
+                </p>
+            }
+        </div>
+    }
+
+    <p class="pie">Se actualiza automáticamente cada 10 segundos.</p>
+</main>
+
+@code {
+    // Por ahora la pantalla muestra el equipo de prueba.
+    // En el Sprint 6 (dashboard) se mostrarán todos los equipos.
+    private const int EquipoId = 1;
+
+    private static readonly TimeSpan IntervaloActualizacion = TimeSpan.FromSeconds(10);
+
+    // Perú usa UTC-5 todo el año (no tiene horario de verano).
+    private static readonly TimeSpan DesfasePeru = TimeSpan.FromHours(-5);
+
+    private TemperaturaActualDto? datos;
+    private string? error;
+    private readonly CancellationTokenSource cancelacion = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+
+        // Inicia la actualización periódica sin bloquear la primera carga de la página.
+        _ = ActualizarPeriodicamenteAsync();
+    }
+
+    private async Task ActualizarPeriodicamenteAsync()
+    {
+        using var temporizador = new PeriodicTimer(IntervaloActualizacion);
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(cancelacion.Token))
+            {
+                await CargarAsync();
+                // Pide a Blazor que vuelva a dibujar la pantalla con los datos nuevos.
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // El usuario salió de la página: se detiene la actualización.
+        }
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            datos = await Http.GetFromJsonAsync<TemperaturaActualDto>(
+                $"api/equipos/{EquipoId}/temperatura-actual", cancelacion.Token);
+            error = null;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private string ClaseEstado => datos?.Estado switch
+    {
+        EstadoLectura.Actualizada => "estado-actualizada",
+        EstadoLectura.Desactualizada => "estado-desactualizada",
+        _ => "estado-sindatos"
+    };
+
+    private string TextoEstado => datos?.Estado switch
+    {
+        EstadoLectura.Actualizada => "Lectura actualizada",
+        EstadoLectura.Desactualizada => "Lectura desactualizada: no llegan datos del dispositivo",
+        _ => "Sin datos"
+    };
+
+    // Convierte la fecha UTC a hora de Perú para mostrarla.
+    private static string HoraPeru(DateTime fechaUtc) =>
+        (fechaUtc.ToUniversalTime() + DesfasePeru).ToString("dd/MM/yyyy HH:mm:ss");
+
+    // Texto relativo, más fácil de leer de un vistazo que una hora exacta.
+    private static string Antiguedad(DateTime fechaUtc)
+    {
+        var transcurrido = DateTime.UtcNow - fechaUtc.ToUniversalTime();
+
+        if (transcurrido.TotalMinutes < 1) return "hace unos segundos";
+        if (transcurrido.TotalMinutes < 60) return $"hace {(int)transcurrido.TotalMinutes} min";
+        if (transcurrido.TotalHours < 24) return $"hace {(int)transcurrido.TotalHours} h";
+        return $"hace {(int)transcurrido.TotalDays} días";
+    }
+
+    public void Dispose()
+    {
+        cancelacion.Cancel();
+        cancelacion.Dispose();
+    }
+}

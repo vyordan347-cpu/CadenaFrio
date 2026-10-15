@@ -1,0 +1,93 @@
+/* Estilos aislados: solo se aplican a la página Home. */
+ 
+.contenedor {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #f4f6f8;
+    color: #1f2933;
+    box-sizing: border-box;
+}
+ 
+.tarjeta {
+    width: 100%;
+    max-width: 480px;
+    padding: 2rem 1.5rem;
+    border-radius: 16px;
+    background: #ffffff;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border-top: 10px solid #9aa5b1;
+}
+ 
+.equipo {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+ 
+/* La temperatura se ve grande para poder leerla de lejos. */
+.temperatura {
+    margin: 1rem 0 0.5rem;
+    font-size: clamp(3.5rem, 15vw, 5.5rem);
+    font-weight: 700;
+    line-height: 1;
+}
+ 
+.estado {
+    margin: 0 0 1rem;
+    font-weight: 600;
+}
+ 
+.detalle {
+    margin: 0;
+    color: #52606d;
+    font-size: 0.95rem;
+}
+ 
+.cargando,
+.pie {
+    color: #7b8794;
+    font-size: 0.9rem;
+}
+ 
+.pie {
+    margin-top: 1.25rem;
+}
+ 
+/* Colores según el estado de la lectura. */
+.estado-actualizada {
+    border-top-color: #2f9e44;
+}
+ 
+.estado-actualizada .estado {
+    color: #2f9e44;
+}
+ 
+.estado-desactualizada {
+    border-top-color: #9aa5b1;
+}
+ 
+.estado-desactualizada .temperatura {
+    color: #9aa5b1;
+}
+ 
+.estado-desactualizada .estado {
+    color: #616e7c;
+}
+ 
+.estado-sindatos .estado {
+    color: #616e7c;
+}
+ 
+.estado-error {
+    border-top-color: #c92a2a;
+}
+ 
+.estado-error .equipo {
+    color: #c92a2a;
+}
