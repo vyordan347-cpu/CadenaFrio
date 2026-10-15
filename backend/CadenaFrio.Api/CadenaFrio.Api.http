@@ -51,3 +51,8 @@ X-Clave-Dispositivo: {{clave}}
   "temperatura": 4.2,
   "fechaMedicion": "{{$datetime iso8601 1 d}}"
 }
+### 6. Temperatura actual de la refrigeradora de prueba (debe responder 200)
+GET {{host}}/api/equipos/1/temperatura-actual
+
+### 7. Equipo que no existe (debe responder 404)
+GET {{host}}/api/equipos/99/temperatura-actual
