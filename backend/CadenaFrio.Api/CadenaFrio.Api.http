@@ -1,6 +1,53 @@
-@CadenaFrio.Api_HostAddress = http://localhost:5067
+# Simulador del ESP32: envía lecturas a la API como lo haría el dispositivo.
+# Requiere la extensión "REST Client" de VS Code.
+# Cambia el puerto por el que aparece al ejecutar "dotnet run".
 
-GET {{CadenaFrio.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+@host = http://localhost:5067
+@clave = clave-prueba-001
 
-###
+### 1. Lectura normal: la refrigeradora a 4.5 °C (debe responder 200)
+POST {{host}}/api/lecturas
+Content-Type: application/json
+X-Clave-Dispositivo: {{clave}}
+
+{
+  "temperatura": 4.5
+}
+
+### 2. Lectura sincronizada: medida hace 2 horas, sin conexión (debe responder 200)
+POST {{host}}/api/lecturas
+Content-Type: application/json
+X-Clave-Dispositivo: {{clave}}
+
+{
+  "temperatura": 5.1,
+  "fechaMedicion": "{{$datetime iso8601 -2 h}}"
+}
+
+### 3. Clave incorrecta: un dispositivo desconocido (debe responder 401)
+POST {{host}}/api/lecturas
+Content-Type: application/json
+X-Clave-Dispositivo: clave-falsa
+
+{
+  "temperatura": 4.0
+}
+
+### 4. Sensor desconectado: -127 °C (debe responder 400)
+POST {{host}}/api/lecturas
+Content-Type: application/json
+X-Clave-Dispositivo: {{clave}}
+
+{
+  "temperatura": -127
+}
+
+### 5. Reloj del dispositivo adelantado un día (debe responder 400)
+POST {{host}}/api/lecturas
+Content-Type: application/json
+X-Clave-Dispositivo: {{clave}}
+
+{
+  "temperatura": 4.2,
+  "fechaMedicion": "{{$datetime iso8601 1 d}}"
+}
