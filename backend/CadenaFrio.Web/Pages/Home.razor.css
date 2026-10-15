@@ -1,5 +1,5 @@
 /* Estilos aislados: solo se aplican a la página Home. */
- 
+
 .contenedor {
     min-height: calc(100vh - 3.5rem);
     display: flex;
@@ -12,7 +12,7 @@
     color: #1f2933;
     box-sizing: border-box;
 }
- 
+
 .tarjeta {
     width: 100%;
     max-width: 480px;
@@ -23,13 +23,13 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     border-top: 10px solid #9aa5b1;
 }
- 
+
 .equipo {
     margin: 0;
     font-size: 1.25rem;
     font-weight: 600;
 }
- 
+
 /* La temperatura se ve grande para poder leerla de lejos. */
 .temperatura {
     margin: 1rem 0 0.5rem;
@@ -37,57 +37,88 @@
     font-weight: 700;
     line-height: 1;
 }
- 
+
 .estado {
     margin: 0 0 1rem;
     font-weight: 600;
 }
- 
+
 .detalle {
     margin: 0;
     color: #52606d;
     font-size: 0.95rem;
 }
- 
+
+.rango {
+    margin: 1rem 0 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e4e7eb;
+    color: #52606d;
+    font-size: 0.9rem;
+}
+
+.alerta-detalle {
+    margin: 0 0 1rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background: #fff5f5;
+    color: #c92a2a;
+    font-size: 0.95rem;
+}
+
+.alerta-detalle p {
+    margin: 0.15rem 0;
+}
+
 .cargando,
 .pie {
     color: #7b8794;
     font-size: 0.9rem;
 }
- 
+
 .pie {
     margin-top: 1.25rem;
 }
- 
+
 /* Colores según el estado de la lectura. */
 .estado-actualizada {
     border-top-color: #2f9e44;
 }
- 
+
 .estado-actualizada .estado {
     color: #2f9e44;
 }
- 
+
 .estado-desactualizada {
     border-top-color: #9aa5b1;
 }
- 
+
 .estado-desactualizada .temperatura {
     color: #9aa5b1;
 }
- 
+
 .estado-desactualizada .estado {
     color: #616e7c;
 }
- 
+
 .estado-sindatos .estado {
     color: #616e7c;
 }
- 
+
+/* Alerta activa: fuera de rango (HU03). */
+.estado-alerta {
+    border-top-color: #c92a2a;
+}
+
+.estado-alerta .temperatura,
+.estado-alerta .estado {
+    color: #c92a2a;
+}
+
 .estado-error {
     border-top-color: #c92a2a;
 }
- 
+
 .estado-error .equipo {
     color: #c92a2a;
 }

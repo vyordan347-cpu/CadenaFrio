@@ -1,6 +1,7 @@
-﻿@page "/"
+@page "/"
 @using System.Net.Http.Json
 @using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Utilidades
 @inject HttpClient Http
 @implements IDisposable
 
@@ -33,11 +34,31 @@
             {
                 <p class="temperatura">@datos.Temperatura?.ToString("0.0") °C</p>
                 <p class="estado">@TextoEstado</p>
+
+                @if (datos.AlertaActiva is { } alerta)
+                {
+                    @* Detalle de la alerta activa (HU03). *@
+                    <div class="alerta-detalle">
+                        <p>
+                            Alerta desde @FormatoFecha.HoraPeru(alerta.Inicio)
+                            (@FormatoFecha.Antiguedad(alerta.Inicio))
+                        </p>
+                        <p>
+                            @(alerta.Tipo == TipoAlertaDto.TemperaturaAlta ? "Máxima" : "Mínima") registrada:
+                            @alerta.ValorExtremo.ToString("0.0") °C
+                        </p>
+                    </div>
+                }
+
                 <p class="detalle">
-                    Última lectura: @HoraPeru(datos.FechaMedicion!.Value)
-                    (@Antiguedad(datos.FechaMedicion.Value))
+                    Última lectura: @FormatoFecha.HoraPeru(datos.FechaMedicion!.Value)
+                    (@FormatoFecha.Antiguedad(datos.FechaMedicion.Value))
                 </p>
             }
+
+            <p class="rango">
+                Rango permitido: @datos.RangoMinimo.ToString("0.0") °C a @datos.RangoMaximo.ToString("0.0") °C
+            </p>
         </div>
     }
 
@@ -50,9 +71,6 @@
     private const int EquipoId = 1;
 
     private static readonly TimeSpan IntervaloActualizacion = TimeSpan.FromSeconds(10);
-
-    // Perú usa UTC-5 todo el año (no tiene horario de verano).
-    private static readonly TimeSpan DesfasePeru = TimeSpan.FromHours(-5);
 
     private TemperaturaActualDto? datos;
     private string? error;
@@ -101,34 +119,23 @@
         }
     }
 
-    private string ClaseEstado => datos?.Estado switch
+    // La alerta tiene prioridad visual sobre cualquier otro estado.
+    private string ClaseEstado => datos switch
     {
-        EstadoLectura.Actualizada => "estado-actualizada",
-        EstadoLectura.Desactualizada => "estado-desactualizada",
+        { AlertaActiva: not null } => "estado-alerta",
+        { Estado: EstadoLectura.Actualizada } => "estado-actualizada",
+        { Estado: EstadoLectura.Desactualizada } => "estado-desactualizada",
         _ => "estado-sindatos"
     };
 
-    private string TextoEstado => datos?.Estado switch
+    private string TextoEstado => datos switch
     {
-        EstadoLectura.Actualizada => "Lectura actualizada",
-        EstadoLectura.Desactualizada => "Lectura desactualizada: no llegan datos del dispositivo",
+        { AlertaActiva.Tipo: TipoAlertaDto.TemperaturaAlta } => "Fuera de rango: temperatura alta",
+        { AlertaActiva.Tipo: TipoAlertaDto.TemperaturaBaja } => "Fuera de rango: temperatura baja",
+        { Estado: EstadoLectura.Actualizada } => "Lectura actualizada",
+        { Estado: EstadoLectura.Desactualizada } => "Lectura desactualizada: no llegan datos del dispositivo",
         _ => "Sin datos"
     };
-
-    // Convierte la fecha UTC a hora de Perú para mostrarla.
-    private static string HoraPeru(DateTime fechaUtc) =>
-        (fechaUtc.ToUniversalTime() + DesfasePeru).ToString("dd/MM/yyyy HH:mm:ss");
-
-    // Texto relativo, más fácil de leer de un vistazo que una hora exacta.
-    private static string Antiguedad(DateTime fechaUtc)
-    {
-        var transcurrido = DateTime.UtcNow - fechaUtc.ToUniversalTime();
-
-        if (transcurrido.TotalMinutes < 1) return "hace unos segundos";
-        if (transcurrido.TotalMinutes < 60) return $"hace {(int)transcurrido.TotalMinutes} min";
-        if (transcurrido.TotalHours < 24) return $"hace {(int)transcurrido.TotalHours} h";
-        return $"hace {(int)transcurrido.TotalDays} días";
-    }
 
     public void Dispose()
     {

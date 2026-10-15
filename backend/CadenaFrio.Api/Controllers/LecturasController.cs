@@ -1,6 +1,7 @@
-using CadenaFrio.Shared.Contracts;
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Infrastructure.Data;
+using CadenaFrio.Infrastructure.Servicios;
+using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,11 +18,13 @@ public class LecturasController : ControllerBase
     private static readonly TimeSpan ToleranciaFuturo = TimeSpan.FromMinutes(5);
 
     private readonly CadenaFrioDbContext _db;
+    private readonly MotorAlertas _motorAlertas;
 
-    // El DbContext llega por inyección de dependencias (registrado en Program.cs).
-    public LecturasController(CadenaFrioDbContext db)
+    // El DbContext y el motor de alertas llegan por inyección de dependencias (Program.cs).
+    public LecturasController(CadenaFrioDbContext db, MotorAlertas motorAlertas)
     {
         _db = db;
+        _motorAlertas = motorAlertas;
     }
 
     // POST /api/lecturas
@@ -64,6 +67,9 @@ public class LecturasController : ControllerBase
 
         _db.Lecturas.Add(lectura);
         await _db.SaveChangesAsync();
+
+        // 4. Evaluar si la lectura abre, actualiza o cierra una alerta (HU03).
+        await _motorAlertas.EvaluarAsync(lectura);
 
         return Ok(new
         {

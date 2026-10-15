@@ -17,6 +17,44 @@ namespace CadenaFrio.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.13");
 
+            modelBuilder.Entity("CadenaFrio.Domain.Entities.Alerta", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EquipoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("Fin")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Inicio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("RangoMaximo")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("RangoMinimo")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("ValorExtremo")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EquipoId", "Inicio");
+
+                    b.HasIndex("EquipoId", "Tipo")
+                        .IsUnique()
+                        .HasFilter("\"Fin\" IS NULL");
+
+                    b.ToTable("Alertas");
+                });
+
             modelBuilder.Entity("CadenaFrio.Domain.Entities.Equipo", b =>
                 {
                     b.Property<int>("Id")
@@ -125,6 +163,17 @@ namespace CadenaFrio.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CadenaFrio.Domain.Entities.Alerta", b =>
+                {
+                    b.HasOne("CadenaFrio.Domain.Entities.Equipo", "Equipo")
+                        .WithMany("Alertas")
+                        .HasForeignKey("EquipoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Equipo");
+                });
+
             modelBuilder.Entity("CadenaFrio.Domain.Entities.Lectura", b =>
                 {
                     b.HasOne("CadenaFrio.Domain.Entities.Equipo", "Equipo")
@@ -149,6 +198,8 @@ namespace CadenaFrio.Infrastructure.Migrations
 
             modelBuilder.Entity("CadenaFrio.Domain.Entities.Equipo", b =>
                 {
+                    b.Navigation("Alertas");
+
                     b.Navigation("Lecturas");
 
                     b.Navigation("Rangos");
