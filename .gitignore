@@ -483,3 +483,4 @@ $RECYCLE.BIN/
 *.db
 *.db-wal
 *.db-shm
+firmware/**/credenciales.h
