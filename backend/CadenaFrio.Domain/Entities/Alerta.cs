@@ -28,6 +28,10 @@ public class Alerta
     // Hora en que la temperatura volvió al rango óptimo (UTC). Nulo mientras siga activa.
     public DateTime? Fin { get; set; }
 
+    // Indica que el episodio ocurrió mientras no había conexión y se conoció después,
+    // al sincronizar las lecturas guardadas en el dispositivo (HU06).
+    public bool DetectadaTarde { get; set; }
+
     // La temperatura más alejada del rango durante el episodio.
     public double ValorExtremo { get; set; }
 

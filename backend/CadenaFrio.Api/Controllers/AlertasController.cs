@@ -41,6 +41,7 @@ public class AlertasController : ControllerBase
                 Inicio = a.Inicio,
                 FechaRuptura = a.FechaRuptura,
                 Fin = a.Fin,
+                DetectadaTarde = a.DetectadaTarde,
                 ValorExtremo = a.ValorExtremo,
                 LimiteMinimo = a.LimiteMinimo,
                 LimiteMaximo = a.LimiteMaximo

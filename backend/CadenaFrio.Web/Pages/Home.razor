@@ -93,6 +93,11 @@
                     ? "Silencio prolongado pendiente de revisión"
                     : "Ruptura pendiente de revisión")
             </p>
+            @if (pendiente.DetectadaTarde)
+            {
+                @* El episodio ocurrió sin conexión y se conoció al sincronizar (HU06). *@
+                <p class="etiqueta-tarde">Detectada al sincronizar lecturas guardadas sin conexión</p>
+            }
             <p>
                 @if (pendiente.Fin is { } fin)
                 {

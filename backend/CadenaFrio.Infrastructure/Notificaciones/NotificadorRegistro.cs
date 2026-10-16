@@ -28,8 +28,8 @@ public class NotificadorRegistro : INotificadorAlertas
         else
         {
             _logger.LogWarning(
-                "ALERTA ABIERTA ({Nivel}) | {Equipo} | {Tipo} | {Temperatura} °C | óptimo {OptimoMin} a {OptimoMax} °C, límite {LimiteMin} a {LimiteMax} °C",
-                alerta.Nivel, nombreEquipo, alerta.Tipo, alerta.ValorExtremo,
+                "ALERTA ABIERTA ({Nivel}){Tarde} | {Equipo} | {Tipo} | {Temperatura} °C | óptimo {OptimoMin} a {OptimoMax} °C, límite {LimiteMin} a {LimiteMax} °C",
+                alerta.Nivel, TextoTarde(alerta), nombreEquipo, alerta.Tipo, alerta.ValorExtremo,
                 alerta.OptimoMinimo, alerta.OptimoMaximo, alerta.LimiteMinimo, alerta.LimiteMaximo);
         }
 
@@ -51,8 +51,8 @@ public class NotificadorRegistro : INotificadorAlertas
             var margen = alerta.FechaRuptura!.Value - alerta.Inicio;
 
             _logger.LogError(
-                "RUPTURA DE CADENA DE FRÍO | {Equipo} | {Tipo} | {Temperatura} °C | {Minutos:0.#} min después de la advertencia",
-                nombreEquipo, alerta.Tipo, alerta.ValorExtremo, margen.TotalMinutes);
+                "RUPTURA DE CADENA DE FRÍO{Tarde} | {Equipo} | {Tipo} | {Temperatura} °C | {Minutos:0.#} min después de la advertencia",
+                TextoTarde(alerta), nombreEquipo, alerta.Tipo, alerta.ValorExtremo, margen.TotalMinutes);
         }
 
         return Task.CompletedTask;
@@ -77,4 +77,8 @@ public class NotificadorRegistro : INotificadorAlertas
 
         return Task.CompletedTask;
     }
+
+    // Las alertas reconstruidas al sincronizar se identifican en el mensaje.
+    private static string TextoTarde(Alerta alerta) =>
+        alerta.DetectadaTarde ? " [DETECTADA AL SINCRONIZAR]" : string.Empty;
 }

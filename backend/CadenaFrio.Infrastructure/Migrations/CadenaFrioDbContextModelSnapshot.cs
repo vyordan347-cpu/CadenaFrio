@@ -27,6 +27,9 @@ namespace CadenaFrio.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("DetectadaTarde")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("EquipoId")
                         .HasColumnType("INTEGER");
 
@@ -153,7 +156,8 @@ namespace CadenaFrio.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EquipoId", "FechaMedicion");
+                    b.HasIndex("EquipoId", "FechaMedicion")
+                        .IsUnique();
 
                     b.HasIndex("EquipoId", "FechaRecepcion");
 

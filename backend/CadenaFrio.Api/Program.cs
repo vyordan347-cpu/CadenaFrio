@@ -20,7 +20,8 @@ builder.Services.AddDbContext<CadenaFrioDbContext>(opciones =>
 // Tiempos del monitoreo, desde la sección "Monitoreo" de appsettings.json.
 builder.Services.Configure<OpcionesMonitoreo>(builder.Configuration.GetSection("Monitoreo"));
 
-// Motor de alertas (HU03).
+// Registro de lecturas sin duplicados (HU06) y motor de alertas (HU03).
+builder.Services.AddScoped<RegistroLecturas>();
 builder.Services.AddScoped<MotorAlertas>();
 
 // Detector de silencio y su vigilante en segundo plano (HU04, HU05).

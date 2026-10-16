@@ -242,3 +242,14 @@
 .aviso-senal p {
     margin: 0.15rem 0;
 }
+
+.etiqueta-tarde {
+    display: inline-block;
+    margin: 0.15rem 0 0.35rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #fff4e6;
+    color: #a33d00;
+    font-size: 0.8rem;
+    font-weight: 600;
+}

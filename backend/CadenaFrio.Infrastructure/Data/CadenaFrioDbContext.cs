@@ -40,7 +40,9 @@ public class CadenaFrioDbContext : DbContext
                    .OnDelete(DeleteBehavior.Restrict);
 
             // Acelera las consultas más frecuentes: última lectura e historial por fechas.
-            lectura.HasIndex(l => new { l.EquipoId, l.FechaMedicion });
+            // Además es único: un equipo no puede tener dos lecturas medidas en el mismo
+            // instante. Si el dispositivo reenvía un lote, la base rechaza los duplicados (HU06).
+            lectura.HasIndex(l => new { l.EquipoId, l.FechaMedicion }).IsUnique();
 
             // Para que el vigilante encuentre rápido cuándo se recibió el último dato de cada equipo.
             lectura.HasIndex(l => new { l.EquipoId, l.FechaRecepcion });
