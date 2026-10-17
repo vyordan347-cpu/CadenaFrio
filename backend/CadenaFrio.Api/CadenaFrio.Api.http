@@ -11,7 +11,7 @@ Content-Type: application/json
 X-Clave-Dispositivo: {{clave}}
 
 {
-  "temperatura": 1.5
+  "temperatura": 5
 }
 
 ### 2. Lectura sincronizada: medida hace 2 horas, sin conexión (debe responder 200)
@@ -110,3 +110,59 @@ Content-Type: application/json
 
 ### 15. Quién tiene la sesión iniciada
 GET {{host}}/api/auth/yo
+### 16. Lote atrasado: hace 2 horas la temperatura llegó a 9.4 °C (reconstruye el pasado)
+POST {{host}}/api/lecturas/lote
+Content-Type: application/json
+X-Clave-Dispositivo: {{clave}}
+
+{
+  "lecturas": [
+    { "temperatura": 5.0, "fechaMedicion": "{{$datetime iso8601 -120 m}}" },
+    { "temperatura": 6.5, "fechaMedicion": "{{$datetime iso8601 -110 m}}" },
+    { "temperatura": 7.5, "fechaMedicion": "{{$datetime iso8601 -100 m}}" },
+    { "temperatura": 9.0, "fechaMedicion": "{{$datetime iso8601 -90 m}}" },
+    { "temperatura": 9.4, "fechaMedicion": "{{$datetime iso8601 -80 m}}" },
+    { "temperatura": 6.0, "fechaMedicion": "{{$datetime iso8601 -70 m}}" },
+    { "temperatura": 5.0, "fechaMedicion": "{{$datetime iso8601 -60 m}}" }
+  ]
+}
+
+### 17. Lote con fechas fijas: envíalo DOS veces (la segunda debe dar 0 guardadas y 3 duplicadas)
+POST {{host}}/api/lecturas/lote
+Content-Type: application/json
+X-Clave-Dispositivo: {{clave}}
+
+{
+  "lecturas": [
+    { "temperatura": 4.0, "fechaMedicion": "2026-10-15T06:00:00Z" },
+    { "temperatura": 4.2, "fechaMedicion": "2026-10-15T06:01:00Z" },
+    { "temperatura": 4.1, "fechaMedicion": "2026-10-15T06:02:00Z" }
+  ]
+}
+
+### 18. Lote con lecturas inválidas: se descartan sin rechazar el lote
+POST {{host}}/api/lecturas/lote
+Content-Type: application/json
+X-Clave-Dispositivo: {{clave}}
+
+{
+  "lecturas": [
+    { "temperatura": 5.0, "fechaMedicion": "{{$datetime iso8601 -30 m}}" },
+    { "temperatura": -127, "fechaMedicion": "{{$datetime iso8601 -29 m}}" },
+    { "temperatura": 5.1 },
+    { "temperatura": 5.2, "fechaMedicion": "{{$datetime iso8601 1 d}}" }
+  ]
+}
+
+### 19. Corte de WiFi: envíalo después de 4 minutos sin enviar nada
+POST {{host}}/api/lecturas/lote
+Content-Type: application/json
+X-Clave-Dispositivo: {{clave}}
+
+{
+  "lecturas": [
+    { "temperatura": 5.0, "fechaMedicion": "{{$datetime iso8601 -3 m}}" },
+    { "temperatura": 9.0, "fechaMedicion": "{{$datetime iso8601 -2 m}}" },
+    { "temperatura": 5.0, "fechaMedicion": "{{$datetime iso8601 -1 m}}" }
+  ]
+}
