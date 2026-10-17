@@ -1,5 +1,6 @@
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Enums;
+using CadenaFrio.Domain.Valores;
 using Microsoft.EntityFrameworkCore;
 
 namespace CadenaFrio.Infrastructure.Data;
@@ -24,6 +25,7 @@ public class CadenaFrioDbContext : DbContext
         {
             equipo.Property(e => e.Nombre).IsRequired().HasMaxLength(100);
             equipo.Property(e => e.Ubicacion).HasMaxLength(150);
+            // Guarda la huella (hash SHA-256) de la clave, no la clave: 64 caracteres.
             equipo.Property(e => e.ClaveDispositivo).IsRequired().HasMaxLength(64);
 
             // Dos equipos no pueden compartir clave: el servidor no sabría de cuál viene la lectura.
@@ -123,7 +125,9 @@ public class CadenaFrioDbContext : DbContext
             Nombre = "Refrigeradora de prueba",
             Tipo = TipoEquipo.Refrigeradora,
             Ubicacion = "Entorno de desarrollo",
-            ClaveDispositivo = "clave-prueba-001",
+            // Se guarda la huella de "clave-prueba-001": el ESP32 y el simulador
+            // siguen enviando esa clave, y la API compara huellas.
+            ClaveDispositivo = ClavesDispositivo.Hash("clave-prueba-001"),
             Activo = true,
             FechaRegistro = new DateTime(2026, 10, 14, 0, 0, 0, DateTimeKind.Utc)
         });

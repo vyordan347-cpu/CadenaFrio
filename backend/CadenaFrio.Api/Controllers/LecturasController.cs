@@ -1,4 +1,5 @@
 using CadenaFrio.Domain.Entities;
+using CadenaFrio.Domain.Valores;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Infrastructure.Servicios;
 using CadenaFrio.Shared.Contracts;
@@ -122,7 +123,10 @@ public class LecturasController : ControllerBase
             return null;
         }
 
-        return await _db.Equipos.FirstOrDefaultAsync(e => e.ClaveDispositivo == clave && e.Activo);
+        // En la base solo está la huella de la clave: se calcula la huella de la
+        // clave recibida y se comparan.
+        var huella = ClavesDispositivo.Hash(clave);
+        return await _db.Equipos.FirstOrDefaultAsync(e => e.ClaveDispositivo == huella && e.Activo);
     }
 
     // Si la fecha llega sin zona horaria, se asume UTC, porque el ESP32

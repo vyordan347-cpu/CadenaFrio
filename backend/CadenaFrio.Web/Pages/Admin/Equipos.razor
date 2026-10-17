@@ -1,0 +1,315 @@
+@page "/admin/equipos"
+@using System.Net.Http.Json
+@using System.Text.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using CadenaFrio.Web.Utilidades
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = Politicas.EsAdministrador)]
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Equipos · Administración · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+    <header class="encabezado">
+        <span class="encabezado-icono"><Icono Nombre="admin" Tamano="26" /></span>
+        <div class="encabezado-texto">
+            <h1>Equipos</h1>
+            <p class="subtitulo">Refrigeradoras y termos monitoreados, y las claves de sus dispositivos.</p>
+        </div>
+        @if (!formularioVisible)
+        {
+            <button class="boton boton-primario" @onclick="NuevoEquipo">
+                <Icono Nombre="agregar" Tamano="18" /> Registrar equipo
+            </button>
+        }
+    </header>
+
+    @* Clave recién generada: se muestra una sola vez. *@
+    @if (claveGenerada is not null)
+    {
+        <section class="tarjeta clave" role="alert">
+            <h2><Icono Nombre="clave" /> Clave de "@claveGenerada.Equipo.Nombre"</h2>
+            <p>Cópiela ahora en <code>credenciales.h</code> del dispositivo. <strong>No se volverá a mostrar:</strong>
+                en la base de datos solo se guarda su huella cifrada.</p>
+            <div class="clave-fila">
+                @* Al hacer clic en la clave, se selecciona completa para copiarla a mano si hace falta. *@
+                <input class="clave-valor" readonly value="@claveGenerada.Clave" onfocus="this.select()" aria-label="Clave generada" />
+                <button class="boton" @onclick="CopiarClaveAsync">
+                    <Icono Nombre="@(claveCopiada ? "check" : "copiar")" Tamano="18" /> @(claveCopiada ? "Copiada" : "Copiar")
+                </button>
+            </div>
+            @if (errorCopia)
+            {
+                <p class="nota">No se pudo copiar automáticamente. Seleccione la clave y use Ctrl + C.</p>
+            }
+            <button class="boton" @onclick="CerrarClave">Ya la guardé</button>
+        </section>
+    }
+
+    @* Formulario para registrar o editar. *@
+    @if (formularioVisible)
+    {
+        <section class="tarjeta formulario">
+            <h2><Icono Nombre="@(equipoEnEdicion is null ? "agregar" : "editar")" />
+                @(equipoEnEdicion is null ? "Registrar equipo" : $"Editar \"{equipoEnEdicion.Nombre}\"")</h2>
+
+            <EditForm Model="solicitud" OnValidSubmit="GuardarAsync">
+                <DataAnnotationsValidator />
+                <div class="campos">
+                    <label>
+                        Nombre
+                        <InputText @bind-Value="solicitud.Nombre" placeholder="Refrigeradora principal" />
+                        <ValidationMessage For="() => solicitud.Nombre" />
+                    </label>
+                    <label>
+                        Tipo
+                        <InputSelect @bind-Value="solicitud.Tipo">
+                            <option value="">Elija una opción</option>
+                            <option value="@TipoEquipoDto.Refrigeradora">Refrigeradora</option>
+                            <option value="@TipoEquipoDto.Termo">Termo portavacunas</option>
+                        </InputSelect>
+                        <ValidationMessage For="() => solicitud.Tipo" />
+                    </label>
+                    <label class="campo-ancho">
+                        Ubicación
+                        <InputText @bind-Value="solicitud.Ubicacion" placeholder="Sala de inmunizaciones" />
+                        <ValidationMessage For="() => solicitud.Ubicacion" />
+                    </label>
+                </div>
+
+                @if (errorFormulario is not null)
+                {
+                    <p class="aviso aviso-error">@errorFormulario</p>
+                }
+
+                <div class="acciones">
+                    <button type="submit" class="boton boton-primario" disabled="@guardando">
+                        @(guardando ? "Guardando…" : equipoEnEdicion is null ? "Registrar y generar clave" : "Guardar cambios")
+                    </button>
+                    <button type="button" class="boton" @onclick="CerrarFormulario">Cancelar</button>
+                </div>
+            </EditForm>
+        </section>
+    }
+
+    @if (errorCarga is not null)
+    {
+        <p class="aviso aviso-error">@errorCarga</p>
+    }
+    else if (equipos is null)
+    {
+        <p class="nota">Cargando…</p>
+    }
+    else
+    {
+        <section class="lista" aria-label="Equipos registrados">
+            @foreach (var equipo in equipos)
+            {
+                <article class="tarjeta equipo @(equipo.Activo ? "" : "inactivo")">
+                    <span class="equipo-icono">
+                        <Icono Nombre="@(equipo.Tipo == TipoEquipoDto.Termo ? "termo" : "refrigeradora")" Tamano="24" />
+                    </span>
+                    <div class="equipo-texto">
+                        <p class="equipo-nombre">@equipo.Nombre</p>
+                        <p class="equipo-detalle">
+                            @(equipo.Tipo == TipoEquipoDto.Termo ? "Termo portavacunas" : "Refrigeradora")
+                            @if (!string.IsNullOrWhiteSpace(equipo.Ubicacion))
+                            {
+                                <span>, @equipo.Ubicacion</span>
+                            }
+                        </p>
+                        <p class="equipo-senal">
+                            <Icono Nombre="reloj" Tamano="16" />
+                            @(equipo.UltimaSenal is { } s ? $"Última señal {FormatoFecha.Antiguedad(s)}" : "Nunca ha enviado datos")
+                        </p>
+                    </div>
+                    <span class="pastilla @(equipo.Activo ? "activo" : "inactivo-pastilla")">
+                        @(equipo.Activo ? "Activo" : "Inactivo")
+                    </span>
+                    <div class="equipo-acciones">
+                        <button class="boton boton-chico" @onclick="() => EditarEquipo(equipo)">
+                            <Icono Nombre="editar" Tamano="16" /> Editar
+                        </button>
+                        <button class="boton boton-chico" @onclick="() => RegenerarClaveAsync(equipo)">
+                            <Icono Nombre="regenerar" Tamano="16" /> Nueva clave
+                        </button>
+                        <button class="boton boton-chico" @onclick="() => CambiarEstadoAsync(equipo)">
+                            <Icono Nombre="apagar" Tamano="16" /> @(equipo.Activo ? "Desactivar" : "Activar")
+                        </button>
+                    </div>
+                </article>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private List<EquipoAdminDto>? equipos;
+    private string? errorCarga;
+
+    // Formulario
+    private bool formularioVisible;
+    private EquipoAdminDto? equipoEnEdicion;
+    private GuardarEquipoRequest solicitud = new();
+    private bool guardando;
+    private string? errorFormulario;
+
+    // Clave recién generada
+    private ClaveGeneradaDto? claveGenerada;
+    private bool claveCopiada;
+    private bool errorCopia;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            equipos = await Http.GetFromJsonAsync<List<EquipoAdminDto>>("api/admin/equipos");
+            errorCarga = null;
+        }
+        catch (Exception)
+        {
+            errorCarga = "No se pudo cargar la lista de equipos. Revise que el servidor esté encendido.";
+        }
+    }
+
+    private void NuevoEquipo()
+    {
+        equipoEnEdicion = null;
+        solicitud = new GuardarEquipoRequest();
+        errorFormulario = null;
+        formularioVisible = true;
+    }
+
+    private void EditarEquipo(EquipoAdminDto equipo)
+    {
+        equipoEnEdicion = equipo;
+        solicitud = new GuardarEquipoRequest { Nombre = equipo.Nombre, Tipo = equipo.Tipo, Ubicacion = equipo.Ubicacion };
+        errorFormulario = null;
+        formularioVisible = true;
+    }
+
+    private void CerrarFormulario()
+    {
+        formularioVisible = false;
+        equipoEnEdicion = null;
+    }
+
+    private async Task GuardarAsync()
+    {
+        guardando = true;
+        errorFormulario = null;
+
+        try
+        {
+            if (equipoEnEdicion is null)
+            {
+                var respuesta = await Http.PostAsJsonAsync("api/admin/equipos", solicitud);
+                if (!respuesta.IsSuccessStatusCode)
+                {
+                    errorFormulario = await LeerErrorAsync(respuesta);
+                    return;
+                }
+                MostrarClave(await respuesta.Content.ReadFromJsonAsync<ClaveGeneradaDto>());
+            }
+            else
+            {
+                var respuesta = await Http.PutAsJsonAsync($"api/admin/equipos/{equipoEnEdicion.Id}", solicitud);
+                if (!respuesta.IsSuccessStatusCode)
+                {
+                    errorFormulario = await LeerErrorAsync(respuesta);
+                    return;
+                }
+            }
+
+            CerrarFormulario();
+            await CargarAsync();
+        }
+        catch (Exception)
+        {
+            errorFormulario = "No se pudo conectar con el servidor.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task RegenerarClaveAsync(EquipoAdminDto equipo)
+    {
+        var confirmado = await JS.InvokeAsync<bool>("confirm",
+            $"¿Generar una nueva clave para \"{equipo.Nombre}\"?\n\nLa clave actual dejará de funcionar de inmediato y habrá que actualizar el dispositivo.");
+        if (!confirmado)
+        {
+            return;
+        }
+
+        var respuesta = await Http.PostAsync($"api/admin/equipos/{equipo.Id}/regenerar-clave", null);
+        if (respuesta.IsSuccessStatusCode)
+        {
+            MostrarClave(await respuesta.Content.ReadFromJsonAsync<ClaveGeneradaDto>());
+        }
+        await CargarAsync();
+    }
+
+    private async Task CambiarEstadoAsync(EquipoAdminDto equipo)
+    {
+        if (equipo.Activo)
+        {
+            var confirmado = await JS.InvokeAsync<bool>("confirm",
+                $"¿Desactivar \"{equipo.Nombre}\"?\n\nDejará de aceptar lecturas y sus alertas abiertas se cerrarán. Su historial se conserva.");
+            if (!confirmado)
+            {
+                return;
+            }
+        }
+
+        var accion = equipo.Activo ? "desactivar" : "activar";
+        await Http.PostAsync($"api/admin/equipos/{equipo.Id}/{accion}", null);
+        await CargarAsync();
+    }
+
+    private void MostrarClave(ClaveGeneradaDto? clave)
+    {
+        claveGenerada = clave;
+        claveCopiada = false;
+        errorCopia = false;
+    }
+
+    private void CerrarClave() => claveGenerada = null;
+
+    private async Task CopiarClaveAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", claveGenerada!.Clave);
+            claveCopiada = true;
+            errorCopia = false;
+        }
+        catch (Exception)
+        {
+            // El portapapeles solo funciona en localhost o con HTTPS.
+            errorCopia = true;
+        }
+    }
+
+    private static async Task<string> LeerErrorAsync(HttpResponseMessage respuesta)
+    {
+        try
+        {
+            using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+            if (documento.RootElement.TryGetProperty("mensaje", out var mensaje))
+            {
+                return mensaje.GetString() ?? "No se pudo guardar.";
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return "No se pudo guardar. Revise los datos.";
+    }
+}

@@ -11,7 +11,7 @@ Content-Type: application/json
 X-Clave-Dispositivo: {{clave}}
 
 {
-  "temperatura": 5
+  "temperatura": 8
 }
 
 ### 2. Lectura sincronizada: medida hace 2 horas, sin conexión (debe responder 200)
@@ -165,4 +165,15 @@ X-Clave-Dispositivo: {{clave}}
     { "temperatura": 9.0, "fechaMedicion": "{{$datetime iso8601 -2 m}}" },
     { "temperatura": 5.0, "fechaMedicion": "{{$datetime iso8601 -1 m}}" }
   ]
+}
+
+@clave2 = 3O_QM2BGwBFeJ9CeYQ5V26MTfShOs2wfKbnnjaW40i4
+
+### 20. Lectura del segundo equipo (registrado desde el panel)
+POST {{host}}/api/lecturas
+Content-Type: application/json
+X-Clave-Dispositivo: {{clave2}}
+
+{
+  "temperatura": 4.0
 }

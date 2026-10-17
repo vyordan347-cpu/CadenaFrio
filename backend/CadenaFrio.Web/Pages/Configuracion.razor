@@ -5,14 +5,20 @@
 @using System.Net.Http.Json
 @using System.Text.Json
 @using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
 @using CadenaFrio.Web.Utilidades
 @inject HttpClient Http
 
 <PageTitle>Cadena de frío - Configuración de rangos</PageTitle>
 
 <div class="pagina">
-    <h1>Configuración de rangos</h1>
-    <p class="subtitulo">@(nombreEquipo ?? "Cargando equipo…")</p>
+    <header class="encabezado">
+        <span class="encabezado-icono"><Icono Nombre="configuracion" Tamano="26" /></span>
+        <div>
+            <h1>Configuración de rangos</h1>
+            <p class="subtitulo">@(nombreEquipo ?? "Cargando equipo…")</p>
+        </div>
+    </header>
 
     @if (errorCarga is not null)
     {
@@ -26,7 +32,7 @@
     {
         @* 1. Rangos vigentes *@
         <section class="tarjeta">
-            <h2>Rangos vigentes</h2>
+            <h2><Icono Nombre="temperatura" /> Rangos vigentes</h2>
             <div class="rangos">
                 <div>
                     <p class="etiqueta">Óptimo</p>
@@ -54,7 +60,7 @@
 
         @* 2. Formulario para registrar un rango nuevo *@
         <section class="tarjeta">
-            <h2>Nuevos rangos</h2>
+            <h2><Icono Nombre="configuracion" /> Nuevos rangos</h2>
 
             @* EditForm valida con las mismas reglas del DTO compartido que usa la API.
                OnValidSubmit solo se ejecuta si todas las validaciones pasan. *@
@@ -94,7 +100,7 @@
                     </div>
                 </fieldset>
 
-                <button type="submit" disabled="@guardando">
+                <button type="submit" class="boton boton-primario" disabled="@guardando">
                     @(guardando ? "Guardando…" : "Guardar rangos")
                 </button>
             </EditForm>
@@ -111,7 +117,7 @@
 
         @* 3. Historial de cambios *@
         <section class="tarjeta">
-            <h2>Historial de cambios</h2>
+            <h2><Icono Nombre="reloj" /> Historial de cambios</h2>
             @if (historial.Count == 0)
             {
                 <p class="detalle">Aún no se han registrado cambios.</p>

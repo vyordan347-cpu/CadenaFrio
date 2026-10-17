@@ -20,4 +20,20 @@ public static class FormatoFecha
         if (transcurrido.TotalHours < 24) return $"hace {(int)transcurrido.TotalHours} h";
         return $"hace {(int)transcurrido.TotalDays} días";
     }
+
+    // Duración legible: "28 min", "8 h 38 min" o "2 días 3 h".
+    public static string Duracion(TimeSpan duracion)
+    {
+        if (duracion.TotalMinutes < 1) return "menos de 1 min";
+        if (duracion.TotalHours < 1) return $"{(int)duracion.TotalMinutes} min";
+        if (duracion.TotalDays < 1)
+        {
+            return duracion.Minutes == 0
+                ? $"{(int)duracion.TotalHours} h"
+                : $"{(int)duracion.TotalHours} h {duracion.Minutes} min";
+        }
+
+        var dias = (int)duracion.TotalDays;
+        return $"{dias} {(dias == 1 ? "día" : "días")} {duracion.Hours} h";
+    }
 }

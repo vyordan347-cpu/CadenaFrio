@@ -14,6 +14,9 @@ public static class Politicas
 {
     // Solo personal capacitado puede cambiar los rangos (HU02).
     public const string PuedeConfigurarRangos = "PuedeConfigurarRangos";
+
+    // Solo el administrador gestiona equipos y usuarios (RF19).
+    public const string EsAdministrador = "EsAdministrador";
 }
 
 // Datos adicionales que viajan en la sesión del usuario.

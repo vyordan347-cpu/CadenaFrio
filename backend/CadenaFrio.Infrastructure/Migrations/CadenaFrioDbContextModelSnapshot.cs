@@ -128,7 +128,7 @@ namespace CadenaFrio.Infrastructure.Migrations
                         {
                             Id = 1,
                             Activo = true,
-                            ClaveDispositivo = "clave-prueba-001",
+                            ClaveDispositivo = "73a93d682e82a12a201490dc29e4a6296ef9c66e6d2d4821421771250edf063b",
                             FechaRegistro = new DateTime(2026, 10, 14, 0, 0, 0, 0, DateTimeKind.Utc),
                             Nombre = "Refrigeradora de prueba",
                             Tipo = 1,

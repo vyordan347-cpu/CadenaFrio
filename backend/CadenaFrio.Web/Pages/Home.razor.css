@@ -1,255 +1,346 @@
-/* Estilos aislados: solo se aplican a la página Home. */
-
-.contenedor {
-    min-height: calc(100vh - 3.5rem);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    font-family: "Segoe UI", Arial, sans-serif;
-    background: #f4f6f8;
-    color: #1f2933;
-    box-sizing: border-box;
+.pagina {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 1.75rem 1rem 2.5rem;
 }
 
-.tarjeta {
-    width: 100%;
-    max-width: 480px;
-    padding: 2rem 1.5rem;
-    border-radius: 16px;
-    background: #ffffff;
-    text-align: center;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    border-top: 10px solid #9aa5b1;
+.panel {
+    padding: 1.5rem 1.75rem 1.25rem;
+}
+
+/* Cabecera: ícono del equipo, nombre y etiqueta de estado. */
+.cabecera {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.equipo-icono {
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    background: var(--barra-activo);
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.equipo-texto {
+    flex: 1;
+    min-width: 0;
 }
 
 .equipo {
-    margin: 0;
     font-size: 1.25rem;
-    font-weight: 600;
 }
 
-/* La temperatura se ve grande para poder leerla de lejos. */
-.temperatura {
-    margin: 1rem 0 0.5rem;
-    font-size: clamp(3.5rem, 15vw, 5.5rem);
-    font-weight: 700;
-    line-height: 1;
+.momento {
+    color: var(--texto-2);
 }
 
 .estado {
-    margin: 0 0 1rem;
-    font-weight: 600;
-}
-
-.detalle {
-    margin: 0;
-    color: #52606d;
-    font-size: 0.95rem;
-}
-
-.rango {
-    margin: 1rem 0 0;
-    padding-top: 0.75rem;
-    border-top: 1px solid #e4e7eb;
-    color: #52606d;
-    font-size: 0.9rem;
-}
-
-.alerta-detalle {
-    margin: 0 0 1rem;
-    padding: 0.75rem;
-    border-radius: 8px;
-    background: #fff5f5;
-    color: #c92a2a;
-    font-size: 0.95rem;
-}
-
-.alerta-detalle p {
-    margin: 0.15rem 0;
-}
-
-.cargando,
-.pie {
-    color: #7b8794;
-    font-size: 0.9rem;
-}
-
-.pie {
-    margin-top: 1.25rem;
-}
-
-/* Colores según el estado de la lectura. */
-.estado-actualizada {
-    border-top-color: #2f9e44;
-}
-
-.estado-actualizada .estado {
-    color: #2f9e44;
-}
-
-.estado-desactualizada {
-    border-top-color: #9aa5b1;
-}
-
-.estado-desactualizada .temperatura {
-    color: #9aa5b1;
-}
-
-.estado-desactualizada .estado {
-    color: #616e7c;
-}
-
-.estado-sindatos .estado {
-    color: #616e7c;
-}
-
-/* Advertencia: fuera del rango óptimo, dentro del límite (HU03). */
-.estado-advertencia {
-    border-top-color: #e8890c;
-}
-
-.estado-advertencia .temperatura,
-.estado-advertencia .estado {
-    color: #c56a00;
-}
-
-.estado-advertencia .alerta-detalle {
-    background: #fff4e6;
-    color: #a35200;
-}
-
-/* Ruptura: fuera del rango límite (HU03). */
-.estado-ruptura {
-    border-top-color: #c92a2a;
-}
-
-.estado-ruptura .temperatura,
-.estado-ruptura .estado {
-    color: #c92a2a;
-}
-
-.estado-error {
-    border-top-color: #c92a2a;
-}
-
-.estado-error .equipo {
-    color: #c92a2a;
-}
-
-/* Rupturas pendientes de revisión (RF08). */
-.pendiente {
-    width: 100%;
-    max-width: 480px;
-    margin-top: 1rem;
-    padding: 1rem 1.25rem;
-    border-radius: 12px;
-    border-left: 6px solid #c92a2a;
-    background: #ffffff;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-    box-sizing: border-box;
-    font-size: 0.95rem;
-}
-
-.pendiente p {
-    margin: 0.2rem 0;
-}
-
-.pendiente-titulo {
-    color: #c92a2a;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    align-self: flex-start;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
     font-weight: 700;
 }
 
-.pendiente label {
+.estado-ok { background: var(--ok-fondo); color: var(--ok-texto); }
+.estado-adv { background: var(--adv-fondo); color: var(--adv-texto); }
+.estado-rup { background: var(--rup-fondo); color: var(--rup-texto); }
+.estado-sen { background: var(--sen-fondo); color: var(--sen-texto); }
+
+/* Lectura: temperatura grande a la izquierda, datos de referencia a la derecha. */
+.lectura {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 1.5rem 2.5rem;
+    margin: 1.25rem 0 1.25rem 4.5rem;
+}
+
+.temperatura {
+    font-size: clamp(3.75rem, 14vw, 5.75rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.temperatura.atenuada {
+    color: var(--texto-3);
+}
+
+.unidad {
+    margin-left: 0.15em;
+    font-size: 0.42em;
+    font-weight: 400;
+    color: var(--texto-2);
+    vertical-align: 0.9em;
+}
+
+.datos {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    margin-top: 0.75rem;
-    font-weight: 600;
-    font-size: 0.9rem;
+    gap: 0.75rem;
+    margin: 0;
+    padding-left: 2rem;
+    border-left: 1px solid var(--borde);
 }
 
-.pendiente ::deep textarea {
-    padding: 0.6rem 0.7rem;
-    border: 1px solid #cbd2d9;
-    border-radius: 8px;
-    font: inherit;
-    font-weight: 400;
-    resize: vertical;
+.dato {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
-.pendiente ::deep .validation-message,
-.error-revision {
-    color: #c92a2a;
+.dato ::deep .dato-icono {
+    color: var(--texto-3);
+}
+
+dt {
     font-size: 0.85rem;
-    font-weight: 400;
+    color: var(--texto-2);
+}
+
+dd {
+    margin: 0;
+    font-weight: 700;
+    color: var(--acento);
+}
+
+/* Recuadro con la acción a tomar, del color del estado. */
+.accion-caja {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    border-radius: var(--radio);
+}
+
+.accion-caja.estado-ok {
+    background: var(--info-fondo);
+    color: var(--info-texto);
+}
+
+/* Banda tipo termómetro */
+.banda-contenedor {
+    position: relative;
+    margin-top: 2.6rem;
+    padding-bottom: 1.6rem;
+}
+
+.banda {
+    display: flex;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.zona-optima { background: var(--zona-optima); }
+.zona-adv { background: var(--zona-adv); }
+.zona-rup { background: var(--zona-rup); }
+
+.marca {
+    position: absolute;
+    top: -5px;
+    width: 4px;
+    height: 22px;
+    margin-left: -2px;
+    border-radius: 2px;
+    background: var(--barra-fondo);
+    transition: left 0.6s ease;
+}
+
+/* Globo con la temperatura actual sobre la marca. */
+.globo {
+    position: absolute;
+    bottom: calc(100% + 0.6rem);
+    transform: translateX(-50%);
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: var(--barra-fondo);
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: left 0.6s ease;
+}
+
+.marca.atenuada,
+.globo.atenuada {
+    background: var(--texto-3);
+}
+
+.escala span {
+    position: absolute;
+    top: 22px;
+    transform: translateX(-50%);
+    font-size: 0.85rem;
+    color: var(--texto-2);
+}
+
+/* Alertas por revisar */
+.eventos {
+    margin-top: 1.75rem;
+}
+
+.eventos-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.9rem;
+}
+
+.eventos-icono {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie);
+    color: var(--texto);
+}
+
+.contador {
+    padding: 0.05rem 0.55rem;
+    border-radius: 999px;
+    background: var(--rup);
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.sin-pendientes {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ok-texto);
+}
+
+.pendiente {
+    margin-bottom: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-left: 4px solid var(--rup);
+}
+
+.pendiente-fila {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.pendiente-icono {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: var(--rup-fondo);
+    color: var(--rup);
+    flex-shrink: 0;
+}
+
+.pendiente-texto {
+    flex: 1;
+    min-width: 0;
+}
+
+.pendiente-titulo {
+    font-weight: 700;
+}
+
+.pendiente-linea {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--texto-2);
+    font-size: 0.925rem;
+}
+
+.etiqueta-tarde {
+    display: inline-block;
+    margin-top: 0.35rem;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    background: var(--adv-fondo);
+    color: var(--adv-texto);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.revisar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1.1rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--rup-fondo);
+    color: var(--rup-texto);
+    font-weight: 700;
+}
+
+.revisar:hover {
+    filter: brightness(0.96);
+}
+
+/* El formulario de revisión lo dibuja EditForm (un componente), por eso ::deep. */
+.pendiente ::deep .revision {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--borde);
 }
 
 .acciones {
     display: flex;
     gap: 0.5rem;
-    margin-top: 0.75rem;
 }
 
-.pendiente button {
-    padding: 0.55rem 1rem;
-    border: none;
-    border-radius: 8px;
-    background: #1f2933;
-    color: #ffffff;
-    font-size: 0.95rem;
-    cursor: pointer;
+.ver-mas {
+    width: 100%;
 }
 
-.pendiente button.registrar {
-    margin-top: 0.75rem;
-    background: #c92a2a;
+.cargando,
+.pie {
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--texto-3);
 }
 
-.pendiente button.secundario {
-    background: #e4e7eb;
-    color: #1f2933;
-}
+/* Celular: todo en una columna. */
+@media (max-width: 640px) {
+    .panel {
+        padding: 1.25rem;
+    }
 
-.pendiente button:disabled {
-    opacity: 0.6;
-    cursor: default;
-}
+    .lectura {
+        grid-template-columns: 1fr;
+        margin-left: 0;
+    }
 
-/* Sin señal del dispositivo (HU04, HU05). */
-.estado-sinsenal {
-    border-top-color: #e8590c;
-}
+    .datos {
+        padding-left: 0;
+        padding-top: 1rem;
+        border-left: none;
+        border-top: 1px solid var(--borde);
+    }
 
-.estado-sinsenal .temperatura {
-    color: #9aa5b1;
-}
+    .pendiente-fila {
+        flex-wrap: wrap;
+    }
 
-.estado-sinsenal .estado {
-    color: #616e7c;
-}
-
-.aviso-senal {
-    margin: 0 0 1rem;
-    padding: 0.75rem;
-    border-radius: 8px;
-    background: #fff4e6;
-    color: #a33d00;
-    font-size: 0.95rem;
-}
-
-.aviso-senal p {
-    margin: 0.15rem 0;
-}
-
-.etiqueta-tarde {
-    display: inline-block;
-    margin: 0.15rem 0 0.35rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 999px;
-    background: #fff4e6;
-    color: #a33d00;
-    font-size: 0.8rem;
-    font-weight: 600;
+    .revisar {
+        width: 100%;
+        justify-content: center;
+    }
 }

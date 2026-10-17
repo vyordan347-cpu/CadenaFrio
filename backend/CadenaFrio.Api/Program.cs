@@ -68,6 +68,8 @@ builder.Services.AddAuthorization(opciones =>
 {
     opciones.AddPolicy(Politicas.PuedeConfigurarRangos, politica =>
         politica.RequireRole(Roles.ResponsableInmunizaciones, Roles.Administrador));
+    opciones.AddPolicy(Politicas.EsAdministrador, politica =>
+        politica.RequireRole(Roles.Administrador));
 });
 
 builder.Services.AddControllers();

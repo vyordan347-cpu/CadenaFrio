@@ -1,0 +1,284 @@
+/* Sistema de diseño de Cadena de Frío.
+   Todos los colores, tipografía y espaciados salen de aquí, para que las pantallas
+   sean consistentes. Las páginas solo usan estas variables, nunca colores sueltos. */
+
+/* Atkinson Hyperlegible: tipografía diseñada para máxima legibilidad, incluso a distancia
+   y con poca visión. Está incluida en el proyecto, así funciona sin internet. (Licencia OFL) */
+@font-face {
+    font-family: "Atkinson Hyperlegible";
+    src: url("../fonts/atkinson-hyperlegible-regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Atkinson Hyperlegible";
+    src: url("../fonts/atkinson-hyperlegible-bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    color-scheme: light;
+
+    /* Superficies: fondo gris frío en lugar de blanco puro, para no cansar la vista. */
+    --fondo: #e7edf2;
+    --superficie: #fbfcfd;
+    --superficie-2: #f2f5f7;
+    --borde: #dce3e8;
+    --borde-fuerte: #c3cdd5;
+
+    /* Texto: tres niveles de importancia. */
+    --texto: #1d2a33;
+    --texto-2: #52606b;
+    --texto-3: #7e8b95;
+
+    /* Acento: azul frío, color de la marca. */
+    --acento: #1f5f8b;
+    --acento-hover: #184d72;
+    --acento-suave: #e3eef6;
+    --sobre-acento: #ffffff;
+
+    /* Estados. Cada uno tiene color principal, fondo suave y texto legible sobre ese fondo. */
+    --ok: #2f7d5b;
+    --ok-fondo: #e2f2ea;
+    --ok-texto: #1e5a40;
+    --adv: #b7791f;
+    --adv-fondo: #fbf0dc;
+    --adv-texto: #7a4e0e;
+    --rup: #b4443c;
+    --rup-fondo: #f8e3e1;
+    --rup-texto: #7e2a24;
+    --sen: #6b7680;
+    --sen-fondo: #eceff2;
+    --sen-texto: #3f4a53;
+
+    /* Zonas de la banda tipo termómetro. */
+    --zona-optima: #bfe3d0;
+    --zona-adv: #f6ddb0;
+    --zona-rup: #f2c4bf;
+
+    /* Barra superior: azul marino, identidad del sistema. */
+    --barra-fondo: #14304a;
+    --barra-texto: #f1f6fa;
+    --barra-texto-2: #a6bdd0;
+    --barra-activo: #2b7bc4;
+    --barra-hover: rgba(255, 255, 255, 0.08);
+    --barra-borde: rgba(255, 255, 255, 0.28);
+
+    /* Recuadro de acción (información). */
+    --info-fondo: #e4eff8;
+    --info-texto: #1d4f75;
+
+    /* Forma y espacio. */
+    --radio: 10px;
+    --radio-grande: 16px;
+    --sombra: 0 1px 2px rgba(29, 42, 51, 0.06);
+    --fuente: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+}
+
+/* Modo oscuro: se activa solo, según la configuración del sistema operativo.
+   Útil si la pantalla queda encendida de noche en la posta. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+        --fondo: #11181d;
+        --superficie: #1a232a;
+        --superficie-2: #222d35;
+        --borde: #2e3a43;
+        --borde-fuerte: #42515c;
+        --texto: #e6edf2;
+        --texto-2: #a9b6c0;
+        --texto-3: #7f8c96;
+        --acento: #7fb3d8;
+        --acento-hover: #9cc6e3;
+        --acento-suave: #1d3344;
+        --sobre-acento: #0f1a22;
+        --ok: #6cc49a;
+        --ok-fondo: #173328;
+        --ok-texto: #a9e3c6;
+        --adv: #e3b25e;
+        --adv-fondo: #3a2c12;
+        --adv-texto: #f2d29a;
+        --rup: #e58a82;
+        --rup-fondo: #3d1d1b;
+        --rup-texto: #f4bdb7;
+        --sen: #9aa6b0;
+        --sen-fondo: #252f37;
+        --sen-texto: #c9d3da;
+        --zona-optima: #2c5b45;
+        --zona-adv: #6b5222;
+        --zona-rup: #6e3330;
+        --sombra: none;
+        --barra-fondo: #0c1b27;
+        --barra-texto: #e6edf2;
+        --barra-texto-2: #8fa6b8;
+        --barra-activo: #2b6ea8;
+        --info-fondo: #18303f;
+        --info-texto: #b9d7ee;
+    }
+}
+
+/* Base */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: var(--fuente);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+    margin: 0;
+    line-height: 1.25;
+    font-weight: 700;
+}
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: 1rem; }
+
+p {
+    margin: 0;
+}
+
+/* Números con ancho fijo: las cifras no "bailan" cuando cambian. */
+.cifras {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Campos de formulario (incluye los que dibuja Blazor: InputText, InputNumber, etc.) */
+input,
+textarea,
+select {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio);
+    background: var(--superficie);
+    color: var(--texto);
+    font: inherit;
+}
+
+textarea {
+    resize: vertical;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--acento);
+    outline-offset: 2px;
+}
+
+/* Blazor marca con "invalid" los campos que no pasan la validación. */
+input.invalid,
+textarea.invalid {
+    border-color: var(--rup);
+}
+
+.validation-message {
+    color: var(--rup);
+    font-size: 0.875rem;
+}
+
+label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--texto-2);
+}
+
+/* Botones */
+button {
+    font: inherit;
+    cursor: pointer;
+}
+
+.boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1rem;
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio);
+    background: var(--superficie);
+    color: var(--texto);
+    font-size: 0.95rem;
+}
+
+.boton:hover {
+    background: var(--superficie-2);
+}
+
+.boton-primario {
+    border-color: var(--acento);
+    background: var(--acento);
+    color: var(--sobre-acento);
+}
+
+.boton-primario:hover {
+    background: var(--acento-hover);
+}
+
+.icono {
+    flex-shrink: 0;
+}
+
+.boton:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Tarjeta: superficie elevada estándar. */
+.tarjeta {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-grande);
+    box-shadow: var(--sombra);
+}
+
+/* Avisos */
+.aviso {
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radio);
+    font-size: 0.95rem;
+}
+
+.aviso-ok { background: var(--ok-fondo); color: var(--ok-texto); }
+.aviso-error { background: var(--rup-fondo); color: var(--rup-texto); }
+
+/* Texto solo para lectores de pantalla. */
+.solo-lector {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+        animation: none !important;
+    }
+}

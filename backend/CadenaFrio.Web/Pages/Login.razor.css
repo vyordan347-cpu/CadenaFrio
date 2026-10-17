@@ -1,86 +1,70 @@
 .contenedor {
-    min-height: calc(100vh - 3.5rem);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    font-family: "Segoe UI", Arial, sans-serif;
-    background: #f4f6f8;
-    color: #1f2933;
-    box-sizing: border-box;
+    min-height: calc(100vh - 4.5rem);
+    display: grid;
+    place-items: center;
+    padding: 1.5rem 1rem;
 }
 
-.tarjeta {
+.acceso {
     width: 100%;
-    max-width: 380px;
-    padding: 2rem 1.5rem;
-    border-radius: 16px;
-    background: #ffffff;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    max-width: 400px;
+    padding: 2rem 1.75rem 1.5rem;
+}
+
+.logo {
+    display: grid;
+    place-items: center;
+    width: 3.75rem;
+    height: 3.75rem;
+    margin-bottom: 1rem;
+    border-radius: 50%;
+    background: var(--barra-fondo);
+    color: #8cc8f5;
 }
 
 h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    text-align: center;
+    color: var(--texto);
 }
 
 .subtitulo {
     margin: 0.25rem 0 1.5rem;
-    color: #52606d;
-    text-align: center;
+    color: var(--texto-2);
 }
 
 label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
     margin-bottom: 1rem;
-    font-size: 0.9rem;
-    font-weight: 600;
 }
 
-label ::deep input {
-    padding: 0.65rem 0.75rem;
-    border: 1px solid #cbd2d9;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 400;
-}
-
-label ::deep input:focus {
-    outline: 2px solid #3e7bfa;
-    border-color: transparent;
-}
-
-label ::deep .validation-message {
-    color: #c92a2a;
-    font-size: 0.85rem;
-    font-weight: 400;
-}
-
-button {
+.boton {
     width: 100%;
     padding: 0.75rem;
-    border: none;
-    border-radius: 8px;
-    background: #1f2933;
-    color: #ffffff;
-    font-size: 1rem;
-    cursor: pointer;
+    margin-top: 0.25rem;
+    border-radius: 999px;
+    font-weight: 700;
 }
 
-button:disabled {
-    opacity: 0.6;
-    cursor: default;
-}
-
-.aviso-error {
+.aviso {
     margin-top: 1rem;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    background: #fff5f5;
-    color: #c92a2a;
-    font-size: 0.95rem;
-    text-align: center;
+}
+
+/* Identificación académica al pie de la tarjeta. */
+.academico {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--borde);
+    color: var(--texto-2);
+    font-size: 0.85rem;
+    line-height: 1.35;
+}
+
+.academico strong {
+    color: var(--texto);
+}
+
+.academico img {
+    flex-shrink: 0;
+    height: auto;
 }

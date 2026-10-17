@@ -1,31 +1,54 @@
 @inherits LayoutComponentBase
 @using CadenaFrio.Shared.Contracts
-@using Microsoft.AspNetCore.Components.Authorization
 @using CadenaFrio.Web.Autenticacion
+@using CadenaFrio.Web.Componentes
+@using Microsoft.AspNetCore.Components.Authorization
 @inject ProveedorEstadoAutenticacion Autenticacion
 @inject NavigationManager Navegacion
 
 @* Estructura común a todas las pantallas: barra superior con menú y contenido. *@
 
 <header class="barra">
-    <span class="marca">Cadena de Frío</span>
+    <a class="marca" href="">
+        <Icono Nombre="copo" Tamano="30" />
+        <span class="marca-texto">
+            <span class="marca-nombre">Cadena de Frío</span>
+            <span class="marca-sub">Monitoreo de vacunas</span>
+        </span>
+    </a>
 
-    @* AuthorizeView muestra su contenido solo si hay sesión iniciada. *@
+    @* Solo con sesión iniciada se muestran el menú y los datos de la sesión. *@
     <AuthorizeView>
         <Authorized>
-            <nav class="menu">
-                @* NavLink marca automáticamente con la clase "active" el enlace de la página actual. *@
-                <NavLink href="" Match="NavLinkMatch.All">Temperatura</NavLink>
+            <nav class="menu" aria-label="Principal">
+                @* NavLink marca con la clase "active" el enlace de la página actual. *@
+                <NavLink href="" Match="NavLinkMatch.All">
+                    <Icono Nombre="temperatura" Tamano="18" /> Temperatura
+                </NavLink>
 
                 @* "Configuración" solo aparece para quien tiene permiso de cambiar rangos. *@
                 <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos" Context="permiso">
-                    <NavLink href="configuracion">Configuración</NavLink>
+                    <NavLink href="configuracion">
+                        <Icono Nombre="configuracion" Tamano="18" /> Configuración
+                    </NavLink>
+                </AuthorizeView>
+
+                @* "Administración" solo para el rol Administrador (RF19). *@
+                <AuthorizeView Policy="@Politicas.EsAdministrador" Context="administrador">
+                    <NavLink href="admin/equipos">
+                        <Icono Nombre="admin" Tamano="18" /> Administración
+                    </NavLink>
                 </AuthorizeView>
             </nav>
 
             <div class="sesion">
-                <span class="usuario">@context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value</span>
-                <button class="salir" @onclick="CerrarSesionAsync">Salir</button>
+                <span class="usuario">
+                    <Icono Nombre="usuario" Tamano="18" />
+                    @context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value
+                </span>
+                <button class="salir" @onclick="CerrarSesionAsync">
+                    <Icono Nombre="salir" Tamano="18" /> Cerrar sesión
+                </button>
             </div>
         </Authorized>
     </AuthorizeView>
