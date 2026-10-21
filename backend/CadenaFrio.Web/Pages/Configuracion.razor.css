@@ -8,9 +8,19 @@
 
 .encabezado {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 1rem;
     margin-bottom: 1.25rem;
+}
+
+.encabezado-texto {
+    flex: 1;
+    min-width: 240px;
+}
+
+.selector {
+    min-width: 220px;
 }
 
 .encabezado-icono {
@@ -143,4 +153,132 @@ th {
 
 tbody tr:hover {
     background: var(--superficie-2);
+}
+
+.nota {
+    color: var(--texto-2);
+    font-size: 0.925rem;
+}
+
+/* Vacunas y vista previa */
+.vacunas-y-vista {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1rem;
+}
+
+.vacunas {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.vacuna-opcion {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.vacuna-opcion.marcada {
+    border-color: var(--acento);
+    background: var(--acento-suave);
+}
+
+.vacuna-opcion input {
+    width: 1.15rem;
+    height: 1.15rem;
+    accent-color: var(--acento);
+    flex-shrink: 0;
+}
+
+.vacuna-texto {
+    display: flex;
+    flex-direction: column;
+}
+
+.vacuna-nombre {
+    color: var(--texto);
+    font-weight: 700;
+}
+
+.vacuna-rango {
+    color: var(--texto-2);
+    font-weight: 400;
+    font-size: 0.875rem;
+}
+
+.vista-previa {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    text-align: center;
+}
+
+.rango-calculado {
+    color: var(--texto-2);
+    font-size: 0.925rem;
+    line-height: 1.6;
+}
+
+.rango-calculado strong {
+    color: var(--acento);
+}
+
+.incompatible {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.acciones {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Ajuste manual plegable */
+.ajuste {
+    padding: 1.1rem 1.6rem;
+}
+
+.ajuste summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+}
+
+.ajuste summary::-webkit-details-marker {
+    display: none;
+}
+
+.ajuste[open] summary {
+    margin-bottom: 0.75rem;
+}
+
+.ajuste .nota {
+    margin-bottom: 1rem;
+}
+
+.origen {
+    white-space: normal;
+    min-width: 220px;
+    color: var(--texto-2);
+}
+
+@media (max-width: 680px) {
+    .vacunas-y-vista {
+        grid-template-columns: 1fr;
+    }
 }

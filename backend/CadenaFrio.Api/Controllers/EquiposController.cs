@@ -181,6 +181,7 @@ public class EquiposController : ControllerBase
             LimiteMaximo = nuevos.LimiteMaximo,
             // Quién hizo el cambio se toma de la sesión, no de lo que envíe la pantalla.
             ModificadoPor = User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity!.Name!,
+            Detalle = "Ajuste manual",
             FechaCambio = DateTime.UtcNow
         };
 
@@ -200,6 +201,7 @@ public class EquiposController : ControllerBase
         LimiteMaximo = rango.LimiteMaximo,
         FechaCambio = rango.FechaCambio,
         ModificadoPor = rango.ModificadoPor,
+        Detalle = rango.Detalle,
         EsPorDefecto = false
     };
 

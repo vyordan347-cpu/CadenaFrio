@@ -25,6 +25,9 @@ builder.Services.Configure<OpcionesMonitoreo>(builder.Configuration.GetSection("
 builder.Services.AddScoped<RegistroLecturas>();
 builder.Services.AddScoped<MotorAlertas>();
 
+// Rangos calculados según las vacunas de cada equipo.
+builder.Services.AddScoped<GestionRangos>();
+
 // Detector de silencio y su vigilante en segundo plano (HU04, HU05).
 builder.Services.AddScoped<DetectorSilencio>();
 builder.Services.AddHostedService<VigilanteSenal>();

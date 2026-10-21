@@ -18,6 +18,8 @@ public class CadenaFrioDbContext : DbContext
     public DbSet<RangoTemperatura> RangosTemperatura => Set<RangoTemperatura>();
     public DbSet<Alerta> Alertas => Set<Alerta>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<Vacuna> Vacunas => Set<Vacuna>();
+    public DbSet<EquipoVacuna> EquipoVacunas => Set<EquipoVacuna>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -53,6 +55,7 @@ public class CadenaFrioDbContext : DbContext
         modelBuilder.Entity<RangoTemperatura>(rango =>
         {
             rango.Property(r => r.ModificadoPor).IsRequired().HasMaxLength(100);
+            rango.Property(r => r.Detalle).HasMaxLength(300);
 
             // El rango límite conserva los nombres de columna originales, para que la
             // migración solo agregue columnas nuevas y no se pierdan los datos existentes.
@@ -112,6 +115,48 @@ public class CadenaFrioDbContext : DbContext
 
             // Dos personas no pueden tener el mismo nombre de usuario.
             usuario.HasIndex(u => u.NombreUsuario).IsUnique();
+        });
+
+        modelBuilder.Entity<Vacuna>(vacuna =>
+        {
+            vacuna.Property(v => v.Nombre).IsRequired().HasMaxLength(100);
+            vacuna.Property(v => v.Fuente).HasMaxLength(200);
+            vacuna.HasIndex(v => v.Nombre).IsUnique();
+
+            // Regla en la base de datos: el óptimo debe estar dentro del límite.
+            vacuna.ToTable(t => t.HasCheckConstraint(
+                "CK_Vacuna_RangosCoherentes",
+                "\"LimiteMinimo\" <= \"OptimoMinimo\" AND \"OptimoMinimo\" < \"OptimoMaximo\" AND \"OptimoMaximo\" <= \"LimiteMaximo\""));
+
+            // Perfil inicial: conservación entre +2 y +8 °C, con la franja de advertencia
+            // de la Directiva Sanitaria N° 133-MINSA-2021.
+            vacuna.HasData(new Vacuna
+            {
+                Id = 1,
+                Nombre = "Esquema regular (PNI)",
+                OptimoMinimo = 2.0,
+                OptimoMaximo = 7.0,
+                LimiteMinimo = 0.0,
+                LimiteMaximo = 8.0,
+                Fuente = "Directiva Sanitaria N° 133-MINSA-2021",
+                Activo = true
+            });
+        });
+
+        modelBuilder.Entity<EquipoVacuna>(asignacion =>
+        {
+            // Clave compuesta: una vacuna se asigna una sola vez a cada equipo.
+            asignacion.HasKey(a => new { a.EquipoId, a.VacunaId });
+
+            asignacion.HasOne(a => a.Equipo)
+                      .WithMany(e => e.Vacunas)
+                      .HasForeignKey(a => a.EquipoId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+            asignacion.HasOne(a => a.Vacuna)
+                      .WithMany(v => v.Equipos)
+                      .HasForeignKey(a => a.VacunaId)
+                      .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Los usuarios de prueba no se crean aquí, sino al iniciar la API

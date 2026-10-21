@@ -25,4 +25,7 @@ public class RangoTemperatura
 
     // Nombre de quien hizo el cambio, tomado de la sesión iniciada.
     public string ModificadoPor { get; set; } = string.Empty;
+
+    // Origen del cambio, por ejemplo "Calculado según: Esquema regular (PNI)" o "Ajuste manual".
+    public string? Detalle { get; set; }
 }

@@ -28,4 +28,7 @@ public class Equipo
     public ICollection<Lectura> Lecturas { get; set; } = new List<Lectura>();
     public ICollection<RangoTemperatura> Rangos { get; set; } = new List<RangoTemperatura>();
     public ICollection<Alerta> Alertas { get; set; } = new List<Alerta>();
+
+    // Vacunas que guarda: definen su rango calculado.
+    public ICollection<EquipoVacuna> Vacunas { get; set; } = new List<EquipoVacuna>();
 }

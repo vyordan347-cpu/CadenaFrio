@@ -1,0 +1,268 @@
+@page "/admin/vacunas"
+@using System.Net.Http.Json
+@using System.Text.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = Politicas.EsAdministrador)]
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Vacunas · Administración · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+    <PestanasAdmin />
+
+    <header class="encabezado">
+        <span class="encabezado-icono"><Icono Nombre="vacuna" Tamano="26" /></span>
+        <div class="encabezado-texto">
+            <h1>Catálogo de vacunas</h1>
+            <p class="subtitulo">Rangos de conservación de cada vacuna. Definen el rango de los equipos que la guardan.</p>
+        </div>
+        @if (!formularioVisible)
+        {
+            <button class="boton boton-primario" @onclick="NuevaVacuna">
+                <Icono Nombre="agregar" Tamano="18" /> Agregar vacuna
+            </button>
+        }
+    </header>
+
+    @if (formularioVisible)
+    {
+        <section class="tarjeta formulario">
+            <h2><Icono Nombre="@(enEdicion is null ? "agregar" : "editar")" />
+                @(enEdicion is null ? "Agregar vacuna" : $"Editar \"{enEdicion.Nombre}\"")</h2>
+
+            @if (enEdicion is { CantidadEquipos: > 0 })
+            {
+                <p class="aviso aviso-info">
+                    La guardan @enEdicion.CantidadEquipos equipo(s). Si cambia sus rangos, esos equipos se recalcularán automáticamente.
+                </p>
+            }
+
+            <EditForm Model="solicitud" OnValidSubmit="GuardarAsync">
+                <DataAnnotationsValidator />
+                <div class="campos">
+                    <label class="campo-ancho">
+                        Nombre
+                        <InputText @bind-Value="solicitud.Nombre" placeholder="Vacuna X" />
+                        <ValidationMessage For="() => solicitud.Nombre" />
+                    </label>
+                </div>
+
+                <fieldset>
+                    <legend>Rango óptimo (conservación normal)</legend>
+                    <div class="campos">
+                        <label>Mínimo (°C)
+                            <InputNumber @bind-Value="solicitud.OptimoMinimo" step="0.1" />
+                            <ValidationMessage For="() => solicitud.OptimoMinimo" />
+                        </label>
+                        <label>Máximo (°C)
+                            <InputNumber @bind-Value="solicitud.OptimoMaximo" step="0.1" />
+                            <ValidationMessage For="() => solicitud.OptimoMaximo" />
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Rango límite (fuera de él hay ruptura)</legend>
+                    <div class="campos">
+                        <label>Mínimo (°C)
+                            <InputNumber @bind-Value="solicitud.LimiteMinimo" step="0.1" />
+                            <ValidationMessage For="() => solicitud.LimiteMinimo" />
+                        </label>
+                        <label>Máximo (°C)
+                            <InputNumber @bind-Value="solicitud.LimiteMaximo" step="0.1" />
+                            <ValidationMessage For="() => solicitud.LimiteMaximo" />
+                        </label>
+                    </div>
+                </fieldset>
+
+                <div class="campos">
+                    <label class="campo-ancho">
+                        Fuente del dato
+                        <InputText @bind-Value="solicitud.Fuente" placeholder="NTS N° 242-MINSA/DGIESP-2026" />
+                        <ValidationMessage For="() => solicitud.Fuente" />
+                    </label>
+                </div>
+
+                @if (errorFormulario is not null)
+                {
+                    <p class="aviso aviso-error">@errorFormulario</p>
+                }
+
+                <div class="acciones">
+                    <button type="submit" class="boton boton-primario" disabled="@guardando">
+                        @(guardando ? "Guardando…" : "Guardar")
+                    </button>
+                    <button type="button" class="boton" @onclick="() => formularioVisible = false">Cancelar</button>
+                </div>
+            </EditForm>
+        </section>
+    }
+
+    @if (errorAccion is not null)
+    {
+        <p class="aviso aviso-error">@errorAccion</p>
+    }
+
+    @if (vacunas is null)
+    {
+        <p class="nota">Cargando…</p>
+    }
+    else
+    {
+        <section class="lista" aria-label="Vacunas del catálogo">
+            @foreach (var vacuna in vacunas)
+            {
+                <article class="tarjeta vacuna @(vacuna.Activo ? "" : "inactivo")">
+                    <span class="vacuna-icono"><Icono Nombre="vacuna" Tamano="24" /></span>
+                    <div class="vacuna-texto">
+                        <p class="vacuna-nombre">@vacuna.Nombre</p>
+                        <p class="vacuna-rangos cifras">
+                            Óptimo @vacuna.OptimoMinimo.ToString("0.0") a @vacuna.OptimoMaximo.ToString("0.0") °C,
+                            límite @vacuna.LimiteMinimo.ToString("0.0") a @vacuna.LimiteMaximo.ToString("0.0") °C
+                        </p>
+                        <p class="vacuna-detalle">
+                            @(vacuna.CantidadEquipos == 0 ? "Ningún equipo la guarda" : $"La guardan {vacuna.CantidadEquipos} equipo(s)")
+                            @if (!string.IsNullOrWhiteSpace(vacuna.Fuente))
+                            {
+                                <span>. Fuente: @vacuna.Fuente</span>
+                            }
+                        </p>
+                    </div>
+                    <span class="pastilla @(vacuna.Activo ? "activo" : "inactivo-pastilla")">@(vacuna.Activo ? "Activa" : "Retirada")</span>
+                    <div class="vacuna-acciones">
+                        <button class="boton boton-chico" @onclick="() => EditarVacuna(vacuna)">
+                            <Icono Nombre="editar" Tamano="16" /> Editar
+                        </button>
+                        <button class="boton boton-chico" @onclick="() => CambiarEstadoAsync(vacuna)">
+                            <Icono Nombre="apagar" Tamano="16" /> @(vacuna.Activo ? "Retirar" : "Reactivar")
+                        </button>
+                    </div>
+                </article>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private List<VacunaDto>? vacunas;
+    private string? errorAccion;
+
+    private bool formularioVisible;
+    private VacunaDto? enEdicion;
+    private GuardarVacunaRequest solicitud = new();
+    private bool guardando;
+    private string? errorFormulario;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            vacunas = await Http.GetFromJsonAsync<List<VacunaDto>>("api/admin/vacunas");
+        }
+        catch (Exception)
+        {
+            errorAccion = "No se pudo cargar el catálogo. Revise que el servidor esté encendido.";
+        }
+    }
+
+    private void NuevaVacuna()
+    {
+        enEdicion = null;
+        // Se propone el rango del esquema regular como punto de partida.
+        solicitud = new GuardarVacunaRequest { OptimoMinimo = 2, OptimoMaximo = 7, LimiteMinimo = 0, LimiteMaximo = 8 };
+        errorFormulario = null;
+        formularioVisible = true;
+    }
+
+    private void EditarVacuna(VacunaDto vacuna)
+    {
+        enEdicion = vacuna;
+        solicitud = new GuardarVacunaRequest
+        {
+            Nombre = vacuna.Nombre,
+            OptimoMinimo = vacuna.OptimoMinimo,
+            OptimoMaximo = vacuna.OptimoMaximo,
+            LimiteMinimo = vacuna.LimiteMinimo,
+            LimiteMaximo = vacuna.LimiteMaximo,
+            Fuente = vacuna.Fuente
+        };
+        errorFormulario = null;
+        formularioVisible = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        guardando = true;
+        errorFormulario = null;
+        try
+        {
+            var respuesta = enEdicion is null
+                ? await Http.PostAsJsonAsync("api/admin/vacunas", solicitud)
+                : await Http.PutAsJsonAsync($"api/admin/vacunas/{enEdicion.Id}", solicitud);
+
+            if (!respuesta.IsSuccessStatusCode)
+            {
+                errorFormulario = await LeerErrorAsync(respuesta);
+                return;
+            }
+
+            formularioVisible = false;
+            await CargarAsync();
+        }
+        catch (Exception)
+        {
+            errorFormulario = "No se pudo conectar con el servidor.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task CambiarEstadoAsync(VacunaDto vacuna)
+    {
+        if (vacuna.Activo &&
+            !await JS.InvokeAsync<bool>("confirm", $"¿Retirar \"{vacuna.Nombre}\" del catálogo?\n\nNo se borra: podrá reactivarla."))
+        {
+            return;
+        }
+
+        var accion = vacuna.Activo ? "desactivar" : "activar";
+        var respuesta = await Http.PostAsync($"api/admin/vacunas/{vacuna.Id}/{accion}", null);
+        errorAccion = respuesta.IsSuccessStatusCode ? null : await LeerErrorAsync(respuesta);
+        await CargarAsync();
+    }
+
+    private static async Task<string> LeerErrorAsync(HttpResponseMessage respuesta)
+    {
+        try
+        {
+            using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+            var raiz = documento.RootElement;
+            if (raiz.TryGetProperty("mensaje", out var mensaje))
+            {
+                return mensaje.GetString() ?? "No se pudo completar la acción.";
+            }
+            if (raiz.TryGetProperty("errors", out var errores))
+            {
+                foreach (var campo in errores.EnumerateObject())
+                {
+                    foreach (var detalle in campo.Value.EnumerateArray())
+                    {
+                        return detalle.GetString() ?? "Revise los datos.";
+                    }
+                }
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return "No se pudo completar la acción.";
+    }
+}

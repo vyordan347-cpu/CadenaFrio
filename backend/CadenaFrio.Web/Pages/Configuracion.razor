@@ -1,51 +1,133 @@
 @page "/configuracion"
-@using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Policy = Politicas.PuedeConfigurarRangos)]
-@using System.Net
 @using System.Net.Http.Json
 @using System.Text.Json
 @using CadenaFrio.Shared.Contracts
 @using CadenaFrio.Web.Componentes
 @using CadenaFrio.Web.Utilidades
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = Politicas.PuedeConfigurarRangos)]
 @inject HttpClient Http
+@inject NavigationManager Navegacion
 
-<PageTitle>Cadena de frío - Configuración de rangos</PageTitle>
+<PageTitle>Configuración · Cadena de Frío</PageTitle>
 
-<div class="pagina">
+<main class="pagina">
     <header class="encabezado">
         <span class="encabezado-icono"><Icono Nombre="configuracion" Tamano="26" /></span>
-        <div>
+        <div class="encabezado-texto">
             <h1>Configuración de rangos</h1>
-            <p class="subtitulo">@(nombreEquipo ?? "Cargando equipo…")</p>
+            <p class="subtitulo">Elija el equipo y las vacunas que guarda: el sistema calcula su rango seguro.</p>
         </div>
+        @if (equipos is { Count: > 0 })
+        {
+            <label class="selector">
+                Equipo
+                <select value="@equipoId" @onchange="CambiarEquipoAsync">
+                    @foreach (var equipo in equipos)
+                    {
+                        <option value="@equipo.Id">@equipo.Nombre</option>
+                    }
+                </select>
+            </label>
+        }
     </header>
 
     @if (errorCarga is not null)
     {
-        <div class="aviso aviso-error">@errorCarga</div>
+        <p class="aviso aviso-error">@errorCarga</p>
     }
-    else if (vigente is null)
+    else if (vigente is null || catalogo is null)
     {
-        <p class="detalle">Cargando…</p>
+        <p class="nota">Cargando…</p>
     }
     else
     {
-        @* 1. Rangos vigentes *@
+        var calculo = Calculo;
+
+        @* 1. Vacunas que guarda el equipo y rango calculado *@
+        <section class="tarjeta">
+            <h2><Icono Nombre="vacuna" /> Vacunas que guarda</h2>
+
+            <div class="vacunas-y-vista">
+                <div class="vacunas">
+                    @foreach (var vacuna in catalogo)
+                    {
+                        var marcada = seleccion.Contains(vacuna.Id);
+                        <label class="vacuna-opcion @(marcada ? "marcada" : "")">
+                            <input type="checkbox" checked="@marcada" @onchange="() => Alternar(vacuna.Id)" />
+                            <span class="vacuna-texto">
+                                <span class="vacuna-nombre">@vacuna.Nombre</span>
+                                <span class="vacuna-rango cifras">
+                                    Óptimo @vacuna.OptimoMinimo.ToString("0.0")–@vacuna.OptimoMaximo.ToString("0.0") °C,
+                                    límite @vacuna.LimiteMinimo.ToString("0.0")–@vacuna.LimiteMaximo.ToString("0.0") °C
+                                </span>
+                            </span>
+                        </label>
+                    }
+                    @if (catalogo.Count == 0)
+                    {
+                        <p class="nota">El catálogo está vacío. El administrador puede agregar vacunas en Administración.</p>
+                    }
+                </div>
+
+                @* Vista previa: se recalcula al instante con cada casilla (reactividad de Blazor). *@
+                <div class="vista-previa">
+                    @if (seleccion.Count == 0)
+                    {
+                        <p class="nota">Marque las vacunas que guarda este equipo para calcular su rango.</p>
+                    }
+                    else if (calculo is null)
+                    {
+                        <div class="aviso aviso-error incompatible">
+                            <Icono Nombre="ruptura" />
+                            <span>Estas vacunas <strong>no pueden almacenarse juntas</strong>: no existe una temperatura segura para todas.</span>
+                        </div>
+                    }
+                    else
+                    {
+                        var (estado, texto) = EstadoVista(calculo.Value);
+                        <IndicadorTemperatura Compacto="true" Temperatura="temperaturaActual"
+                                              OptimoMinimo="calculo.Value.OptimoMin" OptimoMaximo="calculo.Value.OptimoMax"
+                                              LimiteMinimo="calculo.Value.LimiteMin" LimiteMaximo="calculo.Value.LimiteMax"
+                                              Estado="@estado" TextoEstado="@texto" />
+                        <p class="rango-calculado cifras">
+                            Óptimo <strong>@calculo.Value.OptimoMin.ToString("0.0") – @calculo.Value.OptimoMax.ToString("0.0") °C</strong><br />
+                            Límite <strong>@calculo.Value.LimiteMin.ToString("0.0") – @calculo.Value.LimiteMax.ToString("0.0") °C</strong>
+                        </p>
+                        @if (temperaturaActual is not null)
+                        {
+                            <p class="nota">La aguja muestra la temperatura actual del equipo con este rango.</p>
+                        }
+                    }
+                </div>
+            </div>
+
+            @if (mensajeVacunas is not null)
+            {
+                <p class="aviso @(errorVacunas ? "aviso-error" : "aviso-ok")">@mensajeVacunas</p>
+            }
+
+            <div class="acciones">
+                <button class="boton boton-primario" disabled="@(guardandoVacunas || !HayCambiosEnVacunas || (seleccion.Count > 0 && calculo is null))"
+                        @onclick="GuardarVacunasAsync">
+                    @(guardandoVacunas ? "Guardando…" : "Guardar vacunas y aplicar rango")
+                </button>
+            </div>
+        </section>
+
+        @* 2. Rangos vigentes *@
         <section class="tarjeta">
             <h2><Icono Nombre="temperatura" /> Rangos vigentes</h2>
             <div class="rangos">
                 <div>
                     <p class="etiqueta">Óptimo</p>
-                    <p class="rango">@vigente.OptimoMinimo.ToString("0.0") a @vigente.OptimoMaximo.ToString("0.0") °C</p>
+                    <p class="rango cifras">@vigente.OptimoMinimo.ToString("0.0") a @vigente.OptimoMaximo.ToString("0.0") °C</p>
                 </div>
                 <div>
                     <p class="etiqueta">Límite</p>
-                    <p class="rango">@vigente.LimiteMinimo.ToString("0.0") a @vigente.LimiteMaximo.ToString("0.0") °C</p>
+                    <p class="rango cifras">@vigente.LimiteMinimo.ToString("0.0") a @vigente.LimiteMaximo.ToString("0.0") °C</p>
                 </div>
             </div>
-            <p class="detalle">
-                Fuera del óptimo se emite una advertencia; fuera del límite, una ruptura de la cadena de frío.
-            </p>
             @if (vigente.EsPorDefecto)
             {
                 <p class="detalle">Rangos por defecto: nadie los ha configurado todavía.</p>
@@ -53,69 +135,58 @@
             else
             {
                 <p class="detalle">
-                    Configurado por @vigente.ModificadoPor el @FormatoFecha.HoraPeru(vigente.FechaCambio!.Value)
+                    @(vigente.Detalle ?? "Configurado") por @vigente.ModificadoPor, el @FormatoFecha.HoraPeru(vigente.FechaCambio!.Value).
                 </p>
             }
         </section>
 
-        @* 2. Formulario para registrar un rango nuevo *@
-        <section class="tarjeta">
-            <h2><Icono Nombre="configuracion" /> Nuevos rangos</h2>
+        @* 3. Ajuste manual, para casos especiales *@
+        <details class="tarjeta ajuste">
+            <summary><Icono Nombre="editar" /> Ajuste manual</summary>
+            <p class="nota">Solo para casos especiales. Queda registrado como "Ajuste manual" en el historial.
+                Si luego cambia las vacunas del equipo, el rango se volverá a calcular.</p>
 
-            @* EditForm valida con las mismas reglas del DTO compartido que usa la API.
-               OnValidSubmit solo se ejecuta si todas las validaciones pasan. *@
-            @* Quién hace el cambio ya no se escribe: la API lo toma de la sesión iniciada. *@
-            <EditForm Model="solicitud" OnValidSubmit="GuardarAsync">
+            <EditForm Model="manual" OnValidSubmit="GuardarManualAsync">
                 <DataAnnotationsValidator />
-
                 <fieldset>
-                    <legend>Rango óptimo (funcionamiento normal)</legend>
+                    <legend>Rango óptimo</legend>
                     <div class="campos">
-                        <label>
-                            Mínimo (°C)
-                            <InputNumber @bind-Value="solicitud.OptimoMinimo" step="0.1" />
-                            <ValidationMessage For="() => solicitud.OptimoMinimo" />
+                        <label>Mínimo (°C)
+                            <InputNumber @bind-Value="manual.OptimoMinimo" step="0.1" />
+                            <ValidationMessage For="() => manual.OptimoMinimo" />
                         </label>
-                        <label>
-                            Máximo (°C)
-                            <InputNumber @bind-Value="solicitud.OptimoMaximo" step="0.1" />
-                            <ValidationMessage For="() => solicitud.OptimoMaximo" />
+                        <label>Máximo (°C)
+                            <InputNumber @bind-Value="manual.OptimoMaximo" step="0.1" />
+                            <ValidationMessage For="() => manual.OptimoMaximo" />
+                        </label>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>Rango límite</legend>
+                    <div class="campos">
+                        <label>Mínimo (°C)
+                            <InputNumber @bind-Value="manual.LimiteMinimo" step="0.1" />
+                            <ValidationMessage For="() => manual.LimiteMinimo" />
+                        </label>
+                        <label>Máximo (°C)
+                            <InputNumber @bind-Value="manual.LimiteMaximo" step="0.1" />
+                            <ValidationMessage For="() => manual.LimiteMaximo" />
                         </label>
                     </div>
                 </fieldset>
 
-                <fieldset>
-                    <legend>Rango límite (fuera de él hay ruptura)</legend>
-                    <div class="campos">
-                        <label>
-                            Mínimo (°C)
-                            <InputNumber @bind-Value="solicitud.LimiteMinimo" step="0.1" />
-                            <ValidationMessage For="() => solicitud.LimiteMinimo" />
-                        </label>
-                        <label>
-                            Máximo (°C)
-                            <InputNumber @bind-Value="solicitud.LimiteMaximo" step="0.1" />
-                            <ValidationMessage For="() => solicitud.LimiteMaximo" />
-                        </label>
-                    </div>
-                </fieldset>
+                @if (mensajeManual is not null)
+                {
+                    <p class="aviso @(errorManual ? "aviso-error" : "aviso-ok")">@mensajeManual</p>
+                }
 
-                <button type="submit" class="boton boton-primario" disabled="@guardando">
-                    @(guardando ? "Guardando…" : "Guardar rangos")
+                <button type="submit" class="boton" disabled="@guardandoManual">
+                    @(guardandoManual ? "Guardando…" : "Guardar ajuste manual")
                 </button>
             </EditForm>
+        </details>
 
-            @if (mensajeExito is not null)
-            {
-                <div class="aviso aviso-exito">@mensajeExito</div>
-            }
-            @if (mensajeError is not null)
-            {
-                <div class="aviso aviso-error">@mensajeError</div>
-            }
-        </section>
-
-        @* 3. Historial de cambios *@
+        @* 4. Historial *@
         <section class="tarjeta">
             <h2><Icono Nombre="reloj" /> Historial de cambios</h2>
             @if (historial.Count == 0)
@@ -131,6 +202,7 @@
                                 <th>Fecha</th>
                                 <th>Óptimo</th>
                                 <th>Límite</th>
+                                <th>Origen</th>
                                 <th>Registrado por</th>
                             </tr>
                         </thead>
@@ -139,8 +211,9 @@
                             {
                                 <tr>
                                     <td>@FormatoFecha.HoraPeru(cambio.FechaCambio!.Value)</td>
-                                    <td>@cambio.OptimoMinimo.ToString("0.0") a @cambio.OptimoMaximo.ToString("0.0") °C</td>
-                                    <td>@cambio.LimiteMinimo.ToString("0.0") a @cambio.LimiteMaximo.ToString("0.0") °C</td>
+                                    <td class="cifras">@cambio.OptimoMinimo.ToString("0.0")–@cambio.OptimoMaximo.ToString("0.0") °C</td>
+                                    <td class="cifras">@cambio.LimiteMinimo.ToString("0.0")–@cambio.LimiteMaximo.ToString("0.0") °C</td>
+                                    <td class="origen">@(cambio.Detalle ?? "—")</td>
                                     <td>@cambio.ModificadoPor</td>
                                 </tr>
                             }
@@ -150,103 +223,213 @@
             }
         </section>
     }
-</div>
+</main>
 
 @code {
-    // Por ahora se configura el equipo de prueba.
-    // Cuando haya varios equipos, se agregará un selector.
-    private const int EquipoId = 1;
-    private const string ErrorGenerico = "No se pudieron guardar los rangos. Intente nuevamente.";
+    // Permite abrir la página con un equipo elegido: /configuracion?equipo=2
+    [SupplyParameterFromQuery(Name = "equipo")]
+    public int? EquipoInicial { get; set; }
 
-    private string? nombreEquipo;
+    private List<EquipoResumenDto>? equipos;
+    private int equipoId;
+
+    private List<VacunaDto>? catalogo;
+    private HashSet<int> seleccion = new();
+    private HashSet<int> seleccionGuardada = new();
+    private double? temperaturaActual;
+
     private RangoTemperaturaDto? vigente;
     private List<RangoTemperaturaDto> historial = new();
-    private ConfigurarRangoRequest solicitud = new();
+    private ConfigurarRangoRequest manual = new();
 
-    private bool guardando;
     private string? errorCarga;
-    private string? mensajeExito;
-    private string? mensajeError;
+    private bool guardandoVacunas;
+    private string? mensajeVacunas;
+    private bool errorVacunas;
+    private bool guardandoManual;
+    private string? mensajeManual;
+    private bool errorManual;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var temperatura = await Http.GetFromJsonAsync<TemperaturaActualDto>(
-                $"api/equipos/{EquipoId}/temperatura-actual");
-            nombreEquipo = temperatura?.NombreEquipo;
+            equipos = await Http.GetFromJsonAsync<List<EquipoResumenDto>>("api/equipos/lista") ?? new();
+            catalogo = await Http.GetFromJsonAsync<List<VacunaDto>>("api/vacunas") ?? new();
 
-            await CargarRangosAsync();
+            if (equipos.Count == 0)
+            {
+                errorCarga = "No hay equipos activos. Regístrelos en Administración.";
+                return;
+            }
 
-            // El formulario empieza con los valores vigentes, para modificar a partir de ellos.
-            solicitud.OptimoMinimo = vigente?.OptimoMinimo;
-            solicitud.OptimoMaximo = vigente?.OptimoMaximo;
-            solicitud.LimiteMinimo = vigente?.LimiteMinimo;
-            solicitud.LimiteMaximo = vigente?.LimiteMaximo;
+            equipoId = equipos.Any(e => e.Id == EquipoInicial) ? EquipoInicial!.Value : equipos[0].Id;
+            await CargarEquipoAsync();
         }
         catch (Exception)
         {
-            errorCarga = "No se pudo cargar la configuración. Revise que el servidor esté en funcionamiento.";
+            errorCarga = "No se pudo cargar la configuración. Revise que el servidor esté encendido.";
         }
+    }
+
+    private async Task CambiarEquipoAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            equipoId = id;
+            mensajeVacunas = null;
+            mensajeManual = null;
+            await CargarEquipoAsync();
+        }
+    }
+
+    private async Task CargarEquipoAsync()
+    {
+        var asignadas = await Http.GetFromJsonAsync<List<int>>($"api/equipos/{equipoId}/vacunas") ?? new();
+        seleccion = asignadas.ToHashSet();
+        seleccionGuardada = asignadas.ToHashSet();
+
+        var actual = await Http.GetFromJsonAsync<TemperaturaActualDto>($"api/equipos/{equipoId}/temperatura-actual");
+        temperaturaActual = actual?.Temperatura;
+
+        await CargarRangosAsync();
     }
 
     private async Task CargarRangosAsync()
     {
-        vigente = await Http.GetFromJsonAsync<RangoTemperaturaDto>($"api/equipos/{EquipoId}/rango");
-        historial = await Http.GetFromJsonAsync<List<RangoTemperaturaDto>>($"api/equipos/{EquipoId}/rangos") ?? new();
+        vigente = await Http.GetFromJsonAsync<RangoTemperaturaDto>($"api/equipos/{equipoId}/rango");
+        historial = await Http.GetFromJsonAsync<List<RangoTemperaturaDto>>($"api/equipos/{equipoId}/rangos") ?? new();
+
+        manual = new ConfigurarRangoRequest
+        {
+            OptimoMinimo = vigente?.OptimoMinimo,
+            OptimoMaximo = vigente?.OptimoMaximo,
+            LimiteMinimo = vigente?.LimiteMinimo,
+            LimiteMaximo = vigente?.LimiteMaximo
+        };
     }
 
-    private async Task GuardarAsync()
-    {
-        guardando = true;
-        mensajeExito = null;
-        mensajeError = null;
+    // ---------- Vacunas y rango calculado ----------
 
+    private void Alternar(int vacunaId)
+    {
+        if (!seleccion.Remove(vacunaId))
+        {
+            seleccion.Add(vacunaId);
+        }
+        mensajeVacunas = null;
+    }
+
+    private bool HayCambiosEnVacunas => !seleccion.SetEquals(seleccionGuardada);
+
+    private record struct Rangos(double OptimoMin, double OptimoMax, double LimiteMin, double LimiteMax);
+
+    // Vista previa del rango común (la intersección). La API vuelve a calcularlo al guardar:
+    // el navegador solo muestra, la decisión final es del servidor.
+    private Rangos? Calculo
+    {
+        get
+        {
+            var elegidas = catalogo!.Where(v => seleccion.Contains(v.Id)).ToList();
+            if (elegidas.Count == 0)
+            {
+                return null;
+            }
+
+            var r = new Rangos(
+                elegidas.Max(v => v.OptimoMinimo), elegidas.Min(v => v.OptimoMaximo),
+                elegidas.Max(v => v.LimiteMinimo), elegidas.Min(v => v.LimiteMaximo));
+
+            return r.OptimoMin < r.OptimoMax ? r : null;
+        }
+    }
+
+    // Estado que tendría la temperatura actual con el rango calculado.
+    private (string Estado, string Texto) EstadoVista(Rangos r) => temperaturaActual switch
+    {
+        null => ("sen", "Sin lecturas"),
+        var t when t > r.LimiteMax || t < r.LimiteMin => ("rup", "Ruptura"),
+        var t when t > r.OptimoMax || t < r.OptimoMin => ("adv", "Advertencia"),
+        _ => ("ok", "Normal")
+    };
+
+    private async Task GuardarVacunasAsync()
+    {
+        guardandoVacunas = true;
+        mensajeVacunas = null;
         try
         {
-            var respuesta = await Http.PostAsJsonAsync($"api/equipos/{EquipoId}/rango", solicitud);
+            var respuesta = await Http.PutAsJsonAsync($"api/equipos/{equipoId}/vacunas",
+                new AsignarVacunasRequest { VacunaIds = seleccion.ToList() });
 
-            if (respuesta.IsSuccessStatusCode)
+            errorVacunas = !respuesta.IsSuccessStatusCode;
+            if (errorVacunas)
             {
-                mensajeExito = "Rangos guardados correctamente.";
-                await CargarRangosAsync();
+                mensajeVacunas = await LeerErrorAsync(respuesta);
+                return;
             }
-            else
+
+            mensajeVacunas = seleccion.Count == 0
+                ? "Vacunas guardadas. El equipo conserva su rango actual."
+                : "Vacunas guardadas y rango aplicado.";
+            seleccionGuardada = seleccion.ToHashSet();
+            await CargarRangosAsync();
+        }
+        catch (Exception)
+        {
+            errorVacunas = true;
+            mensajeVacunas = "No se pudo conectar con el servidor.";
+        }
+        finally
+        {
+            guardandoVacunas = false;
+        }
+    }
+
+    // ---------- Ajuste manual ----------
+
+    private async Task GuardarManualAsync()
+    {
+        guardandoManual = true;
+        mensajeManual = null;
+        try
+        {
+            var respuesta = await Http.PostAsJsonAsync($"api/equipos/{equipoId}/rango", manual);
+            errorManual = !respuesta.IsSuccessStatusCode;
+            mensajeManual = errorManual ? await LeerErrorAsync(respuesta) : "Ajuste manual guardado.";
+            if (!errorManual)
             {
-                mensajeError = await LeerMensajeDeErrorAsync(respuesta);
+                await CargarRangosAsync();
             }
         }
         catch (Exception)
         {
-            mensajeError = "No se pudo conectar con el servidor.";
+            errorManual = true;
+            mensajeManual = "No se pudo conectar con el servidor.";
         }
         finally
         {
-            guardando = false;
+            guardandoManual = false;
         }
     }
 
-    // La API responde errores en dos formatos: { "mensaje": ... } (los nuestros)
-    // y Problem Details con "errors" (validaciones automáticas). Se leen ambos.
-    private static async Task<string> LeerMensajeDeErrorAsync(HttpResponseMessage respuesta)
+    private static async Task<string> LeerErrorAsync(HttpResponseMessage respuesta)
     {
         try
         {
             using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
             var raiz = documento.RootElement;
-
             if (raiz.TryGetProperty("mensaje", out var mensaje))
             {
-                return mensaje.GetString() ?? ErrorGenerico;
+                return mensaje.GetString() ?? "No se pudo guardar.";
             }
-
             if (raiz.TryGetProperty("errors", out var errores))
             {
                 foreach (var campo in errores.EnumerateObject())
                 {
                     foreach (var detalle in campo.Value.EnumerateArray())
                     {
-                        return detalle.GetString() ?? ErrorGenerico;
+                        return detalle.GetString() ?? "Revise los datos.";
                     }
                 }
             }
@@ -255,6 +438,6 @@
         {
         }
 
-        return ErrorGenerico;
+        return "No se pudo guardar. Intente nuevamente.";
     }
 }

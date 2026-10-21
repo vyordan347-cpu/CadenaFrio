@@ -17,6 +17,9 @@ public class RangoTemperaturaDto
     public DateTime? FechaCambio { get; set; }
     public string? ModificadoPor { get; set; }
 
+    // Origen del cambio: "Calculado según: …" o "Ajuste manual".
+    public string? Detalle { get; set; }
+
     // Indica si son los rangos automáticos (óptimo 2–7 °C, límite 0–8 °C).
     public bool EsPorDefecto { get; set; }
 }

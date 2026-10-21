@@ -136,6 +136,21 @@ namespace CadenaFrio.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CadenaFrio.Domain.Entities.EquipoVacuna", b =>
+                {
+                    b.Property<int>("EquipoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("VacunaId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("EquipoId", "VacunaId");
+
+                    b.HasIndex("VacunaId");
+
+                    b.ToTable("EquipoVacunas");
+                });
+
             modelBuilder.Entity("CadenaFrio.Domain.Entities.Lectura", b =>
                 {
                     b.Property<long>("Id")
@@ -169,6 +184,10 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Detalle")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("EquipoId")
                         .HasColumnType("INTEGER");
@@ -250,6 +269,61 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.ToTable("Usuarios");
                 });
 
+            modelBuilder.Entity("CadenaFrio.Domain.Entities.Vacuna", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Fuente")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("LimiteMaximo")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("LimiteMinimo")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("OptimoMaximo")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("OptimoMinimo")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nombre")
+                        .IsUnique();
+
+                    b.ToTable("Vacunas", t =>
+                        {
+                            t.HasCheckConstraint("CK_Vacuna_RangosCoherentes", "\"LimiteMinimo\" <= \"OptimoMinimo\" AND \"OptimoMinimo\" < \"OptimoMaximo\" AND \"OptimoMaximo\" <= \"LimiteMaximo\"");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Activo = true,
+                            Fuente = "Directiva Sanitaria N° 133-MINSA-2021",
+                            LimiteMaximo = 8.0,
+                            LimiteMinimo = 0.0,
+                            Nombre = "Esquema regular (PNI)",
+                            OptimoMaximo = 7.0,
+                            OptimoMinimo = 2.0
+                        });
+                });
+
             modelBuilder.Entity("CadenaFrio.Domain.Entities.Alerta", b =>
                 {
                     b.HasOne("CadenaFrio.Domain.Entities.Equipo", "Equipo")
@@ -259,6 +333,25 @@ namespace CadenaFrio.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Equipo");
+                });
+
+            modelBuilder.Entity("CadenaFrio.Domain.Entities.EquipoVacuna", b =>
+                {
+                    b.HasOne("CadenaFrio.Domain.Entities.Equipo", "Equipo")
+                        .WithMany("Vacunas")
+                        .HasForeignKey("EquipoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CadenaFrio.Domain.Entities.Vacuna", "Vacuna")
+                        .WithMany("Equipos")
+                        .HasForeignKey("VacunaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Equipo");
+
+                    b.Navigation("Vacuna");
                 });
 
             modelBuilder.Entity("CadenaFrio.Domain.Entities.Lectura", b =>
@@ -290,6 +383,13 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.Navigation("Lecturas");
 
                     b.Navigation("Rangos");
+
+                    b.Navigation("Vacunas");
+                });
+
+            modelBuilder.Entity("CadenaFrio.Domain.Entities.Vacuna", b =>
+                {
+                    b.Navigation("Equipos");
                 });
 #pragma warning restore 612, 618
         }
