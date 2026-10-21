@@ -28,6 +28,27 @@ public class EquiposController : ControllerBase
         _opciones = opciones.Value;
     }
 
+    // GET /api/equipos/estado  (HU08)
+    // Estado de todos los equipos activos en una sola respuesta: el panel se actualiza
+    // con una sola petición, sin importar cuántos equipos haya.
+    [HttpGet("estado")]
+    public async Task<ActionResult<List<TemperaturaActualDto>>> ObtenerEstadoDeTodos()
+    {
+        var equipos = await _db.Equipos
+            .AsNoTracking()
+            .Where(e => e.Activo)
+            .OrderBy(e => e.Nombre)
+            .ToListAsync();
+
+        var estados = new List<TemperaturaActualDto>();
+        foreach (var equipo in equipos)
+        {
+            estados.Add(await ConstruirEstadoAsync(equipo));
+        }
+
+        return Ok(estados);
+    }
+
     // GET /api/equipos/{id}/temperatura-actual  (HU01, HU03, RF02)
     [HttpGet("{id:int}/temperatura-actual")]
     public async Task<ActionResult<TemperaturaActualDto>> ObtenerTemperaturaActual(int id)
@@ -42,12 +63,22 @@ public class EquiposController : ControllerBase
             return NotFound(new { mensaje = "Equipo no encontrado." });
         }
 
+        return Ok(await ConstruirEstadoAsync(equipo));
+    }
+
+    // Arma el estado completo de un equipo: lectura, rangos, alerta activa y señal.
+    // Lo usan el detalle de un equipo y el panel de todos.
+    private async Task<TemperaturaActualDto> ConstruirEstadoAsync(Equipo equipo)
+    {
+        var id = equipo.Id;
         var limites = await _db.ObtenerLimitesAsync(id);
 
         var respuesta = new TemperaturaActualDto
         {
             EquipoId = equipo.Id,
             NombreEquipo = equipo.Nombre,
+            TipoEquipo = (TipoEquipoDto)(int)equipo.Tipo,
+            Ubicacion = equipo.Ubicacion,
             OptimoMinimo = limites.OptimoMinimo,
             OptimoMaximo = limites.OptimoMaximo,
             LimiteMinimo = limites.LimiteMinimo,
@@ -65,7 +96,7 @@ public class EquiposController : ControllerBase
         if (ultimaLectura is null)
         {
             respuesta.Estado = EstadoLectura.SinDatos;
-            return Ok(respuesta);
+            return respuesta;
         }
 
         respuesta.Temperatura = ultimaLectura.Temperatura;
@@ -96,7 +127,7 @@ public class EquiposController : ControllerBase
             .Select(a => (DateTime?)a.Inicio)
             .FirstOrDefaultAsync();
 
-        return Ok(respuesta);
+        return respuesta;
     }
 
     // GET /api/equipos/{id}/rango  (HU02)

@@ -1,53 +1,45 @@
 .pagina {
-    max-width: 880px;
+    max-width: 1120px;
     margin: 0 auto;
     padding: 1.75rem 1rem 2.5rem;
 }
 
-.panel {
-    padding: 1.5rem 1.75rem 1.25rem;
-}
-
-/* Cabecera: ícono del equipo, nombre y etiqueta de estado. */
-.cabecera {
+.aviso-superior {
     display: flex;
     align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.encabezado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
     gap: 1rem;
+    margin-bottom: 1.25rem;
 }
 
-.equipo-icono {
-    display: grid;
-    place-items: center;
-    width: 3.5rem;
-    height: 3.5rem;
-    border-radius: 50%;
-    background: var(--barra-activo);
-    color: #ffffff;
-    flex-shrink: 0;
-}
-
-.equipo-texto {
-    flex: 1;
-    min-width: 0;
-}
-
-.equipo {
-    font-size: 1.25rem;
-}
-
-.momento {
+.subtitulo,
+.nota {
     color: var(--texto-2);
 }
 
-.estado {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    flex-shrink: 0;
-    align-self: flex-start;
+/* Resumen de estados */
+.resumen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.resumen-item {
     padding: 0.4rem 0.9rem;
     border-radius: 999px;
-    font-weight: 700;
+    font-size: 0.925rem;
+}
+
+.resumen-item strong {
+    font-size: 1.05rem;
 }
 
 .estado-ok { background: var(--ok-fondo); color: var(--ok-texto); }
@@ -55,62 +47,104 @@
 .estado-rup { background: var(--rup-fondo); color: var(--rup-texto); }
 .estado-sen { background: var(--sen-fondo); color: var(--sen-texto); }
 
-/* Lectura: indicador a la izquierda, datos de referencia a la derecha. */
-.lectura {
+/* Cuadrícula de equipos: se adapta al ancho (3, 2 o 1 por fila). */
+.cuadricula {
     display: grid;
-    grid-template-columns: minmax(240px, 320px) 1fr;
-    align-items: center;
-    gap: 1.5rem 2.5rem;
-    margin: 1.5rem 0;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
 }
 
-.datos {
+.equipo {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    margin: 0;
-    padding-left: 2rem;
-    border-left: 1px solid var(--borde);
+    padding: 1.1rem 1.25rem 1rem;
+    border-top: 5px solid var(--borde-fuerte);
+    color: var(--texto);
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.dato {
+.equipo:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(12, 32, 52, 0.14);
+}
+
+/* El borde superior toma el color del estado: los problemas se ven de lejos. */
+.borde-ok { border-top-color: var(--ok); }
+.borde-adv { border-top-color: var(--adv); }
+.borde-rup { border-top-color: var(--rup); }
+.borde-sen { border-top-color: var(--sen); }
+
+.equipo-cabecera {
     display: flex;
     align-items: center;
     gap: 0.75rem;
 }
 
-.dato ::deep .dato-icono {
-    color: var(--texto-3);
-}
-
-dt {
-    font-size: 0.85rem;
-    color: var(--texto-2);
-}
-
-dd {
-    margin: 0;
-    font-weight: 700;
+.equipo-icono {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: var(--acento-suave);
     color: var(--acento);
+    flex-shrink: 0;
 }
 
-/* Recuadro con la acción a tomar, del color del estado. */
-.accion-caja {
+.equipo-texto {
+    min-width: 0;
+}
+
+.equipo-nombre {
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.equipo-lugar,
+.equipo-momento {
+    color: var(--texto-2);
+    font-size: 0.875rem;
+}
+
+.equipo-accion {
+    font-size: 0.925rem;
+    line-height: 1.4;
+}
+
+.texto-ok { color: var(--ok-texto); }
+.texto-adv { color: var(--adv-texto); }
+.texto-rup { color: var(--rup-texto); font-weight: 700; }
+.texto-sen { color: var(--sen-texto); }
+
+.ver-detalle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: auto;
+    color: var(--acento);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.ver-detalle ::deep .flecha {
+    transform: rotate(-90deg);
+}
+
+.vacio {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.8rem 1rem;
-    border-radius: var(--radio);
-}
-
-.accion-caja.estado-ok {
-    background: var(--info-fondo);
-    color: var(--info-texto);
+    gap: 1rem;
+    padding: 1.5rem;
+    color: var(--texto-2);
 }
 
 /* Alertas por revisar */
 .eventos {
-    margin-top: 1.75rem;
+    margin-top: 2rem;
 }
 
 .eventos-cabecera {
@@ -128,7 +162,6 @@ dd {
     border: 1px solid var(--borde);
     border-radius: var(--radio);
     background: var(--superficie);
-    color: var(--texto);
 }
 
 .contador {
@@ -140,30 +173,26 @@ dd {
     font-weight: 700;
 }
 
-.sin-pendientes {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--ok-texto);
-}
-
 .pendiente {
-    margin-bottom: 0.75rem;
-    padding: 1rem 1.25rem;
-    border-left: 4px solid var(--rup);
-}
-
-.pendiente-fila {
     display: flex;
     align-items: center;
     gap: 1rem;
+    margin-bottom: 0.6rem;
+    padding: 0.85rem 1.1rem;
+    border-left: 4px solid var(--rup);
+    color: var(--texto);
+    text-decoration: none;
+}
+
+.pendiente:hover {
+    background: var(--superficie-2);
 }
 
 .pendiente-icono {
     display: grid;
     place-items: center;
-    width: 3rem;
-    height: 3rem;
+    width: 2.5rem;
+    height: 2.5rem;
     border-radius: 50%;
     background: var(--rup-fondo);
     color: var(--rup);
@@ -180,98 +209,25 @@ dd {
 }
 
 .pendiente-linea {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
     color: var(--texto-2);
-    font-size: 0.925rem;
+    font-size: 0.9rem;
 }
 
-.etiqueta-tarde {
-    display: inline-block;
-    margin-top: 0.35rem;
-    padding: 0.1rem 0.55rem;
-    border-radius: 999px;
-    background: var(--adv-fondo);
-    color: var(--adv-texto);
-    font-size: 0.8rem;
-    font-weight: 700;
-}
-
-.revisar {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.55rem 1.1rem;
-    border: none;
+.pendiente-ir {
+    padding: 0.4rem 0.9rem;
     border-radius: 999px;
     background: var(--rup-fondo);
     color: var(--rup-texto);
     font-weight: 700;
+    font-size: 0.9rem;
 }
 
-.revisar:hover {
-    filter: brightness(0.96);
-}
-
-/* El formulario de revisión lo dibuja EditForm (un componente), por eso ::deep. */
-.pendiente ::deep .revision {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--borde);
-}
-
-.acciones {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.ver-mas {
-    width: 100%;
-}
-
-.aviso-superior {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.cargando,
-.pie {
-    margin-top: 1rem;
-    text-align: center;
-    font-size: 0.875rem;
-    color: var(--texto-3);
-}
-
-/* Celular: todo en una columna. */
-@media (max-width: 640px) {
-    .panel {
-        padding: 1.25rem;
+@media (prefers-reduced-motion: reduce) {
+    .equipo {
+        transition: none;
     }
 
-    .lectura {
-        grid-template-columns: 1fr;
-        margin-left: 0;
-    }
-
-    .datos {
-        padding-left: 0;
-        padding-top: 1rem;
-        border-left: none;
-        border-top: 1px solid var(--borde);
-    }
-
-    .pendiente-fila {
-        flex-wrap: wrap;
-    }
-
-    .revisar {
-        width: 100%;
-        justify-content: center;
+    .equipo:hover {
+        transform: none;
     }
 }

@@ -21,22 +21,24 @@ public class AlertasController : ControllerBase
         _db = db;
     }
 
-    // GET /api/alertas/pendientes?equipoId=1
+    // GET /api/alertas/pendientes?equipoId=1   (sin equipoId: las de todos los equipos)
     // Alertas que exigen revisión y no la tienen: nunca atendidas, o atendidas antes de
     // que la exigieran. Incluye rupturas y silencios prolongados, y también las que ya
     // terminaron: que la situación se normalice no significa que alguien lo vio.
     [HttpGet("pendientes")]
-    public async Task<ActionResult<List<AlertaPendienteDto>>> ObtenerPendientes([FromQuery] int equipoId)
+    public async Task<ActionResult<List<AlertaPendienteDto>>> ObtenerPendientes([FromQuery] int? equipoId)
     {
         var pendientes = await _db.Alertas
             .AsNoTracking()
-            .Where(a => a.EquipoId == equipoId
+            .Where(a => (equipoId == null || a.EquipoId == equipoId)
                         && a.RevisionRequeridaDesde != null
                         && (a.FechaAtencion == null || a.FechaAtencion < a.RevisionRequeridaDesde))
             .OrderBy(a => a.Inicio)
             .Select(a => new AlertaPendienteDto
             {
                 Id = a.Id,
+                EquipoId = a.EquipoId,
+                NombreEquipo = a.Equipo.Nombre,
                 Tipo = (TipoAlertaDto)(int)a.Tipo,
                 Inicio = a.Inicio,
                 FechaRuptura = a.FechaRuptura,

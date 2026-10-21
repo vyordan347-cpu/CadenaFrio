@@ -5,6 +5,10 @@ public class AlertaPendienteDto
 {
     public int Id { get; set; }
 
+    // A qué equipo pertenece, para mostrarla en el panel de todos los equipos.
+    public int EquipoId { get; set; }
+    public string NombreEquipo { get; set; } = string.Empty;
+
     public TipoAlertaDto Tipo { get; set; }
 
     // Inicio del episodio y momento en que llegó a ruptura (UTC).

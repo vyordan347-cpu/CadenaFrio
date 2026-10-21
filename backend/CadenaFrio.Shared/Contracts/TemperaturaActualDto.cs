@@ -19,6 +19,10 @@ public class TemperaturaActualDto
 
     public string NombreEquipo { get; set; } = string.Empty;
 
+    // Tipo y ubicación, para mostrar el ícono y el lugar en el panel.
+    public TipoEquipoDto TipoEquipo { get; set; }
+    public string Ubicacion { get; set; } = string.Empty;
+
     // Nulos cuando el equipo todavía no tiene lecturas.
     public double? Temperatura { get; set; }
     public DateTime? FechaMedicion { get; set; }

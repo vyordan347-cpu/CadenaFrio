@@ -1,0 +1,337 @@
+@page "/equipos/{EquipoId:int}"
+@using System.Net.Http.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using CadenaFrio.Web.Utilidades
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@implements IDisposable
+
+<PageTitle>@(datos?.NombreEquipo ?? "Equipo") · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+    <nav class="migas">
+        <a href=""><Icono Nombre="arriba" Tamano="16" Clase="volver-icono" /> Volver al panel</a>
+        <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos">
+            <a href="configuracion?equipo=@EquipoId"><Icono Nombre="configuracion" Tamano="16" /> Configurar este equipo</a>
+        </AuthorizeView>
+    </nav>
+
+    @if (error is not null)
+    {
+        <section class="tarjeta panel">
+            <div class="accion-caja estado-rup">
+                <Icono Nombre="sin-senal" />
+                <span>Sin conexión con el servidor. Se reintentará en unos segundos.</span>
+            </div>
+        </section>
+    }
+    else if (datos is null)
+    {
+        <p class="cargando">Cargando…</p>
+    }
+    else
+    {
+        var vista = Vista;
+
+        <section class="tarjeta panel" aria-live="polite">
+            <header class="cabecera">
+                <span class="equipo-icono"><Icono Nombre="@(datos.TipoEquipo == TipoEquipoDto.Termo ? "termo" : "refrigeradora")" Tamano="28" /></span>
+                <div class="equipo-texto">
+                    <h1 class="equipo">@datos.NombreEquipo</h1>
+                    <p class="momento">@vista.Momento@(string.IsNullOrWhiteSpace(datos.Ubicacion) ? "" : $" · {datos.Ubicacion}")</p>
+                </div>
+            </header>
+
+            <div class="lectura">
+                @* Indicador tipo instrumento: componente propio, reutilizable en el dashboard. *@
+                <IndicadorTemperatura Temperatura="datos.Temperatura"
+                                      OptimoMinimo="datos.OptimoMinimo" OptimoMaximo="datos.OptimoMaximo"
+                                      LimiteMinimo="datos.LimiteMinimo" LimiteMaximo="datos.LimiteMaximo"
+                                      Estado="@vista.Clase" TextoEstado="@vista.Estado"
+                                      Historial="historial" />
+
+                <dl class="datos">
+                    <div class="dato">
+                        <Icono Nombre="temperatura" Clase="dato-icono" />
+                        <div>
+                            <dt>Rango óptimo</dt>
+                            <dd class="cifras">@datos.OptimoMinimo.ToString("0.0") – @datos.OptimoMaximo.ToString("0.0") °C</dd>
+                        </div>
+                    </div>
+                    <div class="dato">
+                        <Icono Nombre="advertencia" Clase="dato-icono" />
+                        <div>
+                            <dt>Límite</dt>
+                            <dd class="cifras">@datos.LimiteMinimo.ToString("0.0") – @datos.LimiteMaximo.ToString("0.0") °C</dd>
+                        </div>
+                    </div>
+                    @if (datos.AlertaActiva is { } alerta)
+                    {
+                        <div class="dato">
+                            <Icono Nombre="reloj" Clase="dato-icono" />
+                            <div>
+                                <dt>@(alerta.Tipo == TipoAlertaDto.TemperaturaAlta ? "Máxima" : "Mínima") en esta alerta</dt>
+                                <dd class="cifras">@alerta.ValorExtremo.ToString("0.0") °C</dd>
+                            </div>
+                        </div>
+                    }
+                    @if (historial.Count >= 2)
+                    {
+                        <div class="dato">
+                            <Icono Nombre="calendario" Clase="dato-icono" />
+                            <div>
+                                <dt>Última hora</dt>
+                                <dd class="cifras">@historial.Min().ToString("0.0") a @historial.Max().ToString("0.0") °C</dd>
+                            </div>
+                        </div>
+                    }
+                </dl>
+            </div>
+
+            @* La acción a tomar, destacada y con el color del estado. *@
+            <div class="accion-caja estado-@vista.Clase">
+                <Icono Nombre="@(vista.Clase == "ok" ? "info" : vista.Icono)" />
+                <span>@vista.Accion</span>
+            </div>
+        </section>
+    }
+
+    @* Alertas que exigen revisión (RF08): no desaparecen hasta que alguien las atiende. *@
+    <section class="eventos" aria-labelledby="titulo-eventos">
+        <header class="eventos-cabecera">
+            <span class="eventos-icono"><Icono Nombre="campana" /></span>
+            <h2 id="titulo-eventos">Alertas por revisar</h2>
+            @if (pendientes.Count > 0)
+            {
+                <span class="contador">@pendientes.Count</span>
+            }
+        </header>
+
+        @if (pendientes.Count == 0)
+        {
+            <p class="sin-pendientes"><Icono Nombre="ok" Tamano="18" /> No hay alertas pendientes de revisión.</p>
+        }
+
+        @foreach (var pendiente in PendientesVisibles)
+        {
+            <article class="tarjeta pendiente">
+                <div class="pendiente-fila">
+                    <span class="pendiente-icono">
+                        <Icono Nombre="@(pendiente.Tipo == TipoAlertaDto.SinSenal ? "sin-senal" : "ruptura")" />
+                    </span>
+                    <div class="pendiente-texto">
+                        <p class="pendiente-titulo">@TituloPendiente(pendiente)</p>
+                        <p class="pendiente-linea cifras">
+                            <Icono Nombre="calendario" Tamano="16" />
+                            Desde @FormatoFecha.HoraPeru(pendiente.Inicio), @DuracionPendiente(pendiente)
+                        </p>
+                        <p class="pendiente-linea cifras">
+                            <Icono Nombre="temperatura" Tamano="16" />
+                            @ValorPendiente(pendiente)
+                        </p>
+                        @if (pendiente.DetectadaTarde)
+                        {
+                            <p class="etiqueta-tarde">Detectada al sincronizar</p>
+                        }
+                    </div>
+                    @if (alertaEnRevision != pendiente.Id)
+                    {
+                        <button class="revisar" @onclick="() => IniciarRevision(pendiente.Id)">
+                            <Icono Nombre="ojo" Tamano="18" /> Revisar
+                        </button>
+                    }
+                </div>
+
+                @if (alertaEnRevision == pendiente.Id)
+                {
+                    <EditForm Model="revision" OnValidSubmit="() => RegistrarRevisionAsync(pendiente.Id)" class="revision">
+                        <DataAnnotationsValidator />
+                        <label>
+                            ¿Qué acciones se realizaron?
+                            <InputTextArea @bind-Value="revision.Observacion" rows="3"
+                                           placeholder="Se trasladaron las vacunas al termo y se informó a la Red de Salud." />
+                            <ValidationMessage For="() => revision.Observacion" />
+                        </label>
+                        @if (errorRevision is not null)
+                        {
+                            <p class="aviso aviso-error">@errorRevision</p>
+                        }
+                        <div class="acciones">
+                            <button type="submit" class="boton boton-primario" disabled="@guardandoRevision">
+                                @(guardandoRevision ? "Guardando…" : "Guardar revisión")
+                            </button>
+                            <button type="button" class="boton" @onclick="CancelarRevision">Cancelar</button>
+                        </div>
+                    </EditForm>
+                }
+            </article>
+        }
+
+        @* Si hay muchas, se muestran solo las más recientes para no empujar la tarjeta principal. *@
+        @if (pendientes.Count > MaximoVisibles)
+        {
+            <button class="boton ver-mas" @onclick="() => mostrarTodas = !mostrarTodas">
+                <Icono Nombre="@(mostrarTodas ? "arriba" : "abajo")" Tamano="18" />
+                @(mostrarTodas ? "Mostrar menos" : $"Ver las otras {pendientes.Count - MaximoVisibles}")
+            </button>
+        }
+    </section>
+
+    <p class="pie">Se actualiza cada 10 segundos.</p>
+</main>
+
+@code {
+    // Equipo a mostrar, tomado de la dirección: /equipos/2
+    [Parameter]
+    public int EquipoId { get; set; }
+
+    private int equipoCargado;
+
+    private static readonly TimeSpan IntervaloActualizacion = TimeSpan.FromSeconds(10);
+
+    private TemperaturaActualDto? datos;
+
+    // Lecturas de la última hora, para el mini gráfico y la tendencia del indicador.
+    private List<double> historial = new();
+    private List<AlertaPendienteDto> pendientes = new();
+    private string? error;
+    private readonly CancellationTokenSource cancelacion = new();
+
+    // Revisión en curso.
+    private int? alertaEnRevision;
+    private AtenderAlertaRequest revision = new();
+    private bool guardandoRevision;
+    private string? errorRevision;
+
+    protected override void OnInitialized() => _ = ActualizarPeriodicamenteAsync();
+
+    // Se ejecuta al entrar y cada vez que cambia el equipo de la dirección.
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EquipoId != equipoCargado)
+        {
+            equipoCargado = EquipoId;
+            datos = null;
+            historial = new();
+            await CargarAsync();
+        }
+    }
+
+    private async Task ActualizarPeriodicamenteAsync()
+    {
+        using var temporizador = new PeriodicTimer(IntervaloActualizacion);
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(cancelacion.Token))
+            {
+                await CargarAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            datos = await Http.GetFromJsonAsync<TemperaturaActualDto>(
+                $"api/equipos/{EquipoId}/temperatura-actual", cancelacion.Token);
+            pendientes = await Http.GetFromJsonAsync<List<AlertaPendienteDto>>(
+                $"api/alertas/pendientes?equipoId={EquipoId}", cancelacion.Token) ?? new();
+            var recientes = await Http.GetFromJsonAsync<List<LecturaPuntoDto>>(
+                $"api/equipos/{EquipoId}/lecturas-recientes?minutos=60", cancelacion.Token);
+            historial = recientes?.Select(l => l.Temperatura).ToList() ?? new();
+            error = null;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    // ---------- Qué mostrar según el estado ----------
+
+    // El estado visible se calcula en un solo lugar, compartido con el panel.
+    private VistaEstado Vista => EstadoEquipo.Calcular(datos!);
+
+    // ---------- Pendientes de revisión ----------
+
+    private const int MaximoVisibles = 2;
+    private bool mostrarTodas;
+
+    // Las más recientes primero.
+    private IEnumerable<AlertaPendienteDto> PendientesVisibles =>
+        mostrarTodas
+            ? pendientes.OrderByDescending(p => p.Inicio)
+            : pendientes.OrderByDescending(p => p.Inicio).Take(MaximoVisibles);
+
+    private static string TituloPendiente(AlertaPendienteDto p) =>
+        p.Tipo == TipoAlertaDto.SinSenal ? "Silencio prolongado por revisar" : "Ruptura por revisar";
+
+    private static string DuracionPendiente(AlertaPendienteDto p) =>
+        p.Fin is { } fin ? $"duró {FormatoFecha.Duracion(fin - p.Inicio)}." : "en curso.";
+
+    private static string ValorPendiente(AlertaPendienteDto p) => p.Tipo switch
+    {
+        TipoAlertaDto.SinSenal => $"Última temperatura conocida: {p.ValorExtremo:0.0} °C.",
+        TipoAlertaDto.TemperaturaAlta => $"Máxima: {p.ValorExtremo:0.0} °C (límite {p.LimiteMaximo:0.0} °C).",
+        _ => $"Mínima: {p.ValorExtremo:0.0} °C (límite {p.LimiteMinimo:0.0} °C)."
+    };
+
+    private void IniciarRevision(int alertaId)
+    {
+        alertaEnRevision = alertaId;
+        revision = new AtenderAlertaRequest();
+        errorRevision = null;
+    }
+
+    private void CancelarRevision()
+    {
+        alertaEnRevision = null;
+        errorRevision = null;
+    }
+
+    private async Task RegistrarRevisionAsync(int alertaId)
+    {
+        guardandoRevision = true;
+        errorRevision = null;
+
+        try
+        {
+            var respuesta = await Http.PostAsJsonAsync($"api/alertas/{alertaId}/atender", revision);
+
+            if (respuesta.IsSuccessStatusCode)
+            {
+                alertaEnRevision = null;
+                await CargarAsync();
+            }
+            else
+            {
+                errorRevision = "No se pudo registrar la revisión. Intente nuevamente.";
+            }
+        }
+        catch (Exception)
+        {
+            errorRevision = "No se pudo conectar con el servidor.";
+        }
+        finally
+        {
+            guardandoRevision = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        cancelacion.Cancel();
+        cancelacion.Dispose();
+    }
+}

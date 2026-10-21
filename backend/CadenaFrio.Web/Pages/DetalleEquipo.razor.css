@@ -1,0 +1,303 @@
+.pagina {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 1.75rem 1rem 2.5rem;
+}
+
+.panel {
+    padding: 1.5rem 1.75rem 1.25rem;
+}
+
+/* Cabecera: ícono del equipo, nombre y etiqueta de estado. */
+.cabecera {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.equipo-icono {
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    background: var(--barra-activo);
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.equipo-texto {
+    flex: 1;
+    min-width: 0;
+}
+
+.equipo {
+    font-size: 1.25rem;
+}
+
+.momento {
+    color: var(--texto-2);
+}
+
+.estado {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    align-self: flex-start;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.estado-ok { background: var(--ok-fondo); color: var(--ok-texto); }
+.estado-adv { background: var(--adv-fondo); color: var(--adv-texto); }
+.estado-rup { background: var(--rup-fondo); color: var(--rup-texto); }
+.estado-sen { background: var(--sen-fondo); color: var(--sen-texto); }
+
+/* Lectura: indicador a la izquierda, datos de referencia a la derecha. */
+.lectura {
+    display: grid;
+    grid-template-columns: minmax(240px, 320px) 1fr;
+    align-items: center;
+    gap: 1.5rem 2.5rem;
+    margin: 1.5rem 0;
+}
+
+.datos {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0;
+    padding-left: 2rem;
+    border-left: 1px solid var(--borde);
+}
+
+.dato {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.dato ::deep .dato-icono {
+    color: var(--texto-3);
+}
+
+dt {
+    font-size: 0.85rem;
+    color: var(--texto-2);
+}
+
+dd {
+    margin: 0;
+    font-weight: 700;
+    color: var(--acento);
+}
+
+/* Recuadro con la acción a tomar, del color del estado. */
+.accion-caja {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    border-radius: var(--radio);
+}
+
+.accion-caja.estado-ok {
+    background: var(--info-fondo);
+    color: var(--info-texto);
+}
+
+/* Alertas por revisar */
+.eventos {
+    margin-top: 1.75rem;
+}
+
+.eventos-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.9rem;
+}
+
+.eventos-icono {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie);
+    color: var(--texto);
+}
+
+.contador {
+    padding: 0.05rem 0.55rem;
+    border-radius: 999px;
+    background: var(--rup);
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.sin-pendientes {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ok-texto);
+}
+
+.pendiente {
+    margin-bottom: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-left: 4px solid var(--rup);
+}
+
+.pendiente-fila {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.pendiente-icono {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: var(--rup-fondo);
+    color: var(--rup);
+    flex-shrink: 0;
+}
+
+.pendiente-texto {
+    flex: 1;
+    min-width: 0;
+}
+
+.pendiente-titulo {
+    font-weight: 700;
+}
+
+.pendiente-linea {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--texto-2);
+    font-size: 0.925rem;
+}
+
+.etiqueta-tarde {
+    display: inline-block;
+    margin-top: 0.35rem;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    background: var(--adv-fondo);
+    color: var(--adv-texto);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.revisar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1.1rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--rup-fondo);
+    color: var(--rup-texto);
+    font-weight: 700;
+}
+
+.revisar:hover {
+    filter: brightness(0.96);
+}
+
+/* El formulario de revisión lo dibuja EditForm (un componente), por eso ::deep. */
+.pendiente ::deep .revision {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--borde);
+}
+
+.acciones {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.ver-mas {
+    width: 100%;
+}
+
+.aviso-superior {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.cargando,
+.pie {
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--texto-3);
+}
+
+/* Celular: todo en una columna. */
+@media (max-width: 640px) {
+    .panel {
+        padding: 1.25rem;
+    }
+
+    .lectura {
+        grid-template-columns: 1fr;
+        margin-left: 0;
+    }
+
+    .datos {
+        padding-left: 0;
+        padding-top: 1rem;
+        border-left: none;
+        border-top: 1px solid var(--borde);
+    }
+
+    .pendiente-fila {
+        flex-wrap: wrap;
+    }
+
+    .revisar {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Navegación de regreso al panel */
+.migas {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.migas a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--acento);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.migas a:hover {
+    text-decoration: underline;
+}
+
+.migas ::deep .volver-icono {
+    transform: rotate(-90deg);
+}
