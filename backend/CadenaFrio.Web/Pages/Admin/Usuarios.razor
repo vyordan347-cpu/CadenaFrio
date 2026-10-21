@@ -1,0 +1,355 @@
+@page "/admin/usuarios"
+@using System.Net.Http.Json
+@using System.Text.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Policy = Politicas.EsAdministrador)]
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Usuarios · Administración · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+    <PestanasAdmin />
+
+    <header class="encabezado">
+        <span class="encabezado-icono"><Icono Nombre="usuario" Tamano="26" /></span>
+        <div class="encabezado-texto">
+            <h1>Usuarios</h1>
+            <p class="subtitulo">Personal con acceso al sistema y sus permisos.</p>
+        </div>
+        @if (!formularioVisible)
+        {
+            <button class="boton boton-primario" @onclick="NuevoUsuario">
+                <Icono Nombre="agregar" Tamano="18" /> Crear usuario
+            </button>
+        }
+    </header>
+
+    @* Contraseña temporal recién generada: se muestra una sola vez. *@
+    @if (temporal is not null)
+    {
+        <section class="tarjeta clave" role="alert">
+            <h2><Icono Nombre="clave" /> Contraseña temporal de @temporal.Usuario.NombreCompleto</h2>
+            <p>Entréguela a la persona. Al iniciar sesión como <code>@temporal.Usuario.NombreUsuario</code>,
+                el sistema le pedirá cambiarla. <strong>No se volverá a mostrar.</strong></p>
+            <div class="clave-fila">
+                <input class="clave-valor" readonly value="@temporal.ContrasenaTemporal" onfocus="this.select()" aria-label="Contraseña temporal" />
+                <button class="boton" @onclick="CopiarAsync">
+                    <Icono Nombre="@(copiada ? "check" : "copiar")" Tamano="18" /> @(copiada ? "Copiada" : "Copiar")
+                </button>
+            </div>
+            @if (errorCopia)
+            {
+                <p class="nota">No se pudo copiar automáticamente. Seleccione la contraseña y use Ctrl + C.</p>
+            }
+            <button class="boton" @onclick="() => temporal = null">Ya la entregué</button>
+        </section>
+    }
+
+    @if (formularioVisible)
+    {
+        <section class="tarjeta formulario">
+            <h2><Icono Nombre="agregar" /> Crear usuario</h2>
+            <EditForm Model="solicitud" OnValidSubmit="CrearAsync">
+                <DataAnnotationsValidator />
+                <div class="campos">
+                    <label class="campo-ancho">
+                        Nombre completo
+                        <InputText @bind-Value="solicitud.NombreCompleto" placeholder="Rosa Quispe Mamani" />
+                        <ValidationMessage For="() => solicitud.NombreCompleto" />
+                    </label>
+                    <label>
+                        Usuario
+                        <InputText @bind-Value="solicitud.NombreUsuario" placeholder="rquispe" autocomplete="off" />
+                        <ValidationMessage For="() => solicitud.NombreUsuario" />
+                    </label>
+                    <label>
+                        Rol
+                        <InputSelect @bind-Value="solicitud.Rol">
+                            <option value="">Elija un rol</option>
+                            @foreach (var rol in Roles.Todos)
+                            {
+                                <option value="@rol">@Roles.Nombre(rol)</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => solicitud.Rol" />
+                    </label>
+                </div>
+                <p class="nota">La contraseña la genera el sistema y la persona la cambiará al ingresar.</p>
+
+                @if (errorFormulario is not null)
+                {
+                    <p class="aviso aviso-error">@errorFormulario</p>
+                }
+
+                <div class="acciones">
+                    <button type="submit" class="boton boton-primario" disabled="@guardando">
+                        @(guardando ? "Creando…" : "Crear y generar contraseña")
+                    </button>
+                    <button type="button" class="boton" @onclick="() => formularioVisible = false">Cancelar</button>
+                </div>
+            </EditForm>
+        </section>
+    }
+
+    @if (errorAccion is not null)
+    {
+        <p class="aviso aviso-error">@errorAccion</p>
+    }
+
+    @if (usuarios is null)
+    {
+        <p class="nota">Cargando…</p>
+    }
+    else
+    {
+        <section class="lista" aria-label="Usuarios registrados">
+            @foreach (var usuario in usuarios)
+            {
+                var esUsted = usuario.NombreUsuario == nombreUsuarioActual;
+
+                <article class="tarjeta usuario @(usuario.Activo ? "" : "inactivo")">
+                    <span class="usuario-icono" aria-hidden="true">@Iniciales(usuario.NombreCompleto)</span>
+                    <div class="usuario-texto">
+                        <p class="usuario-nombre">
+                            @usuario.NombreCompleto
+                            @if (esUsted)
+                            {
+                                <span class="usted">(usted)</span>
+                            }
+                        </p>
+                        <p class="usuario-detalle">@usuario.NombreUsuario, @Roles.Nombre(usuario.Rol)</p>
+                        @if (usuario.DebeCambiarContrasena)
+                        {
+                            <p class="usuario-aviso"><Icono Nombre="clave" Tamano="16" /> Aún no cambia su contraseña temporal</p>
+                        }
+                    </div>
+                    <span class="pastilla @(usuario.Activo ? "activo" : "inactivo-pastilla")">
+                        @(usuario.Activo ? "Activo" : "Inactivo")
+                    </span>
+
+                    @if (!esUsted)
+                    {
+                        <div class="usuario-acciones">
+                            @if (usuarioCambiandoRol == usuario.Id)
+                            {
+                                <select @bind="rolSeleccionado" aria-label="Nuevo rol">
+                                    @foreach (var rol in Roles.Todos)
+                                    {
+                                        <option value="@rol">@Roles.Nombre(rol)</option>
+                                    }
+                                </select>
+                                <button class="boton boton-chico boton-primario" @onclick="() => CambiarRolAsync(usuario)">Guardar</button>
+                                <button class="boton boton-chico" @onclick="() => usuarioCambiandoRol = null">Cancelar</button>
+                            }
+                            else
+                            {
+                                <button class="boton boton-chico" @onclick="() => IniciarCambioRol(usuario)">
+                                    <Icono Nombre="editar" Tamano="16" /> Cambiar rol
+                                </button>
+                                <button class="boton boton-chico" @onclick="() => RestablecerAsync(usuario)">
+                                    <Icono Nombre="clave" Tamano="16" /> Restablecer contraseña
+                                </button>
+                                <button class="boton boton-chico" @onclick="() => CambiarEstadoAsync(usuario)">
+                                    <Icono Nombre="apagar" Tamano="16" /> @(usuario.Activo ? "Desactivar" : "Activar")
+                                </button>
+                            }
+                        </div>
+                    }
+                </article>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? EstadoAutenticacion { get; set; }
+
+    private List<UsuarioAdminDto>? usuarios;
+    private string? nombreUsuarioActual;
+    private string? errorAccion;
+
+    // Formulario de creación
+    private bool formularioVisible;
+    private CrearUsuarioRequest solicitud = new();
+    private bool guardando;
+    private string? errorFormulario;
+
+    // Contraseña temporal recién generada
+    private ContrasenaTemporalDto? temporal;
+    private bool copiada;
+    private bool errorCopia;
+
+    // Cambio de rol en curso
+    private int? usuarioCambiandoRol;
+    private string rolSeleccionado = Roles.Enfermera;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (EstadoAutenticacion is not null)
+        {
+            nombreUsuarioActual = (await EstadoAutenticacion).User.Identity?.Name;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            usuarios = await Http.GetFromJsonAsync<List<UsuarioAdminDto>>("api/admin/usuarios");
+        }
+        catch (Exception)
+        {
+            errorAccion = "No se pudo cargar la lista de usuarios. Revise que el servidor esté encendido.";
+        }
+    }
+
+    private void NuevoUsuario()
+    {
+        solicitud = new CrearUsuarioRequest();
+        errorFormulario = null;
+        formularioVisible = true;
+    }
+
+    private async Task CrearAsync()
+    {
+        guardando = true;
+        errorFormulario = null;
+
+        try
+        {
+            var respuesta = await Http.PostAsJsonAsync("api/admin/usuarios", solicitud);
+            if (!respuesta.IsSuccessStatusCode)
+            {
+                errorFormulario = await LeerErrorAsync(respuesta);
+                return;
+            }
+
+            MostrarTemporal(await respuesta.Content.ReadFromJsonAsync<ContrasenaTemporalDto>());
+            formularioVisible = false;
+            await CargarAsync();
+        }
+        catch (Exception)
+        {
+            errorFormulario = "No se pudo conectar con el servidor.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void IniciarCambioRol(UsuarioAdminDto usuario)
+    {
+        usuarioCambiandoRol = usuario.Id;
+        rolSeleccionado = usuario.Rol;
+        errorAccion = null;
+    }
+
+    private async Task CambiarRolAsync(UsuarioAdminDto usuario)
+    {
+        var respuesta = await Http.PutAsJsonAsync($"api/admin/usuarios/{usuario.Id}/rol", new CambiarRolRequest { Rol = rolSeleccionado });
+        errorAccion = respuesta.IsSuccessStatusCode ? null : await LeerErrorAsync(respuesta);
+        usuarioCambiandoRol = null;
+        await CargarAsync();
+    }
+
+    private async Task RestablecerAsync(UsuarioAdminDto usuario)
+    {
+        var confirmado = await JS.InvokeAsync<bool>("confirm",
+            $"¿Restablecer la contraseña de {usuario.NombreCompleto}?\n\nSe generará una contraseña temporal y se cerrarán sus sesiones abiertas.");
+        if (!confirmado)
+        {
+            return;
+        }
+
+        var respuesta = await Http.PostAsync($"api/admin/usuarios/{usuario.Id}/restablecer-contrasena", null);
+        if (respuesta.IsSuccessStatusCode)
+        {
+            MostrarTemporal(await respuesta.Content.ReadFromJsonAsync<ContrasenaTemporalDto>());
+            errorAccion = null;
+        }
+        else
+        {
+            errorAccion = await LeerErrorAsync(respuesta);
+        }
+        await CargarAsync();
+    }
+
+    private async Task CambiarEstadoAsync(UsuarioAdminDto usuario)
+    {
+        if (usuario.Activo)
+        {
+            var confirmado = await JS.InvokeAsync<bool>("confirm",
+                $"¿Desactivar a {usuario.NombreCompleto}?\n\nNo podrá ingresar y sus sesiones abiertas se cerrarán de inmediato. Su nombre se conserva en el historial.");
+            if (!confirmado)
+            {
+                return;
+            }
+        }
+
+        var accion = usuario.Activo ? "desactivar" : "activar";
+        var respuesta = await Http.PostAsync($"api/admin/usuarios/{usuario.Id}/{accion}", null);
+        errorAccion = respuesta.IsSuccessStatusCode ? null : await LeerErrorAsync(respuesta);
+        await CargarAsync();
+    }
+
+    private void MostrarTemporal(ContrasenaTemporalDto? dto)
+    {
+        temporal = dto;
+        copiada = false;
+        errorCopia = false;
+    }
+
+    private async Task CopiarAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", temporal!.ContrasenaTemporal);
+            copiada = true;
+        }
+        catch (Exception)
+        {
+            // El portapapeles solo funciona en localhost o con HTTPS.
+            errorCopia = true;
+        }
+    }
+
+    // Iniciales para el círculo del usuario, por ejemplo "RQ" para "Rosa Quispe".
+    private static string Iniciales(string nombre) =>
+        string.Concat(nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => char.ToUpper(p[0])));
+
+    private static async Task<string> LeerErrorAsync(HttpResponseMessage respuesta)
+    {
+        try
+        {
+            using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+            var raiz = documento.RootElement;
+            if (raiz.TryGetProperty("mensaje", out var mensaje))
+            {
+                return mensaje.GetString() ?? "No se pudo completar la acción.";
+            }
+            if (raiz.TryGetProperty("errors", out var errores))
+            {
+                foreach (var campo in errores.EnumerateObject())
+                {
+                    foreach (var detalle in campo.Value.EnumerateArray())
+                    {
+                        return detalle.GetString() ?? "Revise los datos.";
+                    }
+                }
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return "No se pudo completar la acción.";
+    }
+}

@@ -1,0 +1,175 @@
+/* Colores del indicador según el estado. El disco es siempre oscuro (como un instrumento),
+   por eso sus textos usan tonos claros fijos, con buen contraste en modo claro y oscuro. */
+.indicador {
+    --color: #3dd68c;
+    --chip-fondo: #0f3b2a;
+    --chip-texto: #9ff5c8;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.indicador.estado-adv {
+    --color: #f5b748;
+    --chip-fondo: #3d2a07;
+    --chip-texto: #ffd58a;
+}
+
+.indicador.estado-rup {
+    --color: #ff6b5e;
+    --chip-fondo: #4a1411;
+    --chip-texto: #ffc2bb;
+}
+
+.indicador.estado-sen {
+    --color: #8fa3b5;
+    --chip-fondo: #263645;
+    --chip-texto: #d3e0eb;
+}
+
+.indicador.compacto {
+    max-width: 180px;
+}
+
+svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 50%;
+    filter: drop-shadow(0 10px 22px rgba(12, 32, 52, 0.35));
+}
+
+/* Escala */
+.marca-mayor {
+    stroke: #8fb3d1;
+    stroke-width: 2;
+}
+
+.marca-menor {
+    stroke: #8fb3d1;
+    stroke-opacity: 0.45;
+    stroke-width: 1;
+}
+
+.marca-texto {
+    fill: #b8d2e8;
+    font-size: 12px;
+    font-weight: 700;
+    text-anchor: middle;
+}
+
+/* Zonas de la normativa, tenues */
+.zona {
+    fill: none;
+    stroke-width: 7;
+    stroke-opacity: 0.3;
+}
+
+.zona-ok { stroke: #3dd68c; }
+.zona-adv { stroke: #f5b748; }
+.zona-rup { stroke: #ff6b5e; }
+
+/* Arco luminoso y aguja: las transiciones CSS animan cada cambio de temperatura. */
+.progreso {
+    fill: none;
+    stroke: var(--color);
+    stroke-width: 7;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.9s cubic-bezier(0.34, 1.4, 0.64, 1), stroke 0.6s ease;
+}
+
+.aguja {
+    transform-box: view-box;
+    transform-origin: 150px 150px;
+    transition: transform 0.9s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.aguja-centro {
+    fill: var(--color);
+    transition: fill 0.6s ease;
+}
+
+/* Halo que pulsa en ruptura: se nota desde lejos, sin leer nada. */
+.halo {
+    stroke: var(--color);
+    opacity: 0;
+    transform-box: view-box;
+    transform-origin: 150px 150px;
+}
+
+.estado-rup .halo {
+    animation: pulso 1.6s ease-out infinite;
+}
+
+@keyframes pulso {
+    0% { opacity: 0.6; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.1); }
+}
+
+/* Textos del centro: tonos claros y tamaños generosos para leerse sobre el disco oscuro. */
+.numero {
+    fill: #ffffff;
+    font-size: 60px;
+    font-weight: 700;
+    text-anchor: middle;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -1px;
+}
+
+.estado-sen .numero {
+    fill: #b9c8d6;
+}
+
+.unidad {
+    fill: #d3e4f2;
+    font-size: 16px;
+    font-weight: 700;
+    text-anchor: middle;
+}
+
+.tendencia {
+    font-size: 15px;
+    font-weight: 700;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: #0e2a42;
+    stroke-width: 3px;
+}
+
+.tendencia.sube { fill: #ffcf7a; }
+.tendencia.baja { fill: #8fd3ff; }
+.tendencia.estable { fill: #e3eef7; }
+
+.historial {
+    fill: none;
+    stroke: var(--color);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.9;
+}
+
+.chip {
+    fill: var(--chip-fondo);
+    stroke: var(--color);
+    stroke-opacity: 0.5;
+}
+
+.chip-texto {
+    fill: var(--chip-texto);
+    font-size: 13px;
+    font-weight: 700;
+    text-anchor: middle;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .progreso,
+    .aguja {
+        transition: none;
+    }
+
+    .estado-rup .halo {
+        animation: none;
+        opacity: 0.6;
+    }
+}

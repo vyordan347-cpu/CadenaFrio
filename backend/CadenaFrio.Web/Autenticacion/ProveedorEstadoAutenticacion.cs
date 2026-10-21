@@ -35,12 +35,19 @@ public class ProveedorEstadoAutenticacion : AuthenticationStateProvider
                 return Anonimo;
             }
 
-            var identidad = new ClaimsIdentity(new[]
+            var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, usuario.NombreUsuario),
-                new Claim(ClaimTiposCadenaFrio.NombreCompleto, usuario.NombreCompleto),
-                new Claim(ClaimTypes.Role, usuario.Rol)
-            }, authenticationType: "Cookie");
+                new(ClaimTypes.Name, usuario.NombreUsuario),
+                new(ClaimTiposCadenaFrio.NombreCompleto, usuario.NombreCompleto),
+                new(ClaimTypes.Role, usuario.Rol)
+            };
+
+            if (usuario.DebeCambiarContrasena)
+            {
+                claims.Add(new Claim(ClaimTiposCadenaFrio.DebeCambiarContrasena, "true"));
+            }
+
+            var identidad = new ClaimsIdentity(claims, authenticationType: "Cookie");
 
             return new AuthenticationState(new ClaimsPrincipal(identidad));
         }
@@ -83,6 +90,19 @@ public class ProveedorEstadoAutenticacion : AuthenticationStateProvider
             NotifyAuthenticationStateChanged(Task.FromResult(Anonimo));
         }
     }
+
+    // Vuelve a consultar la sesión (por ejemplo, después de cambiar la contraseña) y espera
+    // a tenerla: así, al navegar, la app ya no ve la marca de contraseña temporal.
+    public async Task ActualizarEstadoAsync()
+    {
+        var estado = GetAuthenticationStateAsync();
+        NotifyAuthenticationStateChanged(estado);
+        await estado;
+    }
+
+    // La API respondió 401: la sesión expiró o fue invalidada (usuario desactivado,
+    // rol cambiado). Se avisa a la app, que lleva al usuario al inicio de sesión.
+    public void SesionInvalidada() => NotifyAuthenticationStateChanged(Task.FromResult(Anonimo));
 
     private static async Task<string?> LeerMensajeAsync(HttpResponseMessage respuesta)
     {

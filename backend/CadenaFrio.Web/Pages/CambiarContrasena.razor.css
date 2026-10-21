@@ -1,0 +1,46 @@
+.contenedor {
+    min-height: calc(100vh - 4.5rem);
+    display: grid;
+    place-items: center;
+    padding: 1.5rem 1rem;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    width: 100%;
+    max-width: 420px;
+    padding: 2rem 1.75rem;
+}
+
+.icono-circulo {
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    background: var(--acento-suave);
+    color: var(--acento);
+}
+
+.subtitulo {
+    color: var(--texto-2);
+}
+
+.aviso-adv {
+    background: var(--adv-fondo);
+    color: var(--adv-texto);
+}
+
+label {
+    margin-bottom: 0.9rem;
+}
+
+.boton {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 999px;
+    font-weight: 700;
+    text-decoration: none;
+}

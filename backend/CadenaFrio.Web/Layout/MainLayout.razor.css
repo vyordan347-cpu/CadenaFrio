@@ -66,39 +66,85 @@
     font-weight: 700;
 }
 
-.sesion {
+/* Menú de la cuenta */
+.cuenta {
+    position: relative;
+}
+
+.avatar {
+    display: grid;
+    place-items: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border: 2px solid var(--barra-borde);
+    border-radius: 50%;
+    background: var(--barra-activo);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.avatar:hover {
+    border-color: #ffffff;
+}
+
+/* Capa transparente detrás del menú: un clic fuera lo cierra. */
+.capa {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+}
+
+.desplegable {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 0;
+    z-index: 21;
+    min-width: 240px;
+    padding: 0.4rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-grande);
+    background: var(--superficie);
+    box-shadow: 0 12px 30px rgba(12, 32, 52, 0.18);
+}
+
+.desplegable-cabecera {
+    padding: 0.7rem 0.8rem 0.8rem;
+    margin-bottom: 0.3rem;
+    border-bottom: 1px solid var(--borde);
+}
+
+.desplegable-nombre {
+    color: var(--texto);
+    font-weight: 700;
+}
+
+.desplegable-rol {
+    color: var(--texto-2);
+    font-size: 0.875rem;
+}
+
+.desplegable-opcion {
     display: flex;
     align-items: center;
-    gap: 1rem;
-}
-
-.usuario {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: var(--barra-texto-2);
-    font-size: 0.9rem;
-}
-
-.salir {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 0.9rem;
-    border: 1px solid var(--barra-borde);
-    border-radius: 999px;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: none;
+    border-radius: var(--radio);
     background: transparent;
-    color: var(--barra-texto);
-    font-size: 0.9rem;
+    color: var(--texto);
+    font-size: 0.95rem;
+    text-align: left;
+    text-decoration: none;
 }
 
-.salir:hover {
-    background: var(--barra-hover);
+.desplegable-opcion:hover {
+    background: var(--superficie-2);
 }
 
 /* En pantallas angostas (celular), se ocultan textos secundarios. */
 @media (max-width: 720px) {
-    .usuario,
     .marca-sub {
         display: none;
     }

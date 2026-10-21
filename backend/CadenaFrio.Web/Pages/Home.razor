@@ -11,6 +11,13 @@
 <PageTitle>Temperatura · Cadena de Frío</PageTitle>
 
 <main class="pagina">
+    @if (Aviso == "contrasena")
+    {
+        <p class="aviso aviso-ok aviso-superior">
+            <Icono Nombre="check" Tamano="18" /> Su contraseña se cambió correctamente.
+        </p>
+    }
+
     @if (error is not null)
     {
         <section class="tarjeta panel">
@@ -27,7 +34,6 @@
     else
     {
         var vista = Vista;
-        var banda = Banda;
 
         <section class="tarjeta panel" aria-live="polite">
             <header class="cabecera">
@@ -36,13 +42,15 @@
                     <h1 class="equipo">@datos.NombreEquipo</h1>
                     <p class="momento">@vista.Momento</p>
                 </div>
-                <span class="estado @vista.Clase"><Icono Nombre="@vista.Icono" Tamano="18" /> @vista.Estado</span>
             </header>
 
             <div class="lectura">
-                <p class="temperatura cifras @(vista.Atenuada ? "atenuada" : "")">
-                    @(datos.Temperatura?.ToString("0.0") ?? "--")<span class="unidad">°C</span>
-                </p>
+                @* Indicador tipo instrumento: componente propio, reutilizable en el dashboard. *@
+                <IndicadorTemperatura Temperatura="datos.Temperatura"
+                                      OptimoMinimo="datos.OptimoMinimo" OptimoMaximo="datos.OptimoMaximo"
+                                      LimiteMinimo="datos.LimiteMinimo" LimiteMaximo="datos.LimiteMaximo"
+                                      Estado="@(vista.Clase.Replace("estado-", ""))" TextoEstado="@vista.Estado"
+                                      Historial="historial" />
 
                 <dl class="datos">
                     <div class="dato">
@@ -69,6 +77,16 @@
                             </div>
                         </div>
                     }
+                    @if (historial.Count >= 2)
+                    {
+                        <div class="dato">
+                            <Icono Nombre="calendario" Clase="dato-icono" />
+                            <div>
+                                <dt>Última hora</dt>
+                                <dd class="cifras">@historial.Min().ToString("0.0") a @historial.Max().ToString("0.0") °C</dd>
+                            </div>
+                        </div>
+                    }
                 </dl>
             </div>
 
@@ -76,28 +94,6 @@
             <div class="accion-caja @vista.Clase">
                 <Icono Nombre="@(vista.Clase == "estado-ok" ? "info" : vista.Icono)" />
                 <span>@vista.Accion</span>
-            </div>
-
-            @* Banda tipo termómetro: zonas con límites exactos y la temperatura actual. *@
-            <div class="banda-contenedor" role="img"
-                 aria-label="@($"Rango óptimo de {datos.OptimoMinimo:0.0} a {datos.OptimoMaximo:0.0} °C; límite de {datos.LimiteMinimo:0.0} a {datos.LimiteMaximo:0.0} °C")">
-                @if (datos.Temperatura is { } t)
-                {
-                    <span class="globo cifras @(vista.Atenuada ? "atenuada" : "")" style="left:@(Porcentaje(banda.Posicion(t)))">@t.ToString("0.0") °C</span>
-                    <span class="marca @(vista.Atenuada ? "atenuada" : "")" style="left:@(Porcentaje(banda.Posicion(t)))"></span>
-                }
-                <div class="banda">
-                    @foreach (var zona in banda.Zonas)
-                    {
-                        <span class="zona @zona.Clase" style="width:@(Porcentaje(zona.Ancho))"></span>
-                    }
-                </div>
-                <div class="escala cifras">
-                    @foreach (var valor in banda.Marcas)
-                    {
-                        <span style="left:@(Porcentaje(banda.Posicion(valor)))">@valor.ToString("0.#")</span>
-                    }
-                </div>
             </div>
         </section>
     }
@@ -193,7 +189,14 @@
 
     private static readonly TimeSpan IntervaloActualizacion = TimeSpan.FromSeconds(10);
 
+    // Aviso que llega en la dirección, por ejemplo después de cambiar la contraseña.
+    [SupplyParameterFromQuery]
+    public string? Aviso { get; set; }
+
     private TemperaturaActualDto? datos;
+
+    // Lecturas de la última hora, para el mini gráfico y la tendencia del indicador.
+    private List<double> historial = new();
     private List<AlertaPendienteDto> pendientes = new();
     private string? error;
     private readonly CancellationTokenSource cancelacion = new();
@@ -234,6 +237,9 @@
                 $"api/equipos/{EquipoId}/temperatura-actual", cancelacion.Token);
             pendientes = await Http.GetFromJsonAsync<List<AlertaPendienteDto>>(
                 $"api/alertas/pendientes?equipoId={EquipoId}", cancelacion.Token) ?? new();
+            var recientes = await Http.GetFromJsonAsync<List<LecturaPuntoDto>>(
+                $"api/equipos/{EquipoId}/lecturas-recientes?minutos=60", cancelacion.Token);
+            historial = recientes?.Select(l => l.Temperatura).ToList() ?? new();
             error = null;
         }
         catch (OperationCanceledException)
@@ -293,54 +299,6 @@
                     "Todo en orden. No se requiere ninguna acción.", momento, false)
             };
         }
-    }
-
-    // ---------- Banda tipo termómetro ----------
-
-    // Porcentaje para CSS. Siempre con punto decimal: con coma (formato de Perú) el navegador lo ignoraría.
-    private static string Porcentaje(double valor) =>
-        valor.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
-
-    private BandaTermometro Banda => new(datos!);
-
-    // Calcula las zonas de la banda y la posición de cada valor en ella (en porcentaje).
-    private class BandaTermometro
-    {
-        private readonly double inicio;
-        private readonly double fin;
-
-        public List<(string Clase, double Ancho)> Zonas { get; } = new();
-        public List<double> Marcas { get; }
-
-        public BandaTermometro(TemperaturaActualDto d)
-        {
-            // La escala muestra un margen fuera del límite, para ver qué tan lejos está una ruptura.
-            inicio = d.LimiteMinimo - 2;
-            fin = d.LimiteMaximo + 4;
-
-            AgregarZona("zona-rup", inicio, d.LimiteMinimo);
-            AgregarZona("zona-adv", d.LimiteMinimo, d.OptimoMinimo);
-            AgregarZona("zona-optima", d.OptimoMinimo, d.OptimoMaximo);
-            AgregarZona("zona-adv", d.OptimoMaximo, d.LimiteMaximo);
-            AgregarZona("zona-rup", d.LimiteMaximo, fin);
-
-            // Valores de referencia bajo la banda (sin repetir si óptimo y límite coinciden).
-            Marcas = new[] { d.LimiteMinimo, d.OptimoMinimo, d.OptimoMaximo, d.LimiteMaximo }
-                .Distinct()
-                .ToList();
-        }
-
-        private void AgregarZona(string clase, double desde, double hasta)
-        {
-            if (hasta > desde)
-            {
-                Zonas.Add((clase, (hasta - desde) / (fin - inicio) * 100));
-            }
-        }
-
-        // Posición de una temperatura en la banda; fuera de la escala, queda en el borde.
-        public double Posicion(double temperatura) =>
-            Math.Clamp((temperatura - inicio) / (fin - inicio) * 100, 0, 100);
     }
 
     // ---------- Pendientes de revisión ----------

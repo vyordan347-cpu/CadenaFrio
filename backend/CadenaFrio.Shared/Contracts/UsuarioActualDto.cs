@@ -6,4 +6,7 @@ public class UsuarioActualDto
     public string NombreUsuario { get; set; } = string.Empty;
     public string NombreCompleto { get; set; } = string.Empty;
     public string Rol { get; set; } = string.Empty;
+
+    // Si tiene una contraseña temporal, la web lo lleva a cambiarla.
+    public bool DebeCambiarContrasena { get; set; }
 }

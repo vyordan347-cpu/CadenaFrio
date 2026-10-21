@@ -1,0 +1,8 @@
+@page "/admin"
+@inject NavigationManager Navegacion
+
+@* "/admin" lleva a la primera sección del panel. *@
+
+@code {
+    protected override void OnInitialized() => Navegacion.NavigateTo("admin/equipos", replace: true);
+}

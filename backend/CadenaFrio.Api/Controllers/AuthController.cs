@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using CadenaFrio.Api.Seguridad;
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Shared.Contracts;
@@ -11,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CadenaFrio.Api.Controllers;
 
-// Inicio y cierre de sesión del personal (RF03).
+// Inicio y cierre de sesión, y cambio de contraseña (RF03).
 [ApiController]
 [Route("api/auth")]
 public class AuthController : ControllerBase
@@ -34,7 +35,6 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<UsuarioActualDto>> IniciarSesion(LoginRequest solicitud)
     {
         var nombreUsuario = solicitud.NombreUsuario!.Trim().ToLowerInvariant();
-
         var usuario = await _db.Usuarios.FirstOrDefaultAsync(u => u.NombreUsuario == nombreUsuario);
 
         if (usuario is null || !usuario.Activo)
@@ -43,7 +43,6 @@ public class AuthController : ControllerBase
         }
 
         var resultado = _cifrador.VerifyHashedPassword(usuario, usuario.ContrasenaHash, solicitud.Contrasena!);
-
         if (resultado == PasswordVerificationResult.Failed)
         {
             return Unauthorized(new { mensaje = MensajeCredencialesInvalidas });
@@ -56,26 +55,8 @@ public class AuthController : ControllerBase
             await _db.SaveChangesAsync();
         }
 
-        // Los "claims" son los datos del usuario que viajan dentro de la cookie de sesión.
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
-            new(ClaimTypes.Name, usuario.NombreUsuario),
-            new(ClaimTiposCadenaFrio.NombreCompleto, usuario.NombreCompleto),
-            new(ClaimTypes.Role, usuario.Rol.ToString())
-        };
-
-        var identidad = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-
-        // Crea la cookie de sesión cifrada y la envía al navegador.
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidad));
-
-        return Ok(new UsuarioActualDto
-        {
-            NombreUsuario = usuario.NombreUsuario,
-            NombreCompleto = usuario.NombreCompleto,
-            Rol = usuario.Rol.ToString()
-        });
+        await SesionUsuario.IniciarAsync(HttpContext, usuario);
+        return Ok(ConvertirADto(usuario));
     }
 
     // POST /api/auth/logout
@@ -88,13 +69,50 @@ public class AuthController : ControllerBase
     }
 
     // GET /api/auth/yo
-    // La web lo consulta para saber si hay sesión y con qué rol.
+    // La web lo consulta para saber si hay sesión, con qué rol y si debe cambiar la contraseña.
     [Authorize]
     [HttpGet("yo")]
     public ActionResult<UsuarioActualDto> ObtenerUsuarioActual() => Ok(new UsuarioActualDto
     {
         NombreUsuario = User.Identity!.Name!,
         NombreCompleto = User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity.Name!,
-        Rol = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty
+        Rol = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty,
+        DebeCambiarContrasena = User.HasClaim(ClaimTiposCadenaFrio.DebeCambiarContrasena, "true")
     });
+
+    // POST /api/auth/cambiar-contrasena
+    // El propio usuario cambia su contraseña. Obligatorio si tiene una temporal.
+    [Authorize]
+    [HttpPost("cambiar-contrasena")]
+    public async Task<IActionResult> CambiarContrasena(CambiarContrasenaRequest solicitud)
+    {
+        var id = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var usuario = await _db.Usuarios.FirstAsync(u => u.Id == id);
+
+        var actualCorrecta = _cifrador.VerifyHashedPassword(usuario, usuario.ContrasenaHash, solicitud.ContrasenaActual!)
+                             != PasswordVerificationResult.Failed;
+        if (!actualCorrecta)
+        {
+            return BadRequest(new { mensaje = "La contraseña actual no es correcta." });
+        }
+
+        usuario.ContrasenaHash = _cifrador.HashPassword(usuario, solicitud.ContrasenaNueva!);
+        usuario.DebeCambiarContrasena = false;
+
+        // Nuevo sello: se cierran las demás sesiones abiertas de este usuario (por ejemplo,
+        // en otra PC). La sesión actual se renueva con el sello nuevo para no expulsarlo.
+        usuario.RenovarSello();
+        await _db.SaveChangesAsync();
+        await SesionUsuario.IniciarAsync(HttpContext, usuario);
+
+        return NoContent();
+    }
+
+    private static UsuarioActualDto ConvertirADto(Usuario usuario) => new()
+    {
+        NombreUsuario = usuario.NombreUsuario,
+        NombreCompleto = usuario.NombreCompleto,
+        Rol = usuario.Rol.ToString(),
+        DebeCambiarContrasena = usuario.DebeCambiarContrasena
+    };
 }

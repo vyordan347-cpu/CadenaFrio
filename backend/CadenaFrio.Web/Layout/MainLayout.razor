@@ -35,20 +35,39 @@
 
                 @* "Administración" solo para el rol Administrador (RF19). *@
                 <AuthorizeView Policy="@Politicas.EsAdministrador" Context="administrador">
-                    <NavLink href="admin/equipos">
+                    @* Coincide con cualquier página que empiece con "admin" (equipos, usuarios). *@
+                    <NavLink href="admin" Match="NavLinkMatch.Prefix">
                         <Icono Nombre="admin" Tamano="18" /> Administración
                     </NavLink>
                 </AuthorizeView>
             </nav>
 
-            <div class="sesion">
-                <span class="usuario">
-                    <Icono Nombre="usuario" Tamano="18" />
-                    @context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value
-                </span>
-                <button class="salir" @onclick="CerrarSesionAsync">
-                    <Icono Nombre="salir" Tamano="18" /> Cerrar sesión
+            @* Menú de la cuenta: círculo con iniciales que despliega las opciones del usuario. *@
+            <div class="cuenta">
+                <button class="avatar" @onclick="() => menuAbierto = !menuAbierto"
+                        aria-haspopup="true" aria-expanded="@(menuAbierto ? "true" : "false")"
+                        title="Mi cuenta">
+                    @Iniciales(context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value)
                 </button>
+
+                @if (menuAbierto)
+                {
+                    @* Capa invisible: un clic fuera del menú lo cierra. *@
+                    <div class="capa" @onclick="() => menuAbierto = false"></div>
+
+                    <div class="desplegable" role="menu">
+                        <div class="desplegable-cabecera">
+                            <p class="desplegable-nombre">@context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value</p>
+                            <p class="desplegable-rol">@Roles.Nombre(context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "")</p>
+                        </div>
+                        <a class="desplegable-opcion" href="cambiar-contrasena" role="menuitem">
+                            <Icono Nombre="clave" Tamano="18" /> Cambiar contraseña
+                        </a>
+                        <button class="desplegable-opcion" @onclick="CerrarSesionAsync" role="menuitem">
+                            <Icono Nombre="salir" Tamano="18" /> Cerrar sesión
+                        </button>
+                    </div>
+                }
             </div>
         </Authorized>
     </AuthorizeView>
@@ -59,8 +78,41 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? EstadoAutenticacion { get; set; }
+
+    private bool menuAbierto;
+
+    // Iniciales para el círculo de la cuenta, por ejemplo "JV" para "Jordan Viza".
+    private static string Iniciales(string? nombre) =>
+        string.Concat((nombre ?? "?").Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(2).Select(p => char.ToUpper(p[0])));
+
+    // Se ejecuta en cada cambio de página. Si el usuario tiene una contraseña temporal,
+    // se le lleva a cambiarla antes de dejarlo usar el sistema.
+    protected override async Task OnParametersSetAsync()
+    {
+        // Al cambiar de página, el menú de la cuenta se cierra.
+        menuAbierto = false;
+
+        if (EstadoAutenticacion is null)
+        {
+            return;
+        }
+
+        var usuario = (await EstadoAutenticacion).User;
+        var debeCambiar = usuario.HasClaim(ClaimTiposCadenaFrio.DebeCambiarContrasena, "true");
+        var enPaginaDeCambio = Navegacion.ToBaseRelativePath(Navegacion.Uri).StartsWith("cambiar-contrasena");
+
+        if (debeCambiar && !enPaginaDeCambio)
+        {
+            Navegacion.NavigateTo("cambiar-contrasena");
+        }
+    }
+
     private async Task CerrarSesionAsync()
     {
+        menuAbierto = false;
         await Autenticacion.CerrarSesionAsync();
         Navegacion.NavigateTo("login");
     }

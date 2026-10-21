@@ -1,0 +1,134 @@
+@page "/cambiar-contrasena"
+@using System.Net.Http.Json
+@using System.Text.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Autenticacion
+@using CadenaFrio.Web.Componentes
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ProveedorEstadoAutenticacion Autenticacion
+@inject NavigationManager Navegacion
+
+<PageTitle>Cambiar contraseña · Cadena de Frío</PageTitle>
+
+<div class="contenedor">
+    <div class="tarjeta panel">
+        <span class="icono-circulo"><Icono Nombre="clave" Tamano="28" /></span>
+        <h1>Cambiar contraseña</h1>
+
+        @if (obligatorio)
+        {
+            <p class="aviso aviso-adv">Está usando una contraseña temporal. Elija una nueva para continuar.</p>
+        }
+        else
+        {
+            <p class="subtitulo">Use al menos 8 caracteres, con letras y números.</p>
+        }
+
+        <EditForm Model="solicitud" OnValidSubmit="CambiarAsync">
+                <DataAnnotationsValidator />
+                <label>
+                    Contraseña actual
+                    <InputText type="password" @bind-Value="solicitud.ContrasenaActual" autocomplete="current-password" />
+                    <ValidationMessage For="() => solicitud.ContrasenaActual" />
+                </label>
+                <label>
+                    Nueva contraseña
+                    <InputText type="password" @bind-Value="solicitud.ContrasenaNueva" autocomplete="new-password" />
+                    <ValidationMessage For="() => solicitud.ContrasenaNueva" />
+                </label>
+                <label>
+                    Repita la nueva contraseña
+                    <InputText type="password" @bind-Value="solicitud.Confirmacion" autocomplete="new-password" />
+                    <ValidationMessage For="() => solicitud.Confirmacion" />
+                </label>
+
+                @if (error is not null)
+                {
+                    <p class="aviso aviso-error">@error</p>
+                }
+
+                <button type="submit" class="boton boton-primario" disabled="@guardando">
+                    @(guardando ? "Guardando…" : "Cambiar contraseña")
+                </button>
+            </EditForm>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? EstadoAutenticacion { get; set; }
+
+    private CambiarContrasenaRequest solicitud = new();
+    private bool obligatorio;
+    private bool guardando;
+    private string? error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EstadoAutenticacion is not null)
+        {
+            obligatorio = (await EstadoAutenticacion).User.HasClaim(ClaimTiposCadenaFrio.DebeCambiarContrasena, "true");
+        }
+    }
+
+    private async Task CambiarAsync()
+    {
+        guardando = true;
+        error = null;
+
+        try
+        {
+            var respuesta = await Http.PostAsJsonAsync("api/auth/cambiar-contrasena", solicitud);
+            if (respuesta.IsSuccessStatusCode)
+            {
+                // Se espera la sesión actualizada (sin la marca de contraseña temporal)
+                // y se vuelve al inicio, con un aviso de confirmación.
+                await Autenticacion.ActualizarEstadoAsync();
+                Navegacion.NavigateTo("?aviso=contrasena");
+            }
+            else
+            {
+                error = await LeerErrorAsync(respuesta);
+            }
+        }
+        catch (Exception)
+        {
+            error = "No se pudo conectar con el servidor.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private static async Task<string> LeerErrorAsync(HttpResponseMessage respuesta)
+    {
+        try
+        {
+            using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+            var raiz = documento.RootElement;
+            if (raiz.TryGetProperty("mensaje", out var mensaje))
+            {
+                return mensaje.GetString() ?? "No se pudo cambiar la contraseña.";
+            }
+            if (raiz.TryGetProperty("errors", out var errores))
+            {
+                foreach (var campo in errores.EnumerateObject())
+                {
+                    foreach (var detalle in campo.Value.EnumerateArray())
+                    {
+                        return detalle.GetString() ?? "Revise los datos.";
+                    }
+                }
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return "No se pudo cambiar la contraseña.";
+    }
+}

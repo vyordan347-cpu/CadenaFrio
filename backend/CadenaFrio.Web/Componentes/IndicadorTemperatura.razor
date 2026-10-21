@@ -1,0 +1,304 @@
+@using System.Globalization
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@* Indicador de temperatura tipo instrumento. Todo el dibujo (escala, zonas, arco y aguja)
+   se calcula en C# a partir de los rangos del equipo; las animaciones son transiciones CSS. *@
+
+<div class="indicador estado-@Estado @(Compacto ? "compacto" : "")">
+    <svg viewBox="0 0 300 300" role="img" aria-label="@Descripcion">
+        <defs>
+            @* Identificadores únicos por instancia: puede haber varios indicadores en la misma pantalla. *@
+            <radialGradient id="cara-@id" cx="50%" cy="38%" r="70%">
+                <stop offset="0%" stop-color="#1E4A6E" />
+                <stop offset="70%" stop-color="#112C44" />
+                <stop offset="100%" stop-color="#0A1D2E" />
+            </radialGradient>
+            <linearGradient id="bisel-@id" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5E86A8" />
+                <stop offset="50%" stop-color="#1B3A55" />
+                <stop offset="100%" stop-color="#0B1A28" />
+            </linearGradient>
+            <filter id="brillo-@id" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="difuso" />
+                <feMerge>
+                    <feMergeNode in="difuso" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+        </defs>
+
+        @* Disco con bisel metálico *@
+        <circle cx="150" cy="150" r="148" fill="url(#bisel-@id)" />
+        <circle cx="150" cy="150" r="140" fill="url(#cara-@id)" />
+
+        @* Halo que pulsa en ruptura *@
+        <circle class="halo" cx="150" cy="150" r="140" fill="none" stroke-width="4" />
+
+        @* Escala graduada *@
+        @foreach (var marca in Marcas)
+        {
+            <line x1="@F(marca.X1)" y1="@F(marca.Y1)" x2="@F(marca.X2)" y2="@F(marca.Y2)"
+                  class="@(marca.Mayor ? "marca-mayor" : "marca-menor")" />
+           @if (marca.Mayor && !Compacto)
+            {
+                <g>
+                    <text x="@F(marca.TextoX)" y="@F(marca.TextoY + 4)" class="marca-texto">@marca.Valor.ToString("0", CultureInfo.InvariantCulture)</text>
+                </g>
+            }
+        }
+
+        @* Zonas de la normativa (tenues) *@
+        @foreach (var zona in Zonas)
+        {
+            <path d="@zona.Trazo" class="zona @zona.Clase" />
+        }
+
+        @* Arco luminoso hasta la temperatura actual *@
+        <path class="progreso" d="@ArcoCompleto" pathLength="100" filter="url(#brillo-@id)"
+              style="stroke-dasharray: @F(Porcentaje) 100" />
+
+        @* Aguja: gira con una transición CSS *@
+        @if (Temperatura is not null)
+        {
+            <g class="aguja" style="transform: rotate(@F(Angulo(Temperatura.Value))deg)">
+                <circle cx="150" cy="12" r="9" fill="#FFFFFF" filter="url(#brillo-@id)" />
+                <circle cx="150" cy="12" r="5" class="aguja-centro" />
+            </g>
+        }
+
+        @* Tendencia respecto a la lectura anterior *@
+        @if (!Compacto && Tendencia is { } tendencia)
+        {
+            <g>
+                <text x="150" y="112" class="tendencia @tendencia.Clase">@tendencia.Texto</text>
+            </g>
+        }
+
+        @* Temperatura en el centro *@
+        <text @ref="numero" x="150" y="@(Compacto ? 168 : 160)" class="numero">@TextoTemperatura</text>
+        <text x="150" y="@(Compacto ? 192 : 184)" class="unidad">°C</text>
+
+        @* Mini gráfico de las últimas lecturas *@
+        @if (!Compacto && TrazoHistorial is { } trazo)
+        {
+            <path d="@trazo" class="historial" />
+        }
+
+        @* Etiqueta de estado *@
+        <rect x="100" y="226" width="100" height="28" rx="14" class="chip" />
+        <text x="150" y="245" class="chip-texto">@TextoEstado</text>
+    </svg>
+</div>
+
+@code {
+    // Temperatura actual. Nula si el equipo nunca envió datos.
+    [Parameter] public double? Temperatura { get; set; }
+
+    [Parameter] public double OptimoMinimo { get; set; }
+    [Parameter] public double OptimoMaximo { get; set; }
+    [Parameter] public double LimiteMinimo { get; set; }
+    [Parameter] public double LimiteMaximo { get; set; }
+
+    // "ok", "adv", "rup" o "sen" (sin señal / sin datos): define los colores.
+    [Parameter] public string Estado { get; set; } = "ok";
+    [Parameter] public string TextoEstado { get; set; } = "Normal";
+
+    // Lecturas recientes (de la más antigua a la más nueva), para el mini gráfico y la tendencia.
+    [Parameter] public IReadOnlyList<double>? Historial { get; set; }
+
+    // Versión pequeña para el dashboard: sin números de escala, tendencia ni mini gráfico.
+    [Parameter] public bool Compacto { get; set; }
+
+    private const double Centro = 150;
+    private const double RadioArco = 138;
+    private readonly string id = Guid.NewGuid().ToString("N")[..8];
+
+    private ElementReference numero;
+    private IJSObjectReference? modulo;
+    private double? anterior;
+    private double desde;
+    private bool animar;
+
+    // ---------- Escala ----------
+
+    // La escala muestra un margen fuera del límite, para ver qué tan lejos está una ruptura.
+    private double Inicio => LimiteMinimo - 2;
+    private double Fin => LimiteMaximo + 4;
+
+    // Ángulo de una temperatura: de -135° (izquierda abajo) a +135° (derecha abajo).
+    private double Angulo(double valor) =>
+        -135 + 270 * (Math.Clamp(valor, Inicio, Fin) - Inicio) / (Fin - Inicio);
+
+    private static (double X, double Y) Punto(double angulo, double radio)
+    {
+        var rad = angulo * Math.PI / 180;
+        return (Centro + radio * Math.Sin(rad), Centro - radio * Math.Cos(rad));
+    }
+
+    private static string Arco(double desdeAngulo, double hastaAngulo, double radio)
+    {
+        var (x1, y1) = Punto(desdeAngulo, radio);
+        var (x2, y2) = Punto(hastaAngulo, radio);
+        var grande = hastaAngulo - desdeAngulo > 180 ? 1 : 0;
+        return $"M{F(x1)} {F(y1)} A{F(radio)} {F(radio)} 0 {grande} 1 {F(x2)} {F(y2)}";
+    }
+
+    private string ArcoCompleto => Arco(-135, 135, RadioArco);
+
+    private double Porcentaje => Temperatura is { } t ? (Angulo(t) + 135) / 270 * 100 : 0;
+
+    private record Marca(double Valor, bool Mayor, double X1, double Y1, double X2, double Y2, double TextoX, double TextoY);
+
+    private IEnumerable<Marca> Marcas
+    {
+        get
+        {
+            // Con rangos amplios, la escala se hace menos densa para que se lea bien.
+            var amplitud = Fin - Inicio;
+            var pasoMenor = amplitud <= 16 ? 0.5 : 1;
+            var pasoMayor = amplitud <= 16 ? 2 : 5;
+
+            for (var v = Math.Ceiling(Inicio / pasoMenor) * pasoMenor; v <= Fin + 1e-9; v += pasoMenor)
+            {
+                var mayor = Math.Abs(Math.IEEERemainder(v, pasoMayor)) < 1e-9;
+                var a = Angulo(v);
+                var (x1, y1) = Punto(a, 132);
+                var (x2, y2) = Punto(a, mayor ? 119 : 126);
+                var (tx, ty) = Punto(a, 103);
+                yield return new Marca(v, mayor, x1, y1, x2, y2, tx, ty);
+            }
+        }
+    }
+
+    private record Zona(string Trazo, string Clase);
+
+    private IEnumerable<Zona> Zonas
+    {
+        get
+        {
+            var tramos = new (double Desde, double Hasta, string Clase)[]
+            {
+                (Inicio, LimiteMinimo, "zona-rup"),
+                (LimiteMinimo, OptimoMinimo, "zona-adv"),
+                (OptimoMinimo, OptimoMaximo, "zona-ok"),
+                (OptimoMaximo, LimiteMaximo, "zona-adv"),
+                (LimiteMaximo, Fin, "zona-rup")
+            };
+
+            foreach (var (d, h, clase) in tramos.Where(t => t.Hasta > t.Desde))
+            {
+                // Pequeña separación entre zonas para que se distingan los cortes exactos.
+                yield return new Zona(Arco(Angulo(d) + 0.6, Angulo(h) - 0.6, RadioArco), clase);
+            }
+        }
+    }
+
+    // ---------- Textos ----------
+
+    private string TextoTemperatura =>
+        Temperatura?.ToString("0.0", CultureInfo.InvariantCulture) ?? "--";
+
+    private record InfoTendencia(string Texto, string Clase);
+
+    private InfoTendencia? Tendencia
+    {
+        get
+        {
+            if (Historial is not { Count: >= 2 })
+            {
+                return null;
+            }
+
+            var diferencia = Historial[^1] - Historial[^2];
+            if (Math.Abs(diferencia) < 0.05)
+            {
+                return new("● estable", "estable");
+            }
+
+            var magnitud = Math.Abs(diferencia).ToString("0.0", CultureInfo.InvariantCulture);
+            return diferencia > 0
+                ? new($"▲ subiendo {magnitud}°", "sube")
+                : new($"▼ bajando {magnitud}°", "baja");
+        }
+    }
+
+    private string? TrazoHistorial
+    {
+        get
+        {
+            if (Historial is not { Count: >= 2 })
+            {
+                return null;
+            }
+
+            // Se dibuja en un recuadro de 110 × 18 bajo el número.
+            const double ancho = 110, alto = 18, x0 = Centro - ancho / 2, y0 = 214;
+            var minimo = Historial.Min();
+            var rango = Math.Max(Historial.Max() - minimo, 0.5);
+
+            return string.Concat(Historial.Select((valor, i) =>
+                $"{(i == 0 ? "M" : "L")}{F(x0 + i * ancho / (Historial.Count - 1))} {F(y0 - (valor - minimo) / rango * alto)}"));
+        }
+    }
+
+    private string Descripcion =>
+        $"Temperatura {TextoTemperatura} grados, estado {TextoEstado}. " +
+        $"Rango óptimo de {OptimoMinimo:0.0} a {OptimoMaximo:0.0}, límite de {LimiteMinimo:0.0} a {LimiteMaximo:0.0}.";
+
+    // Números con punto decimal: SVG no acepta coma.
+    private static string F(double valor) => valor.ToString("0.##", CultureInfo.InvariantCulture);
+
+    // ---------- Animación del número (JS interop) ----------
+
+    protected override void OnParametersSet()
+    {
+        if (anterior is { } previo && Temperatura is { } actual && Math.Abs(previo - actual) > 0.001)
+        {
+            desde = previo;
+            animar = true;
+        }
+
+        anterior = Temperatura;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+       if (primeraVez)
+        {
+            try
+            {
+                // Carga el módulo de JavaScript solo cuando se usa el indicador.
+                // El "?v=1" evita que .NET 10 cambie el nombre del archivo por uno con huella,
+                // que nuestro servidor no reconoce.
+                modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/indicador.js?v=1");
+            }
+            catch (JSException)
+            {
+                // Si el módulo no carga, el indicador sigue funcionando: solo el número
+                // cambia de golpe en lugar de contar. Un detalle visual no debe romper la pantalla.
+                modulo = null;
+            }
+        }
+
+        if (animar && modulo is not null && Temperatura is { } hasta)
+        {
+            animar = false;
+            await modulo.InvokeVoidAsync("contar", numero, desde, hasta, 700);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (modulo is not null)
+        {
+            try
+            {
+                await modulo.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

@@ -218,6 +218,9 @@ namespace CadenaFrio.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("DebeCambiarContrasena")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("FechaRegistro")
                         .HasColumnType("TEXT");
 
@@ -233,6 +236,11 @@ namespace CadenaFrio.Infrastructure.Migrations
 
                     b.Property<int>("Rol")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("SelloSeguridad")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 

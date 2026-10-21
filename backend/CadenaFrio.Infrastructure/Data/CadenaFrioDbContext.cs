@@ -108,6 +108,7 @@ public class CadenaFrioDbContext : DbContext
             usuario.Property(u => u.NombreCompleto).IsRequired().HasMaxLength(100);
             usuario.Property(u => u.NombreUsuario).IsRequired().HasMaxLength(50);
             usuario.Property(u => u.ContrasenaHash).IsRequired();
+            usuario.Property(u => u.SelloSeguridad).IsRequired().HasMaxLength(64);
 
             // Dos personas no pueden tener el mismo nombre de usuario.
             usuario.HasIndex(u => u.NombreUsuario).IsUnique();

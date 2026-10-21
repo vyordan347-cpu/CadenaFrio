@@ -1,4 +1,5 @@
 using CadenaFrio.Api.Inicializacion;
+using CadenaFrio.Api.Seguridad;
 using CadenaFrio.Api.Vigilancia;
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Servicios;
@@ -56,6 +57,8 @@ builder.Services
             contexto.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return Task.CompletedTask;
         };
+        // En cada petición se verifica que el usuario siga activo y con el mismo sello.
+        opciones.Events.OnValidatePrincipal = SesionUsuario.ValidarAsync;
         opciones.Events.OnRedirectToAccessDenied = contexto =>
         {
             contexto.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -99,6 +102,10 @@ app.UseStaticFiles();
 
 // El orden importa: primero se identifica al usuario, luego se revisan sus permisos.
 app.UseAuthentication();
+
+// Con contraseña temporal, solo se permiten las rutas de sesión hasta que la cambie.
+app.Use(SesionUsuario.ExigirCambioDeContrasenaAsync);
+
 app.UseAuthorization();
 
 app.MapControllers();
