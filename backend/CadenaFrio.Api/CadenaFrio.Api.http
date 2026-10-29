@@ -11,7 +11,7 @@ Content-Type: application/json
 X-Clave-Dispositivo: {{clave}}
 
 {
-  "temperatura": 8
+  "temperatura": -5
 }
 
 ### 2. Lectura sincronizada: medida hace 2 horas, sin conexión (debe responder 200)
@@ -175,5 +175,5 @@ Content-Type: application/json
 X-Clave-Dispositivo: {{clave2}}
 
 {
-  "temperatura": 4.0
+  "temperatura": 10
 }

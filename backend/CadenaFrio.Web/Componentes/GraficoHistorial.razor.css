@@ -1,0 +1,91 @@
+.grafico svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.zona { opacity: 0.55; }
+.zona-ok { fill: var(--zona-optima); }
+.zona-adv { fill: var(--zona-adv); }
+.zona-rup { fill: var(--zona-rup); }
+
+.guia {
+    stroke: var(--borde-fuerte);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+}
+
+.eje-y,
+.eje-x {
+    fill: var(--texto-2);
+    font-size: 12px;
+}
+
+.eje-y { text-anchor: end; }
+.eje-x { text-anchor: middle; }
+
+.banda-minmax {
+    fill: var(--acento);
+    fill-opacity: 0.15;
+    stroke: none;
+}
+
+.linea {
+    fill: none;
+    stroke: var(--acento);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.marca-rup { fill: var(--rup); }
+.marca-adv { fill: var(--adv); }
+.marca-sen { fill: var(--sen); }
+
+.sensible {
+    fill: transparent;
+    cursor: crosshair;
+}
+
+.detalle {
+    pointer-events: none;
+}
+
+.cursor {
+    stroke: var(--texto-2);
+    stroke-width: 1;
+}
+
+.cursor-punto {
+    fill: var(--superficie);
+    stroke: var(--acento);
+    stroke-width: 3;
+}
+
+.caja {
+    fill: var(--barra-fondo);
+    opacity: 0.95;
+}
+
+.caja-titulo {
+    fill: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.caja-texto {
+    fill: #c5dbec;
+    font-size: 12px;
+}
+
+.sin-datos {
+    fill: var(--texto-2);
+    font-size: 16px;
+    text-anchor: middle;
+}
+
+.punto-aislado {
+    fill: var(--acento);
+    stroke: var(--superficie);
+    stroke-width: 1.5;
+}

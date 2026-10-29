@@ -53,6 +53,11 @@ public class MotorAlertas
         ReconstruirPasado(equipoId, atrasadas, limites, eventos);
         await AplicarActualesAsync(equipoId, actuales, limites, eventos);
 
+        if (actuales.Count > 0)
+        {
+            await RevisarSensorAsync(equipoId, actuales[^1], eventos);
+        }
+
         await _db.SaveChangesAsync();
         await NotificarAsync(equipoId, eventos);
     }
@@ -180,6 +185,52 @@ public class MotorAlertas
         LimiteMinimo = limites.LimiteMinimo,
         LimiteMaximo = limites.LimiteMaximo
     };
+
+    // Detecta un sensor "congelado": si en la ventana configurada (por defecto 2 horas)
+    // todas las lecturas son exactamente iguales, probablemente el sensor está dañado.
+    // Un sensor que marca 5.0 °C fijo haría creer que todo está bien aunque no lo esté.
+    private async Task RevisarSensorAsync(int equipoId, Lectura ultima, List<(TipoEvento, Alerta)> eventos)
+    {
+        var desde = ultima.FechaMedicion - _opciones.LimiteSensorSinVariacion;
+        var ventana = await _db.Lecturas
+            .AsNoTracking()
+            .Where(l => l.EquipoId == equipoId && l.FechaMedicion >= desde)
+            .Select(l => new { l.FechaMedicion, l.Temperatura })
+            .ToListAsync();
+
+        // Solo se evalúa si hay suficientes lecturas y cubren casi toda la ventana.
+        var cubreVentana = ventana.Count >= 10
+                           && ventana.Min(l => l.FechaMedicion) <= desde + TimeSpan.FromMinutes(10);
+        var sinVariacion = cubreVentana && ventana.Max(l => l.Temperatura) - ventana.Min(l => l.Temperatura) < 0.001;
+
+        var abierta = await _db.Alertas.FirstOrDefaultAsync(a =>
+            a.EquipoId == equipoId && a.Tipo == TipoAlerta.SensorSinVariacion && a.Fin == null);
+
+        if (sinVariacion && abierta is null)
+        {
+            var limites = await _db.ObtenerLimitesAsync(equipoId);
+            var alerta = new Alerta
+            {
+                EquipoId = equipoId,
+                Tipo = TipoAlerta.SensorSinVariacion,
+                Nivel = NivelAlerta.Advertencia,
+                Inicio = ventana.Min(l => l.FechaMedicion),
+                ValorExtremo = ultima.Temperatura,
+                OptimoMinimo = limites.OptimoMinimo,
+                OptimoMaximo = limites.OptimoMaximo,
+                LimiteMinimo = limites.LimiteMinimo,
+                LimiteMaximo = limites.LimiteMaximo
+            };
+            _db.Alertas.Add(alerta);
+            eventos.Add((TipoEvento.Abierta, alerta));
+        }
+        else if (!sinVariacion && abierta is not null)
+        {
+            // El sensor volvió a mostrar variaciones: se cierra.
+            abierta.Fin = ultima.FechaMedicion;
+            eventos.Add((TipoEvento.Cerrada, abierta));
+        }
+    }
 
     private async Task CerrarSinSenalAsync(int equipoId, DateTime fechaRecepcion)
     {

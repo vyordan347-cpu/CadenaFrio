@@ -11,9 +11,11 @@ public record LimitesTemperatura(
     double LimiteMinimo,
     double LimiteMaximo)
 {
-    // Valores por defecto (RF04), según la Directiva Sanitaria N° 133-MINSA-2021:
-    // normal de 2 a 7 °C; ruptura por debajo de 0 °C o por encima de 8 °C.
-    public static LimitesTemperatura PorDefecto { get; } = new(2.0, 7.0, 0.0, 8.0);
+    // Valores por defecto (RF04), según la NTS N° 242-MINSA/DGIESP-2026 (numerales 5.1.45 y 6.3.1.3):
+    // - Ruptura de la cadena de frío: fuera de +2 °C a +8 °C.
+    // - Zona de alerta: de +2 a +3 °C y de +7 a +8 °C.
+    // - Oscilación normal: de +3 a +7 °C (la temperatura media ideal es de +4 a +6 °C).
+    public static LimitesTemperatura PorDefecto { get; } = new(3.0, 7.0, 2.0, 8.0);
 
     // Rango común de varias vacunas: donde TODAS están seguras (la intersección de sus rangos).
     // Devuelve null si no existe una temperatura óptima común: no pueden guardarse juntas.

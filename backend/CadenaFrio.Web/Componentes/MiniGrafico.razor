@@ -1,0 +1,29 @@
+@using System.Globalization
+
+@* Mini gráfico de línea (sparkline) con las temperaturas recientes de un equipo. *@
+
+@if (Valores is { Count: >= 2 })
+{
+    <svg class="mini-grafico" viewBox="0 0 @Ancho @Alto" preserveAspectRatio="none" aria-hidden="true">
+        <path d="@Trazo" />
+    </svg>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<double>? Valores { get; set; }
+
+    private const double Ancho = 120, Alto = 28;
+
+    private string Trazo
+    {
+        get
+        {
+            var minimo = Valores!.Min();
+            var rango = Math.Max(Valores.Max() - minimo, 0.5);
+            return string.Concat(Valores.Select((v, i) =>
+                $"{(i == 0 ? "M" : "L")}{F(i * Ancho / (Valores.Count - 1))} {F(Alto - 2 - (v - minimo) / rango * (Alto - 4))}"));
+        }
+    }
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+}

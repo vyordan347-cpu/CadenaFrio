@@ -1,0 +1,127 @@
+@page "/mis-avisos"
+@using System.Net.Http.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@implements IDisposable
+
+<PageTitle>Mis avisos · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+    <header class="encabezado">
+        <span class="encabezado-icono"><Icono Nombre="campana" Tamano="26" /></span>
+        <div>
+            <h1>Mis avisos</h1>
+            <p class="subtitulo">Reciba en su celular las rupturas, pérdidas de señal y sensores dañados, aunque no tenga el sistema abierto.</p>
+        </div>
+    </header>
+
+    @if (avisos is null)
+    {
+        <p class="nota">Cargando…</p>
+    }
+    else
+    {
+        <section class="tarjeta bloque">
+            <h2><Icono Nombre="telegram" /> Telegram</h2>
+
+            @if (!avisos.TelegramDisponible)
+            {
+                <p class="nota">El bot de Telegram aún no está configurado en el servidor. Consulte con el administrador.</p>
+            }
+            else if (avisos.TelegramVinculado)
+            {
+                <p class="estado-ok"><Icono Nombre="ok" Tamano="18" /> Su Telegram está vinculado.</p>
+                <button class="boton boton-chico" @onclick="DesvincularAsync">Desvincular</button>
+            }
+            else if (enlace is null)
+            {
+                <p>Vincule su Telegram para recibir los avisos con el botón <b>"Lo estoy atendiendo"</b>.</p>
+                <button class="boton boton-primario" @onclick="GenerarEnlaceAsync">
+                    <Icono Nombre="telegram" Tamano="18" /> Vincular Telegram
+                </button>
+            }
+            else
+            {
+                <ol class="pasos">
+                    <li>Abra este enlace en el celular donde tiene Telegram: <a href="@enlace" target="_blank" rel="noopener">@enlace</a></li>
+                    <li>Presione <b>Iniciar</b> en el chat del bot.</li>
+                    <li>Esta página se actualizará sola al completarse.</li>
+                </ol>
+                <p class="nota esperando">Esperando la vinculación…</p>
+            }
+        </section>
+
+        <section class="tarjeta bloque">
+            <h2><Icono Nombre="correo" /> Correo y tipo de avisos</h2>
+            <p>Correo: <b>@(avisos.Correo ?? "no registrado")</b></p>
+            <p>Aviso inmediato: <b>@(avisos.RecibeAlertas ? "Sí" : "No")</b> · Aviso de escalamiento: <b>@(avisos.EsContactoEscalamiento ? "Sí" : "No")</b></p>
+            <p class="nota">El correo y el tipo de avisos los configura el administrador.</p>
+        </section>
+
+        @if (error is not null)
+        {
+            <p class="aviso aviso-error">@error</p>
+        }
+    }
+</main>
+
+@code {
+    private MisAvisosDto? avisos;
+    private string? enlace;
+    private string? error;
+    private CancellationTokenSource? espera;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync() =>
+        avisos = await Http.GetFromJsonAsync<MisAvisosDto>("api/cuenta/avisos");
+
+    private async Task GenerarEnlaceAsync()
+    {
+        error = null;
+        var respuesta = await Http.PostAsync("api/cuenta/avisos/telegram", null);
+        if (!respuesta.IsSuccessStatusCode)
+        {
+            error = "No se pudo generar el enlace.";
+            return;
+        }
+
+        enlace = (await respuesta.Content.ReadFromJsonAsync<EnlaceTelegramDto>())?.Enlace;
+        _ = EsperarVinculacionAsync();
+    }
+
+    // Consulta cada 3 segundos hasta que el bot confirme la vinculación (máximo 5 minutos).
+    private async Task EsperarVinculacionAsync()
+    {
+        espera?.Cancel();
+        espera = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(3));
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(espera.Token))
+            {
+                await CargarAsync();
+                if (avisos?.TelegramVinculado == true)
+                {
+                    enlace = null;
+                    await InvokeAsync(StateHasChanged);
+                    return;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task DesvincularAsync()
+    {
+        await Http.DeleteAsync("api/cuenta/avisos/telegram");
+        await CargarAsync();
+    }
+
+    public void Dispose() => espera?.Cancel();
+}

@@ -23,7 +23,10 @@
             <nav class="menu" aria-label="Principal">
                 @* NavLink marca con la clase "active" el enlace de la página actual. *@
                 <NavLink href="" Match="NavLinkMatch.All">
-                    <Icono Nombre="temperatura" Tamano="18" /> Temperatura
+                    <Icono Nombre="temperatura" Tamano="18" /> Panel
+                </NavLink>
+                <NavLink href="historial">
+                    <Icono Nombre="grafico" Tamano="18" /> Historial
                 </NavLink>
 
                 @* "Configuración" solo aparece para quien tiene permiso de cambiar rangos. *@
@@ -60,6 +63,9 @@
                             <p class="desplegable-nombre">@context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value</p>
                             <p class="desplegable-rol">@Roles.Nombre(context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "")</p>
                         </div>
+                        <a class="desplegable-opcion" href="mis-avisos" role="menuitem">
+                            <Icono Nombre="campana" Tamano="18" /> Mis avisos (Telegram)
+                        </a>
                         <a class="desplegable-opcion" href="cambiar-contrasena" role="menuitem">
                             <Icono Nombre="clave" Tamano="18" /> Cambiar contraseña
                         </a>

@@ -173,8 +173,8 @@
     private void NuevaVacuna()
     {
         enEdicion = null;
-        // Se propone el rango del esquema regular como punto de partida.
-        solicitud = new GuardarVacunaRequest { OptimoMinimo = 2, OptimoMaximo = 7, LimiteMinimo = 0, LimiteMaximo = 8 };
+        // Se propone el rango de la NTS N° 242-MINSA/DGIESP-2026 como punto de partida.
+        solicitud = new GuardarVacunaRequest { OptimoMinimo = 3, OptimoMaximo = 7, LimiteMinimo = 2, LimiteMaximo = 8, Fuente = "NTS N° 242-MINSA/DGIESP-2026" };
         errorFormulario = null;
         formularioVisible = true;
     }

@@ -40,10 +40,21 @@ public class EquiposController : ControllerBase
             .OrderBy(e => e.Nombre)
             .ToListAsync();
 
+        var haceUnaHora = DateTime.UtcNow.AddHours(-1);
         var estados = new List<TemperaturaActualDto>();
         foreach (var equipo in equipos)
         {
-            estados.Add(await ConstruirEstadoAsync(equipo));
+            var estado = await ConstruirEstadoAsync(equipo);
+
+            // Lecturas de la última hora, para la tendencia y el mini gráfico de cada tarjeta.
+            estado.Recientes = await _db.Lecturas
+                .AsNoTracking()
+                .Where(l => l.EquipoId == equipo.Id && l.FechaMedicion >= haceUnaHora)
+                .OrderBy(l => l.FechaMedicion)
+                .Select(l => l.Temperatura)
+                .ToListAsync();
+
+            estados.Add(estado);
         }
 
         return Ok(estados);
@@ -124,6 +135,28 @@ public class EquiposController : ControllerBase
         respuesta.SinSenalDesde = await _db.Alertas
             .AsNoTracking()
             .Where(a => a.EquipoId == id && a.Tipo == TipoAlerta.SinSenal && a.Fin == null)
+            .Select(a => (DateTime?)a.Inicio)
+            .FirstOrDefaultAsync();
+
+        // La alerta urgente activa (la más grave) y si alguien ya la está atendiendo.
+        respuesta.AlertaUrgente = await _db.Alertas
+            .AsNoTracking()
+            .Where(a => a.EquipoId == id && a.Fin == null
+                        && (a.Nivel == NivelAlerta.Ruptura || a.Tipo == TipoAlerta.SinSenal || a.Tipo == TipoAlerta.SensorSinVariacion))
+            .OrderByDescending(a => a.Nivel)
+            .Select(a => new AlertaUrgenteDto
+            {
+                Id = a.Id,
+                Tipo = (TipoAlertaDto)(int)a.Tipo,
+                ReconocidaPor = a.ReconocidaPor,
+                FechaReconocimiento = a.FechaReconocimiento
+            })
+            .FirstOrDefaultAsync();
+
+        // Sensor que marca siempre el mismo valor, si lo hay.
+        respuesta.SensorSinVariacionDesde = await _db.Alertas
+            .AsNoTracking()
+            .Where(a => a.EquipoId == id && a.Tipo == TipoAlerta.SensorSinVariacion && a.Fin == null)
             .Select(a => (DateTime?)a.Inicio)
             .FirstOrDefaultAsync();
 

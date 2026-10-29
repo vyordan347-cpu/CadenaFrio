@@ -88,6 +88,7 @@ public class CadenaFrioDbContext : DbContext
 
             alerta.Property(a => a.AtendidaPor).HasMaxLength(100);
             alerta.Property(a => a.ObservacionAtencion).HasMaxLength(500);
+            alerta.Property(a => a.ReconocidaPor).HasMaxLength(100);
 
             // El historial de alertas también se protege contra borrados.
             alerta.HasOne(a => a.Equipo)
@@ -112,6 +113,8 @@ public class CadenaFrioDbContext : DbContext
             usuario.Property(u => u.NombreUsuario).IsRequired().HasMaxLength(50);
             usuario.Property(u => u.ContrasenaHash).IsRequired();
             usuario.Property(u => u.SelloSeguridad).IsRequired().HasMaxLength(64);
+            usuario.Property(u => u.Correo).HasMaxLength(150);
+            usuario.Property(u => u.CodigoVinculacionTelegram).HasMaxLength(16);
 
             // Dos personas no pueden tener el mismo nombre de usuario.
             usuario.HasIndex(u => u.NombreUsuario).IsUnique();
@@ -128,17 +131,17 @@ public class CadenaFrioDbContext : DbContext
                 "CK_Vacuna_RangosCoherentes",
                 "\"LimiteMinimo\" <= \"OptimoMinimo\" AND \"OptimoMinimo\" < \"OptimoMaximo\" AND \"OptimoMaximo\" <= \"LimiteMaximo\""));
 
-            // Perfil inicial: conservación entre +2 y +8 °C, con la franja de advertencia
-            // de la Directiva Sanitaria N° 133-MINSA-2021.
+            // Perfil inicial según la NTS N° 242-MINSA/DGIESP-2026: ruptura fuera de +2 a +8 °C
+            // y zona de alerta de +2 a +3 °C y de +7 a +8 °C.
             vacuna.HasData(new Vacuna
             {
                 Id = 1,
                 Nombre = "Esquema regular (PNI)",
-                OptimoMinimo = 2.0,
+                OptimoMinimo = 3.0,
                 OptimoMaximo = 7.0,
-                LimiteMinimo = 0.0,
+                LimiteMinimo = 2.0,
                 LimiteMaximo = 8.0,
-                Fuente = "Directiva Sanitaria N° 133-MINSA-2021",
+                Fuente = "NTS N° 242-MINSA/DGIESP-2026",
                 Activo = true
             });
         });

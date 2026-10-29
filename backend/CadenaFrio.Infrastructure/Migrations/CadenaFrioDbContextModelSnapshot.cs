@@ -36,6 +36,12 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.Property<DateTime?>("FechaAtencion")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("FechaEscalamiento")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaReconocimiento")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("FechaRuptura")
                         .HasColumnType("TEXT");
 
@@ -65,6 +71,10 @@ namespace CadenaFrio.Infrastructure.Migrations
 
                     b.Property<double>("OptimoMinimo")
                         .HasColumnType("REAL");
+
+                    b.Property<string>("ReconocidaPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("RevisionRequeridaDesde")
                         .HasColumnType("TEXT");
@@ -233,11 +243,22 @@ namespace CadenaFrio.Infrastructure.Migrations
                     b.Property<bool>("Activo")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("CodigoVinculacionTelegram")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ContrasenaHash")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Correo")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("DebeCambiarContrasena")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsContactoEscalamiento")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("FechaRegistro")
@@ -253,6 +274,9 @@ namespace CadenaFrio.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("RecibeAlertas")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Rol")
                         .HasColumnType("INTEGER");
 
@@ -260,6 +284,9 @@ namespace CadenaFrio.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
+
+                    b.Property<long?>("TelegramChatId")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -315,12 +342,12 @@ namespace CadenaFrio.Infrastructure.Migrations
                         {
                             Id = 1,
                             Activo = true,
-                            Fuente = "Directiva Sanitaria N° 133-MINSA-2021",
+                            Fuente = "NTS N° 242-MINSA/DGIESP-2026",
                             LimiteMaximo = 8.0,
-                            LimiteMinimo = 0.0,
+                            LimiteMinimo = 2.0,
                             Nombre = "Esquema regular (PNI)",
                             OptimoMaximo = 7.0,
-                            OptimoMinimo = 2.0
+                            OptimoMinimo = 3.0
                         });
                 });
 

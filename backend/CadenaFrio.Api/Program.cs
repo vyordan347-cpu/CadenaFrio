@@ -32,9 +32,17 @@ builder.Services.AddScoped<GestionRangos>();
 builder.Services.AddScoped<DetectorSilencio>();
 builder.Services.AddHostedService<VigilanteSenal>();
 
-// Canal de notificación de alertas. Para usar WhatsApp u otro canal,
-// solo se reemplaza NotificadorRegistro por la nueva implementación.
-builder.Services.AddScoped<INotificadorAlertas, NotificadorRegistro>();
+// Avisos por varios canales (Fase 2): consola, Telegram y correo.
+// Las credenciales se leen de User Secrets, nunca de archivos que suben a GitHub.
+builder.Services.Configure<OpcionesNotificaciones>(builder.Configuration.GetSection("Notificaciones"));
+builder.Services.AddHttpClient<ClienteTelegram>(cliente => cliente.Timeout = TimeSpan.FromSeconds(40));
+builder.Services.AddScoped<NotificadorRegistro>();
+builder.Services.AddScoped<NotificadorTelegram>();
+builder.Services.AddScoped<NotificadorCorreo>();
+builder.Services.AddScoped<INotificadorAlertas, NotificadorCompuesto>();
+builder.Services.AddScoped<ReconocimientoAlertas>();
+builder.Services.AddScoped<EscaladorAlertas>();
+builder.Services.AddHostedService<BotTelegram>();
 
 // Cifrado de contraseñas (RNF05).
 builder.Services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();

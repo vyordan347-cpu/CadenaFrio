@@ -14,9 +14,12 @@
 <main class="pagina">
     <nav class="migas">
         <a href=""><Icono Nombre="arriba" Tamano="16" Clase="volver-icono" /> Volver al panel</a>
-        <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos">
-            <a href="configuracion?equipo=@EquipoId"><Icono Nombre="configuracion" Tamano="16" /> Configurar este equipo</a>
-        </AuthorizeView>
+        <span class="migas-derecha">
+            <a href="historial?equipo=@EquipoId"><Icono Nombre="grafico" Tamano="16" /> Ver historial</a>
+            <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos">
+                <a href="configuracion?equipo=@EquipoId"><Icono Nombre="configuracion" Tamano="16" /> Configurar este equipo</a>
+            </AuthorizeView>
+        </span>
     </nav>
 
     @if (error is not null)
@@ -96,6 +99,25 @@
                 <Icono Nombre="@(vista.Clase == "ok" ? "info" : vista.Icono)" />
                 <span>@vista.Accion</span>
             </div>
+
+            @* "Lo estoy atendiendo": detiene el escalamiento y avisa a los demás. *@
+            @if (datos.AlertaUrgente is { } urgente)
+            {
+                <div class="atencion">
+                    @if (urgente.ReconocidaPor is not null)
+                    {
+                        <p><Icono Nombre="atendiendo" Tamano="18" /> Atendiendo: <b>@urgente.ReconocidaPor</b>
+                            (@FormatoFecha.Antiguedad(urgente.FechaReconocimiento!.Value))</p>
+                    }
+                    else
+                    {
+                        <p class="sin-atender">Nadie ha confirmado que esté atendiendo esta alerta.</p>
+                        <button class="boton boton-primario" disabled="@reconociendo" @onclick="() => ReconocerAsync(urgente.Id)">
+                            <Icono Nombre="atendiendo" Tamano="18" /> Lo estoy atendiendo
+                        </button>
+                    }
+                </div>
+            }
         </section>
     }
 
@@ -327,6 +349,16 @@
         {
             guardandoRevision = false;
         }
+    }
+
+    private bool reconociendo;
+
+    private async Task ReconocerAsync(int alertaId)
+    {
+        reconociendo = true;
+        await Http.PostAsync($"api/alertas/{alertaId}/reconocer", null);
+        await CargarAsync();
+        reconociendo = false;
     }
 
     public void Dispose()

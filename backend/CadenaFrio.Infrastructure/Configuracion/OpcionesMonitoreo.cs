@@ -15,7 +15,12 @@ public class OpcionesMonitoreo
     // Cada cuántos segundos el vigilante revisa los equipos.
     public int SegundosEntreRevisiones { get; set; } = 60;
 
+    // Minutos con exactamente la misma temperatura para sospechar que el sensor está dañado.
+    // Un sensor de precisión (DS18B20, 0.0625 °C) siempre muestra pequeñas variaciones.
+    public int MinutosSensorSinVariacion { get; set; } = 120;
+
     public TimeSpan LimiteSinSenal => TimeSpan.FromMinutes(MinutosSinSenal);
     public TimeSpan LimiteSinSenalParaRevision => TimeSpan.FromMinutes(MinutosSinSenalParaRevision);
     public TimeSpan IntervaloRevision => TimeSpan.FromSeconds(SegundosEntreRevisiones);
+    public TimeSpan LimiteSensorSinVariacion => TimeSpan.FromMinutes(MinutosSensorSinVariacion);
 }

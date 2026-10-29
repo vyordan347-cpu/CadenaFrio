@@ -40,4 +40,14 @@ public class TemperaturaActualDto
 
     // Desde cuándo no llegan datos del dispositivo (UTC). Nulo si la señal es normal.
     public DateTime? SinSenalDesde { get; set; }
+
+    // Desde cuándo el sensor marca exactamente el mismo valor (posible sensor dañado). Nulo si no.
+    public DateTime? SensorSinVariacionDesde { get; set; }
+
+    // Alerta urgente activa y quién la atiende ("Lo estoy atendiendo").
+    public AlertaUrgenteDto? AlertaUrgente { get; set; }
+
+    // Temperaturas de la última hora (de la más antigua a la más nueva), para la tendencia
+    // y el mini gráfico de las tarjetas del panel. Solo se llena en el estado de todos los equipos.
+    public List<double> Recientes { get; set; } = new();
 }

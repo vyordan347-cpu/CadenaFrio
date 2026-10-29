@@ -273,3 +273,56 @@ code {
         grid-column: 1 / -1;
     }
 }
+
+/* Avisos del usuario */
+.usuario-avisos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+    margin-top: 0.2rem;
+    color: var(--texto-2);
+    font-size: 0.85rem;
+}
+
+.usuario-avisos span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.usuario-avisos .si {
+    color: var(--ok-texto);
+}
+
+.usuario-avisos .no {
+    color: var(--texto-3);
+}
+
+.usuario ::deep .avisos-formulario {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.9rem 1rem;
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+.casilla {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 400;
+    color: var(--texto);
+}
+
+.casilla ::deep input {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: var(--acento);
+}
+
+.acciones {
+    display: flex;
+    gap: 0.5rem;
+}

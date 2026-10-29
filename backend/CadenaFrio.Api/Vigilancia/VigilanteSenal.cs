@@ -36,6 +36,10 @@ public class VigilanteSenal : BackgroundService
                 using var alcance = _fabricaAlcances.CreateScope();
                 var detector = alcance.ServiceProvider.GetRequiredService<DetectorSilencio>();
                 await detector.RevisarAsync(detener);
+
+                // En la misma ronda: ¿hay alertas urgentes que nadie atendió a tiempo?
+                var escalador = alcance.ServiceProvider.GetRequiredService<EscaladorAlertas>();
+                await escalador.RevisarAsync(detener);
             }
             catch (OperationCanceledException) when (detener.IsCancellationRequested)
             {

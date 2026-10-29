@@ -1,0 +1,14 @@
+.mini-grafico {
+    display: block;
+    width: 100%;
+    height: 28px;
+}
+
+.mini-grafico path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}

@@ -12,6 +12,12 @@ public class UsuarioAdminDto
     public bool Activo { get; set; }
     public bool DebeCambiarContrasena { get; set; }
     public DateTime FechaRegistro { get; set; }
+
+    // Avisos
+    public string? Correo { get; set; }
+    public bool RecibeAlertas { get; set; }
+    public bool EsContactoEscalamiento { get; set; }
+    public bool TelegramVinculado { get; set; }
 }
 
 // Datos para crear un usuario. La contraseña la genera el sistema.

@@ -15,7 +15,7 @@ public record VistaEstado(
 
 public static class EstadoEquipo
 {
-    // Por orden de gravedad: ruptura > sin señal > advertencia > sin datos recientes > normal.
+    // Por orden de gravedad: ruptura > sin señal > sensor sin variación > advertencia > sin datos recientes > normal.
     public static VistaEstado Calcular(TemperaturaActualDto d)
     {
         var momento = d.FechaMedicion is { } f
@@ -34,6 +34,14 @@ public static class EstadoEquipo
         {
             return new("Sin señal", "sen", "sin-senal",
                 $"Posible corte de energía o falla de conexión. Sin datos desde {FormatoFecha.Antiguedad(desde)}.",
+                momento, true, 4);
+        }
+
+        // Un sensor que marca siempre lo mismo hace que la temperatura mostrada no sea confiable.
+        if (d.SensorSinVariacionDesde is { } fijo)
+        {
+            return new("Revisar sensor", "sen", "advertencia",
+                $"El sensor marca exactamente el mismo valor desde {FormatoFecha.Antiguedad(fijo)}: puede estar dañado. Verifique con un termómetro.",
                 momento, true, 4);
         }
 

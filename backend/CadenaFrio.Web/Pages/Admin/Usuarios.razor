@@ -126,10 +126,50 @@
                         {
                             <p class="usuario-aviso"><Icono Nombre="clave" Tamano="16" /> Aún no cambia su contraseña temporal</p>
                         }
+                        <p class="usuario-avisos">
+                            <span class="@(usuario.TelegramVinculado ? "si" : "no")"><Icono Nombre="telegram" Tamano="14" /> @(usuario.TelegramVinculado ? "Telegram vinculado" : "Sin Telegram")</span>
+                            @if (usuario.RecibeAlertas)
+                            {
+                                <span class="si"><Icono Nombre="campana" Tamano="14" /> Recibe alertas</span>
+                            }
+                            @if (usuario.EsContactoEscalamiento)
+                            {
+                                <span class="si"><Icono Nombre="advertencia" Tamano="14" /> Escalamiento</span>
+                            }
+                            @if (!string.IsNullOrEmpty(usuario.Correo))
+                            {
+                                <span><Icono Nombre="correo" Tamano="14" /> @usuario.Correo</span>
+                            }
+                        </p>
                     </div>
                     <span class="pastilla @(usuario.Activo ? "activo" : "inactivo-pastilla")">
                         @(usuario.Activo ? "Activo" : "Inactivo")
                     </span>
+
+                    @if (usuarioEditandoAvisos == usuario.Id)
+                    {
+                        @* Avisos del usuario: correo y qué recibe. *@
+                        <EditForm Model="avisos" OnValidSubmit="() => GuardarAvisosAsync(usuario)" class="avisos-formulario">
+                            <DataAnnotationsValidator />
+                            <label>
+                                Correo
+                                <InputText @bind-Value="avisos.Correo" placeholder="nombre@ejemplo.com" />
+                                <ValidationMessage For="() => avisos.Correo" />
+                            </label>
+                            <label class="casilla"><InputCheckbox @bind-Value="avisos.RecibeAlertas" /> Recibe el aviso inmediato (rupturas, sin señal, sensor)</label>
+                            <label class="casilla"><InputCheckbox @bind-Value="avisos.EsContactoEscalamiento" /> Contacto de escalamiento (si nadie atiende a tiempo)</label>
+                            <div class="acciones">
+                                <button type="submit" class="boton boton-chico boton-primario">Guardar</button>
+                                <button type="button" class="boton boton-chico" @onclick="() => usuarioEditandoAvisos = null">Cancelar</button>
+                            </div>
+                        </EditForm>
+                    }
+
+                    <div class="usuario-acciones">
+                        <button class="boton boton-chico" @onclick="() => EditarAvisos(usuario)">
+                            <Icono Nombre="campana" Tamano="16" /> Avisos
+                        </button>
+                    </div>
 
                     @if (!esUsted)
                     {
@@ -183,6 +223,29 @@
     private ContrasenaTemporalDto? temporal;
     private bool copiada;
     private bool errorCopia;
+
+    // Avisos en edición
+    private int? usuarioEditandoAvisos;
+    private AvisosUsuarioRequest avisos = new();
+
+    private void EditarAvisos(UsuarioAdminDto usuario)
+    {
+        usuarioEditandoAvisos = usuario.Id;
+        avisos = new AvisosUsuarioRequest
+        {
+            Correo = usuario.Correo,
+            RecibeAlertas = usuario.RecibeAlertas,
+            EsContactoEscalamiento = usuario.EsContactoEscalamiento
+        };
+    }
+
+    private async Task GuardarAvisosAsync(UsuarioAdminDto usuario)
+    {
+        var respuesta = await Http.PutAsJsonAsync($"api/admin/usuarios/{usuario.Id}/avisos", avisos);
+        errorAccion = respuesta.IsSuccessStatusCode ? null : await LeerErrorAsync(respuesta);
+        usuarioEditandoAvisos = null;
+        await CargarAsync();
+    }
 
     // Cambio de rol en curso
     private int? usuarioCambiandoRol;

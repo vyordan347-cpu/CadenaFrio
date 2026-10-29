@@ -8,7 +8,8 @@ public enum TipoAlertaDto
 {
     TemperaturaAlta = 1,
     TemperaturaBaja = 2,
-    SinSenal = 3
+    SinSenal = 3,
+    SensorSinVariacion = 4
 }
 
 // Gravedad de la alerta. Se envía como texto ("Ruptura").

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CadenaFrio.Infrastructure.Data;
+using CadenaFrio.Infrastructure.Servicios;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,10 +16,22 @@ namespace CadenaFrio.Api.Controllers;
 public class AlertasController : ControllerBase
 {
     private readonly CadenaFrioDbContext _db;
+    private readonly ReconocimientoAlertas _reconocimiento;
 
-    public AlertasController(CadenaFrioDbContext db)
+    public AlertasController(CadenaFrioDbContext db, ReconocimientoAlertas reconocimiento)
     {
         _db = db;
+        _reconocimiento = reconocimiento;
+    }
+
+    // POST /api/alertas/{id}/reconocer
+    // "Lo estoy atendiendo" desde la web: detiene el escalamiento y avisa a los demás.
+    [HttpPost("{id:int}/reconocer")]
+    public async Task<IActionResult> Reconocer(int id)
+    {
+        var usuario = User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity!.Name!;
+        var resultado = await _reconocimiento.ReconocerAsync(id, usuario);
+        return resultado.Exito ? NoContent() : Conflict(new { mensaje = resultado.Mensaje });
     }
 
     // GET /api/alertas/pendientes?equipoId=1   (sin equipoId: las de todos los equipos)

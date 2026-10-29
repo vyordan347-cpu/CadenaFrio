@@ -6,9 +6,11 @@
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject HttpClient Http
-@implements IDisposable
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
-<PageTitle>Panel · Cadena de Frío</PageTitle>
+@* El título de la pestaña avisa de las rupturas aunque la ventana esté minimizada. *@
+<PageTitle>@TituloPestana</PageTitle>
 
 <main class="pagina">
     @if (Aviso == "contrasena")
@@ -21,7 +23,17 @@
     <header class="encabezado">
         <div>
             <h1>Panel de equipos</h1>
-            <p class="subtitulo">Se actualiza cada 10 segundos.</p>
+            <p class="subtitulo">Se actualiza cada 10 segundos. <a href="historial">Ver historial</a></p>
+        </div>
+
+        <div class="herramientas">
+            <button class="boton boton-chico @(sonidoActivo ? "activo" : "")" @onclick="AlternarSonidoAsync"
+                    title="Suena una alarma cuando un equipo entra en ruptura o pierde la señal">
+                <Icono Nombre="campana" Tamano="16" /> @(sonidoActivo ? "Sonido activado" : "Activar sonido")
+            </button>
+            <button class="boton boton-chico" @onclick="AlternarPantallaCompletaAsync">
+                <Icono Nombre="@(pantallaCompleta ? "minimizar" : "maximizar")" Tamano="16" /> @(pantallaCompleta ? "Salir de pantalla completa" : "Pantalla completa")
+            </button>
         </div>
 
         @* Resumen: cuántos equipos hay en cada estado. *@
@@ -37,6 +49,30 @@
             </div>
         }
     </header>
+
+    @* Indicadores clave de los últimos 7 días (métricas de la sección 8 del documento). *@
+    @if (indicadores is { } k)
+    {
+        <section class="indicadores" aria-label="Indicadores de los últimos 7 días">
+            <div class="tarjeta indicador-clave destacado">
+                <p class="kpi-valor cifras">@(k.PorcentajeOptimo is { } po ? $"{po:0.#} %" : "—")</p>
+                <p class="kpi-texto">del tiempo en rango óptimo</p>
+            </div>
+            <div class="tarjeta indicador-clave @(k.Rupturas > 0 ? "con-rupturas" : "")">
+                <p class="kpi-valor cifras">@k.Rupturas</p>
+                <p class="kpi-texto">@(k.Rupturas == 1 ? "ruptura" : "rupturas") de temperatura</p>
+            </div>
+            <div class="tarjeta indicador-clave">
+                <p class="kpi-valor cifras">@(k.MinutosPromedioRespuesta is { } m ? FormatoFecha.Duracion(TimeSpan.FromMinutes(m)) : "—")</p>
+                <p class="kpi-texto">tiempo promedio de respuesta</p>
+            </div>
+            <div class="tarjeta indicador-clave">
+                <p class="kpi-valor cifras">@(k.PorcentajeDisponibilidad is { } pd ? $"{pd:0.#} %" : "—")</p>
+                <p class="kpi-texto">de lecturas recibidas</p>
+            </div>
+            <p class="kpi-periodo">Últimos @k.Dias días · todos los equipos activos</p>
+        </section>
+    }
 
     @if (error is not null)
     {
@@ -75,7 +111,23 @@
                                           LimiteMinimo="equipo.LimiteMinimo" LimiteMaximo="equipo.LimiteMaximo"
                                           Estado="@vista.Clase" TextoEstado="@vista.Estado" />
 
+                    @* Tendencia y mini gráfico de la última hora *@
+                    @if (Tendencia(equipo.Recientes) is { } tendencia)
+                    {
+                        <div class="tendencia texto-@vista.Clase">
+                            <span class="tendencia-texto @tendencia.Clase">@tendencia.Texto</span>
+                            <MiniGrafico Valores="equipo.Recientes" />
+                        </div>
+                    }
+
                     <p class="equipo-accion texto-@vista.Clase">@vista.Accion</p>
+                    @if (equipo.AlertaUrgente is { } urgente)
+                    {
+                        <p class="equipo-atencion @(urgente.ReconocidaPor is null ? "sin-atender" : "")">
+                            <Icono Nombre="atendiendo" Tamano="16" />
+                            @(urgente.ReconocidaPor is null ? "Nadie la está atendiendo" : $"Atendiendo: {urgente.ReconocidaPor}")
+                        </p>
+                    }
                     <p class="equipo-momento">@vista.Momento</p>
                     <span class="ver-detalle">Ver detalle <Icono Nombre="abajo" Tamano="16" Clase="flecha" /></span>
                 </a>
@@ -121,6 +173,13 @@
     private static readonly TimeSpan IntervaloActualizacion = TimeSpan.FromSeconds(10);
 
     private List<TemperaturaActualDto>? estados;
+    private IndicadoresDto? indicadores;
+
+    // Avisos: sonido, pantalla completa y equipos que ya estaban en estado grave.
+    private IJSObjectReference? avisos;
+    private bool sonidoActivo;
+    private bool pantallaCompleta;
+    private HashSet<int>? equiposGraves;
     private List<AlertaPendienteDto> pendientes = new();
     private string? error;
     private readonly CancellationTokenSource cancelacion = new();
@@ -147,14 +206,16 @@
         }
     }
 
-    // Dos peticiones para todo el panel, sin importar cuántos equipos haya.
+    // Tres peticiones para todo el panel, sin importar cuántos equipos haya.
     private async Task CargarAsync()
     {
         try
         {
             estados = await Http.GetFromJsonAsync<List<TemperaturaActualDto>>("api/equipos/estado", cancelacion.Token);
             pendientes = await Http.GetFromJsonAsync<List<AlertaPendienteDto>>("api/alertas/pendientes", cancelacion.Token) ?? new();
+            indicadores = await Http.GetFromJsonAsync<IndicadoresDto>("api/indicadores?dias=7", cancelacion.Token);
             error = null;
+            await AvisarSiHayNuevosProblemasAsync();
         }
         catch (OperationCanceledException)
         {
@@ -190,9 +251,111 @@
         }
     }
 
-    public void Dispose()
+    // ---------- Tendencia de cada tarjeta ----------
+
+    private record InfoTendencia(string Texto, string Clase);
+
+    private static InfoTendencia? Tendencia(List<double> recientes)
+    {
+        if (recientes.Count < 2)
+        {
+            return null;
+        }
+
+        var diferencia = recientes[^1] - recientes[^2];
+        if (Math.Abs(diferencia) < 0.05)
+        {
+            return new("● estable", "estable");
+        }
+
+        return diferencia > 0
+            ? new($"▲ subiendo {diferencia:0.0}°", "sube")
+            : new($"▼ bajando {Math.Abs(diferencia):0.0}°", "baja");
+    }
+
+    // ---------- Avisos ----------
+
+    // Título de la pestaña: muestra los problemas aunque la ventana esté minimizada.
+    private string TituloPestana
+    {
+        get
+        {
+            var vistas = estados?.Select(EstadoEquipo.Calcular).ToList() ?? new();
+            var rupturas = vistas.Count(v => v.Clase == "rup");
+            var sinSenal = vistas.Count(v => v.Estado == "Sin señal");
+
+            return rupturas > 0 ? $"({rupturas}) ¡Ruptura! · Cadena de Frío"
+                : sinSenal > 0 ? $"({sinSenal}) Sin señal · Cadena de Frío"
+                : "Panel · Cadena de Frío";
+        }
+    }
+
+    // Si un equipo acaba de entrar en ruptura o perder la señal, suena la alarma.
+    // La primera carga no suena: solo se avisa de lo que cambia mientras el panel está abierto.
+    private async Task AvisarSiHayNuevosProblemasAsync()
+    {
+        var graves = estados!
+            .Where(e => EstadoEquipo.Calcular(e).Gravedad >= 4)
+            .Select(e => e.EquipoId)
+            .ToHashSet();
+
+        var hayNuevos = equiposGraves is not null && graves.Except(equiposGraves).Any();
+        equiposGraves = graves;
+
+        if (hayNuevos && sonidoActivo && avisos is not null)
+        {
+            await avisos.InvokeAsync<bool>("sonarAlarma");
+        }
+    }
+
+    private async Task<IJSObjectReference> ModuloAvisosAsync() =>
+        avisos ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/avisos.js?v=1");
+
+    private async Task AlternarSonidoAsync()
+    {
+        try
+        {
+            if (sonidoActivo)
+            {
+                sonidoActivo = false;
+                return;
+            }
+
+            // Este clic habilita el audio del navegador y suena un pitido de prueba.
+            sonidoActivo = await (await ModuloAvisosAsync()).InvokeAsync<bool>("activarSonido");
+        }
+        catch (JSException)
+        {
+            sonidoActivo = false;
+        }
+    }
+
+    private async Task AlternarPantallaCompletaAsync()
+    {
+        try
+        {
+            pantallaCompleta = await (await ModuloAvisosAsync()).InvokeAsync<bool>("alternarPantallaCompleta");
+        }
+        catch (JSException)
+        {
+            pantallaCompleta = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
     {
         cancelacion.Cancel();
         cancelacion.Dispose();
+
+        if (avisos is not null)
+        {
+            try
+            {
+                await avisos.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
     }
 }

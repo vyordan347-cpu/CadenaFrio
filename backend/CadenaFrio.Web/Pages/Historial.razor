@@ -1,0 +1,282 @@
+@page "/historial"
+@using System.Globalization
+@using System.Net.Http.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using CadenaFrio.Web.Utilidades
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>Historial · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+    <header class="encabezado">
+        <span class="encabezado-icono"><Icono Nombre="grafico" Tamano="26" /></span>
+        <div class="encabezado-texto">
+            <h1>Historial</h1>
+            <p class="subtitulo">Temperaturas, alertas y revisiones de cada equipo, para revisar incidentes y sustentar reportes.</p>
+        </div>
+    </header>
+
+    @* Filtros *@
+    <section class="tarjeta filtros">
+        @if (equipos is { Count: > 0 })
+        {
+            <label>
+                Equipo
+                <select value="@equipoId" @onchange="CambiarEquipoAsync">
+                    @foreach (var equipo in equipos)
+                    {
+                        <option value="@equipo.Id">@equipo.Nombre</option>
+                    }
+                </select>
+            </label>
+        }
+
+        <div class="periodos" role="group" aria-label="Periodo">
+            @foreach (var (clave, texto) in Periodos)
+            {
+                <button class="periodo @(periodo == clave ? "activo" : "")" @onclick="() => CambiarPeriodoAsync(clave)">@texto</button>
+            }
+        </div>
+
+        @if (periodo == "personalizado")
+        {
+            <div class="personalizado">
+                <label>Desde <InputDate @bind-Value="diaDesde" /></label>
+                <label>Hasta <InputDate @bind-Value="diaHasta" /></label>
+                <button class="boton boton-primario" @onclick="CargarAsync">Ver</button>
+            </div>
+        }
+    </section>
+
+    @if (error is not null)
+    {
+        <p class="aviso aviso-error">@error</p>
+    }
+    else if (historial is null)
+    {
+        <p class="nota">Cargando…</p>
+    }
+    else
+    {
+        var e = historial.Estadisticas;
+
+        @* Estadísticas del periodo *@
+        <section class="estadisticas">
+            <div class="tarjeta estadistica destacada">
+                <p class="estadistica-valor cifras">@(e.PorcentajeOptimo is { } p ? $"{p:0.#} %" : "—")</p>
+                <p class="estadistica-texto">del tiempo en rango óptimo</p>
+            </div>
+            <div class="tarjeta estadistica">
+                <p class="estadistica-valor cifras">@Grados(e.Minima) / @Grados(e.Maxima)</p>
+                <p class="estadistica-texto">mínima / máxima</p>
+            </div>
+            <div class="tarjeta estadistica">
+                <p class="estadistica-valor cifras">@Grados(e.Promedio)</p>
+                <p class="estadistica-texto">promedio · @e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture) lecturas</p>
+            </div>
+            <div class="tarjeta estadistica @(e.CantidadRupturas > 0 ? "alerta" : "")">
+                <p class="estadistica-valor cifras">@e.CantidadRupturas</p>
+                <p class="estadistica-texto">@(e.CantidadRupturas == 1 ? "ruptura" : "rupturas")@(e.MinutosEnRuptura > 0 ? $" · {FormatoFecha.Duracion(TimeSpan.FromMinutes(e.MinutosEnRuptura))} en total" : "")</p>
+            </div>
+        </section>
+
+        @* Gráfico *@
+        <section class="tarjeta seccion">
+            <header class="seccion-cabecera">
+                <h2><Icono Nombre="grafico" /> Temperatura en el periodo</h2>
+                <a class="boton boton-chico boton-excel" href="@UrlExcel" download>
+                    <Icono Nombre="descargar" Tamano="16" /> Exportar a Excel
+                </a>
+            </header>
+            <GraficoHistorial Puntos="historial.Puntos" Alertas="historial.Alertas"
+                              Desde="historial.Desde" Hasta="historial.Hasta"
+                              OptimoMinimo="historial.OptimoMinimo" OptimoMaximo="historial.OptimoMaximo"
+                              LimiteMinimo="historial.LimiteMinimo" LimiteMaximo="historial.LimiteMaximo" />
+            <p class="nota leyenda">
+                <span class="muestra muestra-ok"></span> óptimo
+                <span class="muestra muestra-adv"></span> advertencia
+                <span class="muestra muestra-rup"></span> ruptura
+                · La línea es el promedio; la banda clara, el mínimo y máximo de cada tramo. Los puntos de arriba marcan el inicio de cada alerta.
+            </p>
+        </section>
+
+        @* Alertas del periodo *@
+        <section class="tarjeta seccion">
+            <header class="seccion-cabecera">
+                <h2><Icono Nombre="campana" /> Alertas del periodo</h2>
+            </header>
+
+            @if (historial.Alertas.Count == 0)
+            {
+                <p class="sin-alertas"><Icono Nombre="ok" Tamano="18" /> Sin alertas en este periodo.</p>
+            }
+            else
+            {
+                <div class="tabla-contenedor">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Alerta</th>
+                                <th>Inicio</th>
+                                <th>Duración</th>
+                                <th>Extremo</th>
+                                <th>Revisión</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var a in historial.Alertas)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="etiqueta etiqueta-@ClaseAlerta(a)">@NombreAlerta(a)</span>
+                                        @if (a.DetectadaTarde)
+                                        {
+                                            <span class="tarde">al sincronizar</span>
+                                        }
+                                    </td>
+                                    <td class="cifras">@FormatoFecha.HoraPeru(a.Inicio)</td>
+                                    <td>@(a.Fin is { } fin ? FormatoFecha.Duracion(fin - a.Inicio) : "en curso")</td>
+                                    <td class="cifras">@(a.Tipo == TipoAlertaDto.SinSenal ? $"última {a.ValorExtremo:0.0} °C" : $"{a.ValorExtremo:0.0} °C")</td>
+                                    <td class="revision">
+                                        @if (a.AtendidaPor is not null)
+                                        {
+                                            <strong>@a.AtendidaPor</strong>
+                                            <span>@a.ObservacionAtencion</span>
+                                        }
+                                        else if (a.RequiereRevision)
+                                        {
+                                            <span class="pendiente">Pendiente de revisión</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="no-aplica">No requiere</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    // Permite abrir con un equipo elegido: /historial?equipo=2
+    [SupplyParameterFromQuery(Name = "equipo")]
+    public int? EquipoInicial { get; set; }
+
+    private static readonly TimeSpan DesfasePeru = TimeSpan.FromHours(-5);
+
+    private static readonly (string Clave, string Texto)[] Periodos =
+    {
+        ("24h", "Últimas 24 h"),
+        ("7d", "7 días"),
+        ("30d", "30 días"),
+        ("personalizado", "Personalizado")
+    };
+
+    private List<EquipoResumenDto>? equipos;
+    private int equipoId;
+    private string periodo = "24h";
+
+    // Días del rango personalizado (en hora de Perú).
+    private DateOnly? diaDesde = DateOnly.FromDateTime(DateTime.UtcNow + DesfasePeru).AddDays(-7);
+    private DateOnly? diaHasta = DateOnly.FromDateTime(DateTime.UtcNow + DesfasePeru);
+
+    private HistorialDto? historial;
+    private DateTime desde;
+    private DateTime hasta;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            equipos = await Http.GetFromJsonAsync<List<EquipoResumenDto>>("api/equipos/lista") ?? new();
+            if (equipos.Count == 0)
+            {
+                error = "No hay equipos activos.";
+                return;
+            }
+
+            equipoId = equipos.Any(e => e.Id == EquipoInicial) ? EquipoInicial!.Value : equipos[0].Id;
+            await CargarAsync();
+        }
+        catch (Exception)
+        {
+            error = "No se pudo cargar el historial. Revise que el servidor esté encendido.";
+        }
+    }
+
+    private async Task CambiarEquipoAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            equipoId = id;
+            await CargarAsync();
+        }
+    }
+
+    private async Task CambiarPeriodoAsync(string clave)
+    {
+        periodo = clave;
+        if (clave != "personalizado")
+        {
+            await CargarAsync();
+        }
+    }
+
+    // Calcula el periodo en UTC y consulta la API.
+    private async Task CargarAsync()
+    {
+        var ahora = DateTime.UtcNow;
+        (desde, hasta) = periodo switch
+        {
+            "7d" => (ahora.AddDays(-7), ahora),
+            "30d" => (ahora.AddDays(-30), ahora),
+            // Días completos en hora de Perú: de las 00:00 del primero a las 00:00 del día siguiente al último.
+            "personalizado" when diaDesde is { } d && diaHasta is { } h && h >= d =>
+                (d.ToDateTime(TimeOnly.MinValue) - DesfasePeru, h.AddDays(1).ToDateTime(TimeOnly.MinValue) - DesfasePeru),
+            _ => (ahora.AddHours(-24), ahora)
+        };
+
+        desde = DateTime.SpecifyKind(desde, DateTimeKind.Utc);
+        hasta = DateTime.SpecifyKind(hasta, DateTimeKind.Utc);
+
+        try
+        {
+            error = null;
+            historial = null;
+            historial = await Http.GetFromJsonAsync<HistorialDto>($"api/historial?equipoId={equipoId}&{Rango}");
+        }
+        catch (Exception)
+        {
+            error = "No se pudo cargar el historial. Si eligió un rango personalizado, debe ser de 92 días como máximo.";
+        }
+    }
+
+    private string Rango =>
+        $"desde={Uri.EscapeDataString(desde.ToString("o"))}&hasta={Uri.EscapeDataString(hasta.ToString("o"))}";
+
+    // Un solo archivo de Excel con tres hojas: Resumen, Lecturas y Alertas.
+    // La descarga usa la misma sesión (cookie) del navegador: no necesita nada especial.
+    private string UrlExcel => $"api/historial/excel?equipoId={equipoId}&{Rango}";
+
+    private static string Grados(double? valor) => valor is { } v ? $"{v:0.0} °C" : "—";
+
+    private static string NombreAlerta(AlertaHistorialDto a) => a.Tipo switch
+    {
+        TipoAlertaDto.SinSenal => "Sin señal",
+        TipoAlertaDto.SensorSinVariacion => "Sensor sin variación",
+        TipoAlertaDto.TemperaturaAlta => a.Nivel == NivelAlertaDto.Ruptura ? "Ruptura (alta)" : "Advertencia (alta)",
+        _ => a.Nivel == NivelAlertaDto.Ruptura ? "Ruptura (baja)" : "Advertencia (baja)"
+    };
+
+    private static string ClaseAlerta(AlertaHistorialDto a) =>
+        a.Tipo is TipoAlertaDto.SinSenal or TipoAlertaDto.SensorSinVariacion ? "sen" : a.Nivel == NivelAlertaDto.Ruptura ? "rup" : "adv";
+}

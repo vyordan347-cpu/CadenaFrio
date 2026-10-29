@@ -1,0 +1,249 @@
+.pagina {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 1.75rem 1rem 3rem;
+}
+
+.encabezado {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.encabezado-icono {
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 50%;
+    background: var(--barra-activo);
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.subtitulo,
+.nota {
+    color: var(--texto-2);
+}
+
+/* Filtros */
+.filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    padding: 1rem 1.25rem;
+}
+
+.filtros > label {
+    min-width: 240px;
+}
+
+.periodos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.25rem;
+    border-radius: 999px;
+    background: var(--superficie-2);
+}
+
+.periodo {
+    padding: 0.45rem 0.9rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--texto-2);
+    font-weight: 700;
+}
+
+.periodo.activo {
+    background: var(--barra-activo);
+    color: #ffffff;
+}
+
+.personalizado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+}
+
+.boton {
+    border-radius: 999px;
+}
+
+.boton-chico {
+    padding: 0.4rem 0.85rem;
+    font-size: 0.875rem;
+    text-decoration: none;
+}
+
+/* Estadísticas */
+.estadisticas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.estadistica {
+    padding: 1rem 1.2rem;
+}
+
+.estadistica-valor {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--acento);
+}
+
+.estadistica-texto {
+    color: var(--texto-2);
+    font-size: 0.9rem;
+}
+
+.estadistica.destacada {
+    background: var(--barra-fondo);
+    border-color: var(--barra-fondo);
+}
+
+.estadistica.destacada .estadistica-valor {
+    color: #8fe3b8;
+    font-size: 2rem;
+}
+
+.estadistica.destacada .estadistica-texto {
+    color: #c5dbec;
+}
+
+.estadistica.alerta .estadistica-valor {
+    color: var(--rup);
+}
+
+/* Secciones */
+.seccion {
+    margin-bottom: 1rem;
+    padding: 1.25rem 1.5rem;
+}
+
+.seccion-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.leyenda {
+    margin-top: 0.6rem;
+    font-size: 0.85rem;
+}
+
+.muestra {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    margin: 0 0.25rem 0 0.6rem;
+    border-radius: 3px;
+    vertical-align: middle;
+}
+
+.muestra-ok { background: var(--zona-optima); }
+.muestra-adv { background: var(--zona-adv); }
+.muestra-rup { background: var(--zona-rup); }
+
+.sin-alertas {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ok-texto);
+}
+
+/* Tabla de alertas */
+.tabla-contenedor {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.925rem;
+}
+
+th,
+td {
+    padding: 0.7rem 0.6rem;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--borde);
+}
+
+th {
+    color: var(--texto-2);
+    font-size: 0.85rem;
+}
+
+td.cifras {
+    white-space: nowrap;
+}
+
+.etiqueta {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.etiqueta-rup { background: var(--rup-fondo); color: var(--rup-texto); }
+.etiqueta-adv { background: var(--adv-fondo); color: var(--adv-texto); }
+.etiqueta-sen { background: var(--sen-fondo); color: var(--sen-texto); }
+
+.tarde {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--adv-texto);
+    font-size: 0.8rem;
+}
+
+.revision {
+    min-width: 220px;
+}
+
+.revision strong {
+    display: block;
+}
+
+.revision span {
+    color: var(--texto-2);
+}
+
+.revision .pendiente {
+    color: var(--rup-texto);
+    font-weight: 700;
+}
+
+.no-aplica {
+    color: var(--texto-3);
+}
+
+/* Verde de Excel, para que se reconozca el botón de exportar. */
+.boton-excel {
+    border-color: #1d6f42;
+    background: #1d6f42;
+    color: #ffffff;
+}
+
+.boton-excel:hover {
+    background: #185c37;
+}

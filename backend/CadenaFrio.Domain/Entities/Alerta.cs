@@ -56,4 +56,12 @@ public class Alerta
     public string? AtendidaPor { get; set; }
     public DateTime? FechaAtencion { get; set; }
     public string? ObservacionAtencion { get; set; }
+
+    // "Lo estoy atendiendo": alguien confirmó que reacciona mientras la alerta sigue activa.
+    // Detiene el escalamiento. (La revisión de arriba es posterior: qué se hizo.)
+    public string? ReconocidaPor { get; set; }
+    public DateTime? FechaReconocimiento { get; set; }
+
+    // Cuándo se avisó a los contactos de escalamiento porque nadie la atendió a tiempo.
+    public DateTime? FechaEscalamiento { get; set; }
 }

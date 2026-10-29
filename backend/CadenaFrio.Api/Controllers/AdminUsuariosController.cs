@@ -177,6 +177,25 @@ public class AdminUsuariosController : ControllerBase
         return Ok(new ContrasenaTemporalDto { Usuario = ConvertirADto(usuario), ContrasenaTemporal = temporal });
     }
 
+    // PUT /api/admin/usuarios/{id}/avisos
+    // Correo y qué avisos recibe (el aviso inmediato y/o el escalamiento).
+    [HttpPut("{id:int}/avisos")]
+    public async Task<ActionResult<UsuarioAdminDto>> ConfigurarAvisos(int id, AvisosUsuarioRequest solicitud)
+    {
+        var usuario = await _db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+        if (usuario is null)
+        {
+            return NotFound(new { mensaje = "Usuario no encontrado." });
+        }
+
+        usuario.Correo = string.IsNullOrWhiteSpace(solicitud.Correo) ? null : solicitud.Correo.Trim();
+        usuario.RecibeAlertas = solicitud.RecibeAlertas;
+        usuario.EsContactoEscalamiento = solicitud.EsContactoEscalamiento;
+        await _db.SaveChangesAsync();
+
+        return Ok(ConvertirADto(usuario));
+    }
+
     // Comprueba que exista otro administrador activo además del indicado,
     // para que nadie deje el sistema sin acceso de administración.
     private Task<bool> HayOtroAdministradorAsync(int excepto) =>
@@ -190,6 +209,10 @@ public class AdminUsuariosController : ControllerBase
         Rol = u.Rol.ToString(),
         Activo = u.Activo,
         DebeCambiarContrasena = u.DebeCambiarContrasena,
-        FechaRegistro = u.FechaRegistro
+        FechaRegistro = u.FechaRegistro,
+        Correo = u.Correo,
+        RecibeAlertas = u.RecibeAlertas,
+        EsContactoEscalamiento = u.EsContactoEscalamiento,
+        TelegramVinculado = u.TelegramChatId != null
     };
 }

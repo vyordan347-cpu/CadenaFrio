@@ -31,6 +31,24 @@ public class Usuario
 
     public DateTime FechaRegistro { get; set; } = DateTime.UtcNow;
 
+    // ---------- Avisos (Fase 2) ----------
+
+    // Correo para las copias de las alertas importantes.
+    public string? Correo { get; set; }
+
+    // Recibe el aviso inmediato de rupturas, pérdidas de señal y sensores dañados.
+    public bool RecibeAlertas { get; set; }
+
+    // Recibe el aviso de escalamiento cuando nadie atiende una alerta a tiempo
+    // (por ejemplo, el jefe del establecimiento).
+    public bool EsContactoEscalamiento { get; set; }
+
+    // Chat de Telegram vinculado. Nulo si no vinculó su cuenta.
+    public long? TelegramChatId { get; set; }
+
+    // Código temporal para vincular Telegram: se envía al bot con /start.
+    public string? CodigoVinculacionTelegram { get; set; }
+
     // Invalida todas las sesiones abiertas del usuario.
     public void RenovarSello() => SelloSeguridad = Guid.NewGuid().ToString("N");
 }

@@ -19,7 +19,13 @@ public class NotificadorRegistro : INotificadorAlertas
 
     public Task AlertaAbiertaAsync(Alerta alerta, string nombreEquipo)
     {
-        if (alerta.Tipo == TipoAlerta.SinSenal)
+        if (alerta.Tipo == TipoAlerta.SensorSinVariacion)
+        {
+            _logger.LogWarning(
+                "SENSOR SIN VARIACIÓN | {Equipo} | marca {Temperatura} °C fijo desde {Inicio:HH:mm} UTC | verificar con un termómetro",
+                nombreEquipo, alerta.ValorExtremo, alerta.Inicio);
+        }
+        else if (alerta.Tipo == TipoAlerta.SinSenal)
         {
             _logger.LogWarning(
                 "SIN SEÑAL | {Equipo} | sin datos desde {Inicio:HH:mm} UTC (posible corte de energía o falla de conexión) | última temperatura {Temperatura} °C",
@@ -62,7 +68,13 @@ public class NotificadorRegistro : INotificadorAlertas
     {
         var duracion = alerta.Fin!.Value - alerta.Inicio;
 
-        if (alerta.Tipo == TipoAlerta.SinSenal)
+        if (alerta.Tipo == TipoAlerta.SensorSinVariacion)
+        {
+            _logger.LogInformation(
+                "SENSOR NORMALIZADO | {Equipo} | volvió a mostrar variaciones tras {Minutos:0} min",
+                nombreEquipo, duracion.TotalMinutes);
+        }
+        else if (alerta.Tipo == TipoAlerta.SinSenal)
         {
             _logger.LogInformation(
                 "SEÑAL RECUPERADA | {Equipo} | estuvo {Minutos:0.#} min sin datos",
