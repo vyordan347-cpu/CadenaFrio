@@ -4,6 +4,7 @@ using CadenaFrio.Domain.Enums;
 using CadenaFrio.Domain.Valores;
 using CadenaFrio.Infrastructure.Configuracion;
 using CadenaFrio.Infrastructure.Data;
+using CadenaFrio.Infrastructure.Servicios;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,11 +22,13 @@ public class EquiposController : ControllerBase
 {
     private readonly CadenaFrioDbContext _db;
     private readonly OpcionesMonitoreo _opciones;
+    private readonly Bitacora _bitacora;
 
-    public EquiposController(CadenaFrioDbContext db, IOptions<OpcionesMonitoreo> opciones)
+    public EquiposController(CadenaFrioDbContext db, IOptions<OpcionesMonitoreo> opciones, Bitacora bitacora)
     {
         _db = db;
         _opciones = opciones.Value;
+        _bitacora = bitacora;
     }
 
     // GET /api/equipos/estado  (HU08)
@@ -250,6 +253,8 @@ public class EquiposController : ControllerBase
         };
 
         _db.RangosTemperatura.Add(rango);
+        _bitacora.Registrar(CategoriaAuditoria.Rangos, "Ajustó el rango a mano", rango.ModificadoPor,
+            $"{equipo.Nombre}: {Bitacora.DescribirRango(nuevos)}.");
         await _db.SaveChangesAsync();
 
         // 201 Created: indica que se creó un recurso nuevo y dónde consultarlo.

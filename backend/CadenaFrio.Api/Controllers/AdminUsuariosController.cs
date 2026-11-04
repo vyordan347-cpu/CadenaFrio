@@ -3,6 +3,7 @@ using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Enums;
 using CadenaFrio.Domain.Valores;
 using CadenaFrio.Infrastructure.Data;
+using CadenaFrio.Infrastructure.Servicios;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -20,14 +21,24 @@ public class AdminUsuariosController : ControllerBase
 {
     private readonly CadenaFrioDbContext _db;
     private readonly IPasswordHasher<Usuario> _cifrador;
+    private readonly Bitacora _bitacora;
 
-    public AdminUsuariosController(CadenaFrioDbContext db, IPasswordHasher<Usuario> cifrador)
+    public AdminUsuariosController(CadenaFrioDbContext db, IPasswordHasher<Usuario> cifrador, Bitacora bitacora)
     {
         _db = db;
         _cifrador = cifrador;
+        _bitacora = bitacora;
     }
 
     private int IdActual => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private string UsuarioActual =>
+        User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity!.Name!;
+
+    // Anota la acción sobre un usuario. Nunca incluye contraseñas, ni siquiera las temporales.
+    private void Registrar(string accion, Usuario usuario, string? extra = null) =>
+        _bitacora.Registrar(CategoriaAuditoria.Administracion, accion, UsuarioActual,
+            $"{usuario.NombreCompleto} ({usuario.NombreUsuario})" + (extra is null ? "" : $": {extra}"));
 
     // GET /api/admin/usuarios
     [HttpGet]
@@ -70,6 +81,7 @@ public class AdminUsuariosController : ControllerBase
         usuario.ContrasenaHash = _cifrador.HashPassword(usuario, temporal);
 
         _db.Usuarios.Add(usuario);
+        Registrar("Creó un usuario", usuario, $"rol {rol}");
         await _db.SaveChangesAsync();
 
         return Ok(new ContrasenaTemporalDto { Usuario = ConvertirADto(usuario), ContrasenaTemporal = temporal });
@@ -100,6 +112,7 @@ public class AdminUsuariosController : ControllerBase
             return BadRequest(new { mensaje = "Debe quedar al menos un administrador activo." });
         }
 
+        Registrar("Cambió el rol de un usuario", usuario, $"de {usuario.Rol} a {rol}");
         usuario.Rol = rol;
         // Cierra sus sesiones: al volver a entrar, tendrá los permisos del rol nuevo.
         usuario.RenovarSello();
@@ -131,6 +144,7 @@ public class AdminUsuariosController : ControllerBase
         usuario.Activo = false;
         // Cierra todas sus sesiones al instante.
         usuario.RenovarSello();
+        Registrar("Desactivó un usuario", usuario);
         await _db.SaveChangesAsync();
 
         return Ok(ConvertirADto(usuario));
@@ -147,6 +161,7 @@ public class AdminUsuariosController : ControllerBase
         }
 
         usuario.Activo = true;
+        Registrar("Activó un usuario", usuario);
         await _db.SaveChangesAsync();
         return Ok(ConvertirADto(usuario));
     }
@@ -172,6 +187,7 @@ public class AdminUsuariosController : ControllerBase
         usuario.DebeCambiarContrasena = true;
         // La contraseña anterior ya no sirve, y sus sesiones abiertas se cierran.
         usuario.RenovarSello();
+        Registrar("Restableció la contraseña de un usuario", usuario, "se generó una contraseña temporal");
         await _db.SaveChangesAsync();
 
         return Ok(new ContrasenaTemporalDto { Usuario = ConvertirADto(usuario), ContrasenaTemporal = temporal });
@@ -191,6 +207,9 @@ public class AdminUsuariosController : ControllerBase
         usuario.Correo = string.IsNullOrWhiteSpace(solicitud.Correo) ? null : solicitud.Correo.Trim();
         usuario.RecibeAlertas = solicitud.RecibeAlertas;
         usuario.EsContactoEscalamiento = solicitud.EsContactoEscalamiento;
+        Registrar("Configuró los avisos de un usuario", usuario,
+            $"correo {usuario.Correo ?? "(ninguno)"}, aviso inmediato {(usuario.RecibeAlertas ? "sí" : "no")}, "
+            + $"escalamiento {(usuario.EsContactoEscalamiento ? "sí" : "no")}");
         await _db.SaveChangesAsync();
 
         return Ok(ConvertirADto(usuario));

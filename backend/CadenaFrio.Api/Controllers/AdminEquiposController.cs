@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Enums;
 using CadenaFrio.Domain.Valores;
 using CadenaFrio.Infrastructure.Data;
+using CadenaFrio.Infrastructure.Servicios;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,11 +19,19 @@ namespace CadenaFrio.Api.Controllers;
 public class AdminEquiposController : ControllerBase
 {
     private readonly CadenaFrioDbContext _db;
+    private readonly Bitacora _bitacora;
 
-    public AdminEquiposController(CadenaFrioDbContext db)
+    public AdminEquiposController(CadenaFrioDbContext db, Bitacora bitacora)
     {
         _db = db;
+        _bitacora = bitacora;
     }
+
+    // Anota la acción sobre un equipo en la bitácora. Nunca incluye la clave del dispositivo.
+    private void Anotar(string accion, Equipo equipo, string? extra = null) =>
+        _bitacora.Registrar(CategoriaAuditoria.Administracion, accion,
+            User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity!.Name!,
+            equipo.Nombre + (extra is null ? "" : $": {extra}"));
 
     // GET /api/admin/equipos
     [HttpGet]
@@ -68,6 +78,7 @@ public class AdminEquiposController : ControllerBase
         };
 
         _db.Equipos.Add(equipo);
+        Anotar("Registró un equipo", equipo, $"{equipo.Tipo}, {equipo.Ubicacion}");
         await _db.SaveChangesAsync();
 
         return Ok(new ClaveGeneradaDto { Equipo = ConvertirADto(equipo, ultimaSenal: null), Clave = clave });
@@ -84,9 +95,11 @@ public class AdminEquiposController : ControllerBase
             return NotFound(new { mensaje = "Equipo no encontrado." });
         }
 
+        var antes = $"{equipo.Nombre}, {equipo.Tipo}, {equipo.Ubicacion}";
         equipo.Nombre = solicitud.Nombre!.Trim();
         equipo.Tipo = (TipoEquipo)(int)solicitud.Tipo!.Value;
         equipo.Ubicacion = solicitud.Ubicacion?.Trim() ?? string.Empty;
+        Anotar("Editó un equipo", equipo, $"antes: {antes}; ahora: {equipo.Tipo}, {equipo.Ubicacion}");
         await _db.SaveChangesAsync();
 
         return Ok(ConvertirADto(equipo, await UltimaSenalAsync(id)));
@@ -105,6 +118,7 @@ public class AdminEquiposController : ControllerBase
 
         var clave = ClavesDispositivo.Generar();
         equipo.ClaveDispositivo = ClavesDispositivo.Hash(clave);
+        Anotar("Regeneró la clave de un equipo", equipo, "la clave anterior dejó de funcionar");
         await _db.SaveChangesAsync();
 
         return Ok(new ClaveGeneradaDto { Equipo = ConvertirADto(equipo, await UltimaSenalAsync(id)), Clave = clave });
@@ -132,6 +146,7 @@ public class AdminEquiposController : ControllerBase
             alerta.Fin = ahora;
         }
 
+        Anotar("Desactivó un equipo", equipo, abiertas.Count == 0 ? null : $"se cerraron {abiertas.Count} alertas abiertas");
         await _db.SaveChangesAsync();
         return Ok(ConvertirADto(equipo, await UltimaSenalAsync(id)));
     }
@@ -147,6 +162,7 @@ public class AdminEquiposController : ControllerBase
         }
 
         equipo.Activo = true;
+        Anotar("Activó un equipo", equipo);
         await _db.SaveChangesAsync();
         return Ok(ConvertirADto(equipo, await UltimaSenalAsync(id)));
     }

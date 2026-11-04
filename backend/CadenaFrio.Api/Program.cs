@@ -21,12 +21,32 @@ builder.Services.AddDbContext<CadenaFrioDbContext>(opciones =>
 // Tiempos del monitoreo, desde la sección "Monitoreo" de appsettings.json.
 builder.Services.Configure<OpcionesMonitoreo>(builder.Configuration.GetSection("Monitoreo"));
 
+// Respaldos de la base (sección "Respaldos"). Una carpeta relativa se toma desde la carpeta
+// de la API, no desde donde se ejecute "dotnet run".
+builder.Services.Configure<OpcionesRespaldo>(builder.Configuration.GetSection("Respaldos"));
+builder.Services.PostConfigure<OpcionesRespaldo>(o =>
+    o.Carpeta = Path.GetFullPath(o.Carpeta, builder.Environment.ContentRootPath));
+
+// Datos del establecimiento para el formato del Anexo N° 13 (sección "Establecimiento").
+builder.Services.Configure<OpcionesEstablecimiento>(builder.Configuration.GetSection("Establecimiento"));
+
 // Registro de lecturas sin duplicados (HU06) y motor de alertas (HU03).
 builder.Services.AddScoped<RegistroLecturas>();
 builder.Services.AddScoped<MotorAlertas>();
 
 // Rangos calculados según las vacunas de cada equipo.
 builder.Services.AddScoped<GestionRangos>();
+
+// Bitácora de auditoría (Fase 5b): quién hizo qué y cuándo.
+builder.Services.AddScoped<Bitacora>();
+builder.Services.AddScoped<ConsultaBitacora>();
+
+// Indicadores clave para Reportes y su Excel.
+builder.Services.AddScoped<CalculoIndicadores>();
+
+// Respaldos de la base (Fase 5c).
+builder.Services.AddScoped<RespaldoBaseDatos>();
+builder.Services.AddHostedService<RespaldoDiario>();
 
 // Detector de silencio y su vigilante en segundo plano (HU04, HU05).
 builder.Services.AddScoped<DetectorSilencio>();

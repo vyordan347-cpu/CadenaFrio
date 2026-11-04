@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using CadenaFrio.Api.Seguridad;
 using CadenaFrio.Domain.Entities;
+using CadenaFrio.Domain.Enums;
 using CadenaFrio.Infrastructure.Data;
+using CadenaFrio.Infrastructure.Servicios;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -23,11 +25,13 @@ public class AuthController : ControllerBase
 
     private readonly CadenaFrioDbContext _db;
     private readonly IPasswordHasher<Usuario> _cifrador;
+    private readonly Bitacora _bitacora;
 
-    public AuthController(CadenaFrioDbContext db, IPasswordHasher<Usuario> cifrador)
+    public AuthController(CadenaFrioDbContext db, IPasswordHasher<Usuario> cifrador, Bitacora bitacora)
     {
         _db = db;
         _cifrador = cifrador;
+        _bitacora = bitacora;
     }
 
     // POST /api/auth/login
@@ -37,14 +41,20 @@ public class AuthController : ControllerBase
         var nombreUsuario = solicitud.NombreUsuario!.Trim().ToLowerInvariant();
         var usuario = await _db.Usuarios.FirstOrDefaultAsync(u => u.NombreUsuario == nombreUsuario);
 
+        // Los intentos fallidos se anotan con el nombre que se escribió (nunca la contraseña).
+        // El motivo solo lo ve el administrador en la bitácora, no quien intenta entrar.
         if (usuario is null || !usuario.Activo)
         {
+            await _bitacora.RegistrarYGuardarAsync(CategoriaAuditoria.Sesion, "Intento fallido de inicio de sesión",
+                nombreUsuario, usuario is null ? "El usuario no existe." : "El usuario está desactivado.");
             return Unauthorized(new { mensaje = MensajeCredencialesInvalidas });
         }
 
         var resultado = _cifrador.VerifyHashedPassword(usuario, usuario.ContrasenaHash, solicitud.Contrasena!);
         if (resultado == PasswordVerificationResult.Failed)
         {
+            await _bitacora.RegistrarYGuardarAsync(CategoriaAuditoria.Sesion, "Intento fallido de inicio de sesión",
+                nombreUsuario, "Contraseña incorrecta.");
             return Unauthorized(new { mensaje = MensajeCredencialesInvalidas });
         }
 
@@ -55,6 +65,8 @@ public class AuthController : ControllerBase
             await _db.SaveChangesAsync();
         }
 
+        await _bitacora.RegistrarYGuardarAsync(CategoriaAuditoria.Sesion, "Inició sesión",
+            usuario.NombreCompleto, $"Usuario: {usuario.NombreUsuario}");
         await SesionUsuario.IniciarAsync(HttpContext, usuario);
         return Ok(ConvertirADto(usuario));
     }
@@ -64,6 +76,7 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public async Task<IActionResult> CerrarSesion()
     {
+        await _bitacora.RegistrarYGuardarAsync(CategoriaAuditoria.Sesion, "Cerró sesión", UsuarioActual);
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return NoContent();
     }
@@ -96,6 +109,8 @@ public class AuthController : ControllerBase
             return BadRequest(new { mensaje = "La contraseña actual no es correcta." });
         }
 
+        _bitacora.Registrar(CategoriaAuditoria.Sesion, "Cambió su contraseña", usuario.NombreCompleto,
+            usuario.DebeCambiarContrasena ? "Reemplazó la contraseña temporal." : null);
         usuario.ContrasenaHash = _cifrador.HashPassword(usuario, solicitud.ContrasenaNueva!);
         usuario.DebeCambiarContrasena = false;
 
@@ -107,6 +122,9 @@ public class AuthController : ControllerBase
 
         return NoContent();
     }
+
+    private string UsuarioActual =>
+        User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity!.Name!;
 
     private static UsuarioActualDto ConvertirADto(Usuario usuario) => new()
     {

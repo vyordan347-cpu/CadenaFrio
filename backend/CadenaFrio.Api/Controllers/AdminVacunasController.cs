@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CadenaFrio.Domain.Entities;
+using CadenaFrio.Domain.Enums;
 using CadenaFrio.Domain.Valores;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Infrastructure.Servicios;
@@ -18,15 +19,23 @@ public class AdminVacunasController : ControllerBase
 {
     private readonly CadenaFrioDbContext _db;
     private readonly GestionRangos _rangos;
+    private readonly Bitacora _bitacora;
 
-    public AdminVacunasController(CadenaFrioDbContext db, GestionRangos rangos)
+    public AdminVacunasController(CadenaFrioDbContext db, GestionRangos rangos, Bitacora bitacora)
     {
         _db = db;
         _rangos = rangos;
+        _bitacora = bitacora;
     }
 
     private string UsuarioActual =>
         User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity!.Name!;
+
+    private void Anotar(string accion, string detalle) =>
+        _bitacora.Registrar(CategoriaAuditoria.Administracion, accion, UsuarioActual, detalle);
+
+    private static string Rango(Vacuna v) =>
+        Bitacora.DescribirRango(new LimitesTemperatura(v.OptimoMinimo, v.OptimoMaximo, v.LimiteMinimo, v.LimiteMaximo));
 
     // GET /api/admin/vacunas
     [HttpGet]
@@ -66,6 +75,7 @@ public class AdminVacunasController : ControllerBase
         var vacuna = new Vacuna { Nombre = nombre, Activo = true };
         Aplicar(vacuna, solicitud);
         _db.Vacunas.Add(vacuna);
+        Anotar("Agregó una vacuna al catálogo", $"{vacuna.Nombre}: {Rango(vacuna)}.");
         await _db.SaveChangesAsync();
 
         return NoContent();
@@ -96,8 +106,10 @@ public class AdminVacunasController : ControllerBase
             return Conflict(new { mensaje = problema });
         }
 
+        var antes = $"{vacuna.Nombre}, {Rango(vacuna)}";
         vacuna.Nombre = nombre;
         Aplicar(vacuna, solicitud);
+        Anotar("Editó una vacuna", $"antes: {antes}; ahora: {vacuna.Nombre}, {Rango(vacuna)}.");
         await _db.SaveChangesAsync();
 
         await _rangos.RecalcularEquiposDeVacunaAsync(id, UsuarioActual);
@@ -121,6 +133,7 @@ public class AdminVacunasController : ControllerBase
         }
 
         vacuna.Activo = false;
+        Anotar("Retiró una vacuna del catálogo", vacuna.Nombre);
         await _db.SaveChangesAsync();
         return NoContent();
     }
@@ -136,6 +149,7 @@ public class AdminVacunasController : ControllerBase
         }
 
         vacuna.Activo = true;
+        Anotar("Reactivó una vacuna del catálogo", vacuna.Nombre);
         await _db.SaveChangesAsync();
         return NoContent();
     }

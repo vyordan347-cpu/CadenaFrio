@@ -1,6 +1,8 @@
 using ClosedXML.Excel;
+using static CadenaFrio.Api.Reportes.EstiloExcel;
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Enums;
+using CadenaFrio.Domain.Valores;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authorization;
@@ -219,50 +221,7 @@ public class HistorialController : ControllerBase
     }
 
     // ---------- Formato del Excel ----------
-
-    private const string FormatoFecha = "dd/mm/yyyy hh:mm:ss";
-    private static readonly XLColor AzulMarino = XLColor.FromHtml("#14304A");
-    private static readonly XLColor RojoSuave = XLColor.FromHtml("#F8E3E1");
-    private static readonly XLColor AmbarSuave = XLColor.FromHtml("#FBF0DC");
-    private static readonly XLColor GrisSuave = XLColor.FromHtml("#ECEFF2");
-
-    // Excel no maneja zonas horarias: se escribe directamente la hora de Perú.
-    private static DateTime Local(DateTime utc) => DateTime.SpecifyKind(utc + DesfasePeru, DateTimeKind.Unspecified);
-
-    private static void Encabezados(IXLWorksheet hoja, params string[] titulos)
-    {
-        for (var i = 0; i < titulos.Length; i++)
-        {
-            hoja.Cell(1, i + 1).Value = titulos[i];
-        }
-
-        var fila = hoja.Range(1, 1, 1, titulos.Length);
-        fila.Style.Font.SetBold().Font.SetFontColor(XLColor.White);
-        fila.Style.Fill.SetBackgroundColor(AzulMarino);
-        fila.Style.Alignment.SetVertical(XLAlignmentVerticalValues.Center).Alignment.SetWrapText(true);
-        hoja.Row(1).Height = 32;
-    }
-
-    // Fila de encabezado fija, filtros en cada columna y anchos legibles.
-    private static void Terminar(IXLWorksheet hoja, int cantidadFilas, int columnas, double[] anchos)
-    {
-        hoja.SheetView.FreezeRows(1);
-
-        if (cantidadFilas == 0)
-        {
-            hoja.Cell(2, 1).Value = "Sin datos en este periodo.";
-            hoja.Cell(2, 1).Style.Font.SetItalic().Font.SetFontColor(XLColor.Gray);
-        }
-        else
-        {
-            hoja.Range(1, 1, cantidadFilas + 1, columnas).SetAutoFilter();
-        }
-
-        for (var i = 0; i < anchos.Length; i++)
-        {
-            hoja.Column(i + 1).Width = anchos[i];
-        }
-    }
+    // Colores, fechas y encabezados vienen de Reportes/EstiloExcel (compartido con Reportes).
 
     private static (string Estado, XLColor? Color) Clasificar(double t, HistorialDto h) =>
         t > h.LimiteMaximo || t < h.LimiteMinimo ? ("Ruptura", RojoSuave)
@@ -352,18 +311,10 @@ public class HistorialController : ControllerBase
         RequiereRevision = a.RevisionRequeridaDesde is not null,
         AtendidaPor = a.AtendidaPor,
         FechaAtencion = a.FechaAtencion,
-        ObservacionAtencion = a.ObservacionAtencion
+        ObservacionAtencion = a.ObservacionAtencion,
+        TieneAnexo13 = CatalogoAnexo13.Aplica(a.Tipo, a.Nivel) && a.CausaRuptura is not null,
+        // Los códigos de causa no se repiten entre las dos listas, salvo "otra", que dice lo mismo.
+        CausaRuptura = (CatalogoAnexo13.BuscarCausa(TipoEquipo.Refrigeradora, a.CausaRuptura)
+                        ?? CatalogoAnexo13.BuscarCausa(TipoEquipo.Termo, a.CausaRuptura))?.Descripcion
     };
-
-    private static string NombreTipo(TipoAlerta tipo) => tipo switch
-    {
-        TipoAlerta.TemperaturaAlta => "Temperatura alta",
-        TipoAlerta.TemperaturaBaja => "Temperatura baja",
-        TipoAlerta.SinSenal => "Sin señal",
-        TipoAlerta.SensorSinVariacion => "Sensor sin variación",
-        _ => tipo.ToString()
-    };
-
-    private static string Archivo(string nombre) =>
-        string.Concat(nombre.ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '-'));
 }
