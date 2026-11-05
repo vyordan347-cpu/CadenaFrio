@@ -1,31 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CadenaFrio.Web</title>
+    <title>Cadena de Frío</title>
+    <meta name="description" content="Monitoreo de la cadena de frío de vacunas" />
     <base href="/" />
+
+    <!-- Tema elegido (Claro u Oscuro) antes de dibujar nada, para que la pantalla no parpadee.
+         Sin elección guardada, sigue la configuración del sistema operativo. -->
+    <script>
+        try {
+            var tema = localStorage.getItem("cadenafrio-tema");
+            if (tema === "claro" || tema === "oscuro") {
+                document.documentElement.dataset.theme = tema;
+            }
+        } catch (e) { }
+    </script>
+
     <link rel="preload" id="webassembly" />
-    <link rel="stylesheet" href="css/app.css" />
-    <link href="CadenaFrio.Web.styles.css" rel="stylesheet" />
-    <link href="css/sistema.css" rel="stylesheet" />
+    <!-- "#[.{fingerprint}]": al compilar se reemplaza por una huella del contenido. Si el CSS
+         cambia, cambia la dirección y el navegador no puede usar una copia vieja guardada. -->
+    <link rel="stylesheet" href="css/app#[.{fingerprint}].css" />
+    <link rel="stylesheet" href="CadenaFrio.Web#[.{fingerprint}].styles.css" />
+    <link rel="stylesheet" href="css/sistema#[.{fingerprint}].css" />
     <script type="importmap"></script>
 </head>
 
 <body>
     <div id="app">
-        <svg class="loading-progress">
+        <svg class="loading-progress" aria-hidden="true">
             <circle r="40%" cx="50%" cy="50%" />
             <circle r="40%" cx="50%" cy="50%" />
         </svg>
-        <div class="loading-progress-text"></div>
+        <div class="loading-progress-text" role="status"></div>
     </div>
 
-    <div id="blazor-error-ui">
-        An unhandled error has occurred.
-        <a href="." class="reload">Reload</a>
-        <span class="dismiss">🗙</span>
+    <div id="blazor-error-ui" role="alert">
+        Ocurrió un error inesperado.
+        <a href="." class="reload">Recargar la página</a>
+        <button type="button" class="dismiss" aria-label="Cerrar">🗙</button>
     </div>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
 </body>

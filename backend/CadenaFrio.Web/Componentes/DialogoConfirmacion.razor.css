@@ -1,0 +1,56 @@
+/* La caja del diálogo (borde, sombra, fondo oscuro detrás) viene de .dialogo en sistema.css. */
+
+.dialogo-cuerpo {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--e-4);
+    padding: var(--e-5) var(--e-5) var(--e-4);
+}
+
+.dialogo-icono {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    background: var(--rup-fondo);
+    color: var(--rup-texto);
+}
+
+h2 {
+    font-size: var(--t-l);
+}
+
+p {
+    margin-top: var(--e-2);
+    color: var(--texto-2);
+}
+
+.dialogo-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--e-2);
+    padding: var(--e-4) var(--e-5);
+    border-top: 1px solid var(--borde);
+    background: var(--superficie-2);
+    border-radius: 0 0 var(--radio-grande) var(--radio-grande);
+}
+
+/* Confirmar una acción sensible: rojo sólido, distinto de la acción principal habitual. */
+.boton-peligro-solido {
+    border-color: var(--rup);
+    background: var(--rup);
+    color: var(--sobre-rup);
+}
+
+.boton-peligro-solido:hover {
+    filter: brightness(0.92);
+}
+
+@media (max-width: 480px) {
+    .dialogo-acciones .boton {
+        flex: 1;
+    }
+}

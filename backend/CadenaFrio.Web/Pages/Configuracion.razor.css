@@ -1,202 +1,149 @@
-/* Estilo del nuevo diseño. El contenido de esta pantalla cambia con el catálogo de vacunas. */
+/* Configuración de rangos: vacunas que guarda el equipo, rango calculado, rangos vigentes,
+   ajuste manual e historial de cambios. */
 
 .pagina {
-    max-width: 880px;
+    max-width: var(--ancho-contenido);
     margin: 0 auto;
-    padding: 1.75rem 1rem 3rem;
+    padding: var(--e-5) var(--e-5) var(--e-7);
 }
 
 .encabezado {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+    gap: var(--e-4);
+    margin-bottom: var(--e-5);
 }
 
 .encabezado-texto {
     flex: 1;
-    min-width: 240px;
+    min-width: 14rem;
 }
 
+/* Equipo seleccionado: arriba a la derecha, a la vista. */
 .selector {
-    min-width: 220px;
+    min-width: 16rem;
 }
 
 .encabezado-icono {
     display: grid;
     place-items: center;
-    width: 3.25rem;
-    height: 3.25rem;
-    border-radius: 50%;
-    background: var(--barra-activo);
-    color: #ffffff;
     flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--radio);
+    background: var(--primario);
+    color: var(--sobre-primario);
 }
 
 .subtitulo {
+    margin-top: 0.15rem;
     color: var(--texto-2);
 }
 
 .tarjeta {
-    padding: 1.4rem 1.6rem;
-    margin-bottom: 1rem;
+    padding: var(--e-5);
+    margin-bottom: var(--e-4);
+}
+
+.tarjeta-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e-2);
+    margin-bottom: var(--e-3);
 }
 
 h2 {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    gap: var(--e-2);
+    margin-bottom: var(--e-3);
+    font-size: var(--t-l);
+}
+
+.tarjeta-cabecera h2 {
+    margin-bottom: 0;
 }
 
 h2 ::deep .icono {
     color: var(--acento);
 }
 
-.rangos {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 0.9rem;
-}
-
-.rangos > div {
-    padding: 0.9rem 1rem;
-    border-radius: var(--radio);
-    background: var(--superficie-2);
-}
-
-.etiqueta {
+.nota {
     color: var(--texto-2);
-    font-size: 0.875rem;
+    font-size: var(--t-s);
 }
 
-.rango {
-    color: var(--acento);
-    font-size: 1.5rem;
+/* La temperatura de la aguja es antigua: se avisa con ícono y en color de advertencia. */
+.nota-antigua {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    color: var(--adv-texto);
     font-weight: 700;
-    font-variant-numeric: tabular-nums;
 }
 
 .detalle {
     color: var(--texto-2);
-    font-size: 0.95rem;
+    font-size: var(--t-s);
 }
 
-fieldset {
-    margin: 0 0 1rem;
-    padding: 0.9rem 1.1rem 1.1rem;
-    border: 1px solid var(--borde);
-    border-radius: var(--radio);
-    background: var(--superficie-2);
-}
+/* ===== Vacunas + rango calculado ===== */
 
-legend {
-    padding: 0 0.4rem;
-    font-weight: 700;
-    color: var(--texto);
-}
-
-.campos {
+.configuracion {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
-}
-
-.boton {
-    padding: 0.65rem 1.4rem;
-    border-radius: 999px;
-    font-weight: 700;
-}
-
-.aviso {
-    margin-top: 1rem;
-    padding: 0.75rem 1rem;
-    border-radius: var(--radio);
-}
-
-.aviso-exito {
-    background: var(--ok-fondo);
-    color: var(--ok-texto);
-}
-
-.aviso-error {
-    background: var(--rup-fondo);
-    color: var(--rup-texto);
-}
-
-.tabla-contenedor {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.95rem;
-    font-variant-numeric: tabular-nums;
-}
-
-th,
-td {
-    padding: 0.7rem 0.6rem;
-    text-align: left;
-    border-bottom: 1px solid var(--borde);
-    white-space: nowrap;
-}
-
-th {
-    color: var(--texto-2);
-    font-size: 0.875rem;
-    font-weight: 700;
-}
-
-tbody tr:hover {
-    background: var(--superficie-2);
-}
-
-.nota {
-    color: var(--texto-2);
-    font-size: 0.925rem;
-}
-
-/* Vacunas y vista previa */
-.vacunas-y-vista {
-    display: grid;
-    grid-template-columns: 1fr 220px;
-    gap: 1.5rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 var(--e-4);
     align-items: start;
-    margin-bottom: 1rem;
+}
+
+@media (min-width: 1200px) {
+    .configuracion {
+        grid-template-columns: minmax(0, 1.3fr) minmax(20rem, 1fr);
+    }
+
+    /* El resultado queda a la vista mientras se marcan vacunas. */
+    .resultado {
+        position: sticky;
+        top: 4.5rem;
+    }
 }
 
 .vacunas {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+    gap: var(--e-2);
+    margin-top: var(--e-3);
 }
 
 .vacuna-opcion {
     flex-direction: row;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.7rem 0.9rem;
+    gap: var(--e-3);
+    padding: var(--e-3);
     border: 1px solid var(--borde);
     border-radius: var(--radio);
-    background: var(--superficie-2);
+    background: var(--superficie);
     cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
+    transition: border-color var(--duracion) var(--curva), background-color var(--duracion) var(--curva);
 }
 
+.vacuna-opcion:hover {
+    border-color: var(--borde-fuerte);
+}
+
+/* Marcada: borde y fondo de acento, y la casilla marcada (no solo el color). */
 .vacuna-opcion.marcada {
-    border-color: var(--acento);
+    border-color: var(--acento-relleno);
     background: var(--acento-suave);
 }
 
 .vacuna-opcion input {
+    flex-shrink: 0;
     width: 1.15rem;
     height: 1.15rem;
-    accent-color: var(--acento);
-    flex-shrink: 0;
 }
 
 .vacuna-texto {
@@ -211,49 +158,142 @@ tbody tr:hover {
 
 .vacuna-rango {
     color: var(--texto-2);
+    font-size: var(--t-s);
     font-weight: 400;
-    font-size: 0.875rem;
 }
 
 .vista-previa {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 9rem minmax(0, 1fr);
     align-items: center;
-    gap: 0.6rem;
-    text-align: center;
+    gap: var(--e-4);
+    margin-bottom: var(--e-3);
 }
 
 .rango-calculado {
-    color: var(--texto-2);
-    font-size: 0.925rem;
-    line-height: 1.6;
+    display: grid;
+    gap: var(--e-2);
+    margin: 0;
 }
 
-.rango-calculado strong {
+.rango-calculado dt {
+    color: var(--texto-3);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.rango-calculado dd {
+    margin: 0;
     color: var(--acento);
+    font-size: var(--t-l);
+    font-weight: 700;
+}
+
+.rango-calculado .actual dd {
+    color: var(--texto-2);
+    font-size: var(--t-s);
 }
 
 .incompatible {
-    display: flex;
-    gap: 0.6rem;
-    align-items: flex-start;
-    text-align: left;
+    margin-bottom: var(--e-3);
 }
 
 .acciones {
     display: flex;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--e-3);
+    margin-top: var(--e-3);
+    padding-top: var(--e-3);
+    border-top: 1px solid var(--borde);
 }
 
-/* Ajuste manual plegable */
-.ajuste {
-    padding: 1.1rem 1.6rem;
+.cambios-pendientes {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-right: auto;
+    color: var(--adv-texto);
+    font-size: var(--t-s);
+    font-weight: 700;
 }
 
+.aviso {
+    margin-top: var(--e-3);
+}
+
+/* ===== Rangos vigentes + ajuste manual ===== */
+
+.secundarias {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 var(--e-4);
+    align-items: start;
+}
+
+/* Mismas columnas que la fila de arriba: los bordes de las tarjetas quedan alineados. */
+@media (min-width: 1200px) {
+    .secundarias {
+        grid-template-columns: minmax(0, 1.3fr) minmax(20rem, 1fr);
+    }
+}
+
+.rangos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--e-3);
+    margin-bottom: var(--e-3);
+}
+
+.rangos > div {
+    padding: var(--e-3) var(--e-4);
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+.etiqueta {
+    color: var(--texto-3);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.rango {
+    color: var(--acento);
+    font-size: var(--t-xl);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+fieldset {
+    margin: 0 0 var(--e-4);
+    padding: var(--e-3) var(--e-4) var(--e-4);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+legend {
+    padding: 0 0.4rem;
+    color: var(--texto);
+    font-weight: 700;
+}
+
+.campos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: var(--e-4);
+}
+
+/* Ajuste manual: plegable, porque es para casos especiales. */
 .ajuste summary {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--e-2);
     font-weight: 700;
     cursor: pointer;
     list-style: none;
@@ -263,22 +303,59 @@ tbody tr:hover {
     display: none;
 }
 
+.ajuste summary::after {
+    content: "▾";
+    margin-left: auto;
+    color: var(--texto-3);
+    transition: transform var(--duracion) var(--curva);
+}
+
+.ajuste[open] summary::after {
+    transform: rotate(180deg);
+}
+
 .ajuste[open] summary {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--e-3);
 }
 
 .ajuste .nota {
-    margin-bottom: 1rem;
+    margin-bottom: var(--e-4);
+}
+
+.ajuste ::deep .selector-unidad {
+    margin-bottom: var(--e-3);
+}
+
+/* ===== Historial de cambios ===== */
+
+.tabla td {
+    white-space: nowrap;
 }
 
 .origen {
-    white-space: normal;
-    min-width: 220px;
+    min-width: 14rem;
     color: var(--texto-2);
+    white-space: normal !important;
 }
 
-@media (max-width: 680px) {
-    .vacunas-y-vista {
-        grid-template-columns: 1fr;
+@media (max-width: 640px) {
+    .pagina {
+        padding: var(--e-4) var(--e-3) var(--e-6);
+    }
+
+    .tarjeta {
+        padding: var(--e-4);
+    }
+
+    .selector {
+        width: 100%;
+    }
+
+    .vista-previa {
+        grid-template-columns: 7.5rem minmax(0, 1fr);
+    }
+
+    .rangos {
+        grid-template-columns: minmax(0, 1fr);
     }
 }

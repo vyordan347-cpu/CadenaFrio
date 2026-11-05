@@ -12,18 +12,25 @@
 
 <main class="pagina">
     <header class="encabezado">
-        <span class="encabezado-icono"><Icono Nombre="grafico" Tamano="26" /></span>
+        <span class="encabezado-icono"><Icono Nombre="grafico" Tamano="24" /></span>
         <div class="encabezado-texto">
             <h1>Historial</h1>
             <p class="subtitulo">Temperaturas, alertas y revisiones de cada equipo, para revisar incidentes y sustentar reportes.</p>
         </div>
+        @if (historial is not null)
+        {
+            @* El Excel trae el mismo equipo y periodo que se ven en pantalla. *@
+            <a class="boton boton-primario boton-excel" href="@UrlExcel" download>
+                <Icono Nombre="descargar" Tamano="18" /> Exportar a Excel
+            </a>
+        }
     </header>
 
-    @* Filtros *@
-    <section class="tarjeta filtros">
+    @* Filtros: equipo y periodo *@
+    <section class="tarjeta filtros" aria-label="Filtros">
         @if (equipos is { Count: > 0 })
         {
-            <label>
+            <label class="filtro-equipo">
                 Equipo
                 <select value="@equipoId" @onchange="CambiarEquipoAsync">
                     @foreach (var equipo in equipos)
@@ -34,11 +41,15 @@
             </label>
         }
 
-        <div class="periodos" role="group" aria-label="Periodo">
-            @foreach (var (clave, texto) in Periodos)
-            {
-                <button class="periodo @(periodo == clave ? "activo" : "")" @onclick="() => CambiarPeriodoAsync(clave)">@texto</button>
-            }
+        <div class="filtro-periodo">
+            <span class="filtro-etiqueta" id="etiqueta-periodo">Periodo</span>
+            <div class="periodos" role="group" aria-labelledby="etiqueta-periodo">
+                @foreach (var (clave, texto) in Periodos)
+                {
+                    <button class="periodo @(periodo == clave ? "activo" : "")" aria-pressed="@(periodo == clave ? "true" : "false")"
+                            @onclick="() => CambiarPeriodoAsync(clave)">@texto</button>
+                }
+            </div>
         </div>
 
         @if (periodo == "personalizado")
@@ -53,60 +64,113 @@
 
     @if (error is not null)
     {
-        <p class="aviso aviso-error">@error</p>
+        <p class="aviso aviso-error aviso-con-icono"><Icono Nombre="advertencia" Tamano="18" /> @error</p>
     }
     else if (historial is null)
     {
-        <p class="nota">Cargando…</p>
+        <div class="esqueletos" aria-hidden="true">
+            @for (var i = 0; i < 4; i++)
+            {
+                <span class="esqueleto esqueleto-cifra"></span>
+            }
+            <span class="esqueleto esqueleto-grafico"></span>
+        </div>
+        <p class="solo-lector" role="status">Cargando el historial…</p>
     }
     else
     {
         var e = historial.Estadisticas;
 
+        @* De qué se trata lo que se ve: equipo, periodo y rangos vigentes. *@
+        <p class="resumen-periodo cifras">
+            <Icono Nombre="calendario" Tamano="16" />
+            <strong>@historial.NombreEquipo</strong>
+            <span>· @FormatoFecha.HoraPeru(historial.Desde)[..16] a @FormatoFecha.HoraPeru(historial.Hasta)[..16]</span>
+            <span class="dato-secundario">· óptimo @historial.OptimoMinimo.ToString("0.#")–@historial.OptimoMaximo.ToString("0.#") °C, límite @historial.LimiteMinimo.ToString("0.#")–@historial.LimiteMaximo.ToString("0.#") °C</span>
+        </p>
+
         @* Estadísticas del periodo *@
-        <section class="estadisticas">
+        <section class="estadisticas" aria-label="Estadísticas del periodo">
             <div class="tarjeta estadistica destacada">
+                <p class="estadistica-etiqueta">Cumplimiento térmico</p>
                 <p class="estadistica-valor cifras">@(e.PorcentajeOptimo is { } p ? $"{p:0.#} %" : "—")</p>
-                <p class="estadistica-texto">del tiempo en rango óptimo</p>
+                @* Se calcula sobre las lecturas recibidas, no sobre el tiempo: si faltan datos,
+                   no equivale al tiempo del periodo. *@
+                <p class="estadistica-texto">de las lecturas en rango óptimo</p>
             </div>
             <div class="tarjeta estadistica">
+                <p class="estadistica-etiqueta">Mínima / máxima</p>
                 <p class="estadistica-valor cifras">@Grados(e.Minima) / @Grados(e.Maxima)</p>
-                <p class="estadistica-texto">mínima / máxima</p>
+                <p class="estadistica-texto">temperaturas extremas</p>
             </div>
             <div class="tarjeta estadistica">
+                <p class="estadistica-etiqueta">Promedio</p>
                 <p class="estadistica-valor cifras">@Grados(e.Promedio)</p>
-                <p class="estadistica-texto">promedio · @e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture) lecturas</p>
+                <p class="estadistica-texto">@e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture) @(e.CantidadLecturas == 1 ? "lectura" : "lecturas")</p>
             </div>
             <div class="tarjeta estadistica @(e.CantidadRupturas > 0 ? "alerta" : "")">
+                <p class="estadistica-etiqueta">Rupturas</p>
                 <p class="estadistica-valor cifras">@e.CantidadRupturas</p>
-                <p class="estadistica-texto">@(e.CantidadRupturas == 1 ? "ruptura" : "rupturas")@(e.MinutosEnRuptura > 0 ? $" · {FormatoFecha.Duracion(TimeSpan.FromMinutes(e.MinutosEnRuptura))} en total" : "")</p>
+                <p class="estadistica-texto">@(e.MinutosEnRuptura > 0 ? $"{FormatoFecha.Duracion(TimeSpan.FromMinutes(e.MinutosEnRuptura))} fuera del límite" : "sin tiempo fuera del límite")</p>
             </div>
         </section>
 
         @* Gráfico *@
-        <section class="tarjeta seccion">
+        <section class="tarjeta seccion" aria-labelledby="titulo-grafico">
             <header class="seccion-cabecera">
-                <h2><Icono Nombre="grafico" /> Temperatura en el periodo</h2>
-                <a class="boton boton-chico boton-excel" href="@UrlExcel" download>
-                    <Icono Nombre="descargar" Tamano="16" /> Exportar a Excel
-                </a>
+                <h2 id="titulo-grafico"><Icono Nombre="grafico" /> Temperatura en el periodo</h2>
             </header>
-            <GraficoHistorial Puntos="historial.Puntos" Alertas="historial.Alertas"
-                              Desde="historial.Desde" Hasta="historial.Hasta"
-                              OptimoMinimo="historial.OptimoMinimo" OptimoMaximo="historial.OptimoMaximo"
-                              LimiteMinimo="historial.LimiteMinimo" LimiteMaximo="historial.LimiteMaximo" />
-            <p class="nota leyenda">
-                <span class="muestra muestra-ok"></span> óptimo
-                <span class="muestra muestra-adv"></span> advertencia
-                <span class="muestra muestra-rup"></span> ruptura
-                · La línea es el promedio; la banda clara, el mínimo y máximo de cada tramo. Los puntos de arriba marcan el inicio de cada alerta.
-            </p>
+            @if (e.CantidadLecturas == 0)
+            {
+                @* Sin lecturas: se dice cuándo fue la última (si la hay) y se ofrece ir a esas fechas.
+                   No se inventa nada: la fecha sale de la última lectura guardada del equipo. *@
+                <div class="estado-vacio">
+                    <Icono Nombre="sin-senal" Tamano="32" />
+                    <h3>Sin lecturas en este periodo</h3>
+                    @if (ultimaLectura is { } ultima)
+                    {
+                        var dia = DiaPeru(ultima);
+                        <p>
+                            La última lectura de este equipo es del <strong class="cifras">@FormatoFecha.HoraPeru(ultima)[..16]</strong>
+                            (@FormatoFecha.Antiguedad(ultima)).
+                        </p>
+                        <div class="acciones-vacio">
+                            <button type="button" class="boton boton-primario" @onclick="() => VerDiasAsync(dia, dia)">
+                                <Icono Nombre="calendario" Tamano="16" /> Ver el @dia.ToString("dd/MM/yyyy")
+                            </button>
+                            <button type="button" class="boton" @onclick="() => VerDiasAsync(dia.AddDays(-6), dia)">
+                                Ver los 7 días hasta esa fecha
+                            </button>
+                        </div>
+                    }
+                    else if (ultimaLecturaConsultada)
+                    {
+                        <p>Este equipo todavía no ha enviado ninguna lectura.</p>
+                    }
+                    else
+                    {
+                        <p>El equipo no envió datos entre esas fechas. Pruebe con un periodo más largo.</p>
+                    }
+                </div>
+            }
+            else
+            {
+                <GraficoHistorial Puntos="historial.Puntos" Alertas="historial.Alertas"
+                                  Desde="historial.Desde" Hasta="historial.Hasta"
+                                  OptimoMinimo="historial.OptimoMinimo" OptimoMaximo="historial.OptimoMaximo"
+                                  LimiteMinimo="historial.LimiteMinimo" LimiteMaximo="historial.LimiteMaximo" />
+                @* La leyenda la dibuja el propio gráfico, según el modo (general o análisis). *@
+            }
         </section>
 
         @* Alertas del periodo *@
-        <section class="tarjeta seccion">
+        <section class="tarjeta seccion" aria-labelledby="titulo-alertas">
             <header class="seccion-cabecera">
-                <h2><Icono Nombre="campana" /> Alertas del periodo</h2>
+                <h2 id="titulo-alertas"><Icono Nombre="campana" /> Alertas del periodo</h2>
+                @if (historial.Alertas.Count > 0)
+                {
+                    <span class="insignia insignia-neutra">@historial.Alertas.Count</span>
+                }
             </header>
 
             @if (historial.Alertas.Count == 0)
@@ -116,39 +180,52 @@
             else
             {
                 <div class="tabla-contenedor">
-                    <table>
+                    <table class="tabla tabla-alertas">
                         <thead>
                             <tr>
-                                <th>Alerta</th>
-                                <th>Inicio</th>
-                                <th>Duración</th>
-                                <th>Extremo</th>
-                                <th>Revisión</th>
+                                <th scope="col">Alerta</th>
+                                <th scope="col">Inicio</th>
+                                <th scope="col">Duración</th>
+                                <th scope="col">Extremo</th>
+                                <th scope="col">Revisión</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var a in historial.Alertas)
                             {
                                 <tr>
-                                    <td>
-                                        <span class="etiqueta etiqueta-@ClaseAlerta(a)">@NombreAlerta(a)</span>
+                                    <td data-titulo="Alerta">
+                                        <span class="insignia insignia-@ClaseAlerta(a)">
+                                            <Icono Nombre="@IconoAlerta(a)" Tamano="14" /> @NombreAlerta(a)
+                                        </span>
                                         @if (a.DetectadaTarde)
                                         {
                                             <span class="tarde">al sincronizar</span>
                                         }
                                     </td>
-                                    <td class="cifras">@FormatoFecha.HoraPeru(a.Inicio)</td>
-                                    <td>@(a.Fin is { } fin ? FormatoFecha.Duracion(fin - a.Inicio) : "en curso")</td>
-                                    <td class="cifras">@(a.Tipo == TipoAlertaDto.SinSenal ? $"última {a.ValorExtremo:0.0} °C" : $"{a.ValorExtremo:0.0} °C")</td>
-                                    <td class="revision">
+                                    <td data-titulo="Inicio" class="cifras">@FormatoFecha.HoraPeru(a.Inicio)[..16]</td>
+                                    <td data-titulo="Duración">@(a.Fin is { } fin ? FormatoFecha.Duracion(fin - a.Inicio) : "en curso")</td>
+                                    <td data-titulo="Extremo" class="cifras">@(a.Tipo == TipoAlertaDto.SinSenal ? $"última {a.ValorExtremo:0.0} °C" : $"{a.ValorExtremo:0.0} °C")</td>
+                                    <td data-titulo="Revisión" class="revision">
                                         @if (a.AtendidaPor is not null)
                                         {
-                                            <strong>@a.AtendidaPor</strong>
+                                            <strong><Icono Nombre="check" Tamano="14" /> @a.AtendidaPor</strong>
+                                            @if (a.CausaRuptura is not null)
+                                            {
+                                                <span class="causa">Causa: @a.CausaRuptura</span>
+                                            }
                                             <span>@a.ObservacionAtencion</span>
+                                            @if (a.TieneAnexo13)
+                                            {
+                                                @* Formato de notificación de ruptura, prellenado (NTS 242). *@
+                                                <a class="boton boton-chico boton-excel boton-anexo" href="api/alertas/@a.Id/anexo13" download>
+                                                    <Icono Nombre="descargar" Tamano="16" /> Descargar Anexo 13
+                                                </a>
+                                            }
                                         }
                                         else if (a.RequiereRevision)
                                         {
-                                            <span class="pendiente">Pendiente de revisión</span>
+                                            <span class="pendiente"><Icono Nombre="advertencia" Tamano="14" /> Pendiente de revisión</span>
                                         }
                                         else
                                         {
@@ -252,12 +329,50 @@
         {
             error = null;
             historial = null;
+            ultimaLectura = null;
+            ultimaLecturaConsultada = false;
             historial = await Http.GetFromJsonAsync<HistorialDto>($"api/historial?equipoId={equipoId}&{Rango}");
+
+            if (historial?.Estadisticas.CantidadLecturas == 0)
+            {
+                await BuscarUltimaLecturaAsync();
+            }
         }
         catch (Exception)
         {
             error = "No se pudo cargar el historial. Si eligió un rango personalizado, debe ser de 92 días como máximo.";
         }
+    }
+
+    // Para el estado vacío: la fecha de la última lectura del equipo (la misma consulta que
+    // usan el panel y Configuración). Si falla, se muestra el mensaje de siempre.
+    private DateTime? ultimaLectura;
+    private bool ultimaLecturaConsultada;
+
+    private async Task BuscarUltimaLecturaAsync()
+    {
+        try
+        {
+            var actual = await Http.GetFromJsonAsync<TemperaturaActualDto>($"api/equipos/{equipoId}/temperatura-actual");
+            ultimaLectura = actual?.FechaMedicion;
+            ultimaLecturaConsultada = true;
+        }
+        catch (Exception)
+        {
+            ultimaLectura = null;
+        }
+    }
+
+    // Día de Perú de una fecha UTC.
+    private static DateOnly DiaPeru(DateTime fechaUtc) => DateOnly.FromDateTime(fechaUtc + DesfasePeru);
+
+    // Pasa al periodo personalizado con esos días y lo carga.
+    private async Task VerDiasAsync(DateOnly primero, DateOnly ultimo)
+    {
+        diaDesde = primero;
+        diaHasta = ultimo;
+        periodo = "personalizado";
+        await CargarAsync();
     }
 
     private string Rango =>
@@ -279,4 +394,12 @@
 
     private static string ClaseAlerta(AlertaHistorialDto a) =>
         a.Tipo is TipoAlertaDto.SinSenal or TipoAlertaDto.SensorSinVariacion ? "sen" : a.Nivel == NivelAlertaDto.Ruptura ? "rup" : "adv";
+
+    // Ícono que acompaña al nombre: la gravedad no depende solo del color.
+    private static string IconoAlerta(AlertaHistorialDto a) => ClaseAlerta(a) switch
+    {
+        "sen" => "sin-senal",
+        "rup" => "ruptura",
+        _ => "advertencia"
+    };
 }

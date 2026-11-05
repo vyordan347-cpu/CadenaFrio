@@ -127,10 +127,6 @@ else
     app.UseHttpsRedirection();
 }
 
-// Sirve los archivos de la app Blazor (CadenaFrio.Web) desde la misma API.
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
-
 // El orden importa: primero se identifica al usuario, luego se revisan sus permisos.
 app.UseAuthentication();
 
@@ -140,6 +136,13 @@ app.Use(SesionUsuario.ExigirCambioDeContrasenaAsync);
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Archivos de la app Blazor (CadenaFrio.Web), incluidos los de _framework: CSS, JS, fuentes,
+// imágenes y WebAssembly. Reemplaza a UseBlazorFrameworkFiles + UseStaticFiles (no se combinan).
+// A diferencia de UseStaticFiles, entrega cada archivo
+// también con una huella del contenido en el nombre (sistema.36x54xoqzg.css) y le indica al
+// navegador cuánto guardarlo: así, después de un cambio, nunca se usa un CSS viejo.
+app.MapStaticAssets();
 
 // Cualquier ruta que no sea de la API se entrega a Blazor,
 // que decide qué pantalla mostrar.

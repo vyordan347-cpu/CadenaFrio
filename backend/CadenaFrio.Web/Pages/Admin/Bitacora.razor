@@ -1,0 +1,201 @@
+@page "/admin/bitacora"
+@using System.Net.Http.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using CadenaFrio.Web.Utilidades
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = Politicas.EsAdministrador)]
+@inject HttpClient Http
+
+<PageTitle>Bitácora · Administración · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+
+    <header class="encabezado">
+        <span class="encabezado-icono"><Icono Nombre="lista" Tamano="26" /></span>
+        <div class="encabezado-texto">
+            <h1>Bitácora</h1>
+            <p class="subtitulo">Quién hizo qué y cuándo. Los registros no se pueden editar ni borrar.</p>
+        </div>
+    </header>
+
+    @* Filtros: días en hora de Perú. *@
+    <section class="tarjeta filtros">
+        <label>Desde <InputDate @bind-Value="diaDesde" /></label>
+        <label>Hasta <InputDate @bind-Value="diaHasta" /></label>
+        <label>
+            Usuario
+            <select @bind="usuario">
+                <option value="">Todos</option>
+                @foreach (var nombre in usuarios)
+                {
+                    <option value="@nombre">@nombre</option>
+                }
+            </select>
+        </label>
+        <label>
+            Categoría
+            <select @bind="categoria">
+                <option value="">Todas</option>
+                @foreach (var (valor, texto) in Categorias)
+                {
+                    <option value="@valor">@texto</option>
+                }
+            </select>
+        </label>
+        <button class="boton boton-primario" @onclick="() => CargarAsync(1)">Aplicar</button>
+    </section>
+
+    @if (error is not null)
+    {
+        <p class="aviso aviso-error">@error</p>
+    }
+    else if (resultado is null)
+    {
+        <p class="nota">Cargando…</p>
+    }
+    else if (resultado.Total == 0)
+    {
+        <p class="nota">No hay registros con estos filtros.</p>
+    }
+    else
+    {
+        <section class="tarjeta">
+            <div class="tabla-contenedor">
+                <table class="tabla">
+                    <thead>
+                        <tr>
+                            <th>Fecha y hora</th>
+                            <th>Usuario</th>
+                            <th>Categoría</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in resultado.Registros)
+                        {
+                            <tr>
+                                <td class="cifras">@FormatoFecha.HoraPeru(r.Fecha)</td>
+                                <td>@r.Usuario</td>
+                                <td><span class="insignia insignia-@ClaseCategoria(r.Categoria)"><Icono Nombre="@IconoCategoria(r.Categoria)" Tamano="14" /> @NombreCategoria(r.Categoria)</span></td>
+                                <td>
+                                    <strong>@r.Accion</strong>
+                                    @if (r.Detalle is not null)
+                                    {
+                                        <span class="detalle">@r.Detalle</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <nav class="paginas" aria-label="Páginas">
+                <button class="boton boton-chico" disabled="@(resultado.Pagina <= 1)" @onclick="() => CargarAsync(resultado.Pagina - 1)">
+                    ‹ Anterior
+                </button>
+                <span class="cifras">Página @resultado.Pagina de @resultado.TotalPaginas · @resultado.Total registros</span>
+                <button class="boton boton-chico" disabled="@(resultado.Pagina >= resultado.TotalPaginas)" @onclick="() => CargarAsync(resultado.Pagina + 1)">
+                    Siguiente ›
+                </button>
+            </nav>
+        </section>
+    }
+</main>
+
+@code {
+    private static readonly TimeSpan DesfasePeru = TimeSpan.FromHours(-5);
+
+    private static readonly (CategoriaAuditoriaDto Valor, string Texto)[] Categorias =
+    {
+        (CategoriaAuditoriaDto.Sesion, "Sesión"),
+        (CategoriaAuditoriaDto.Rangos, "Rangos"),
+        (CategoriaAuditoriaDto.Alertas, "Alertas"),
+        (CategoriaAuditoriaDto.Administracion, "Administración")
+    };
+
+    // Por defecto, los últimos 7 días.
+    private DateOnly? diaDesde = DateOnly.FromDateTime(DateTime.UtcNow + DesfasePeru).AddDays(-7);
+    private DateOnly? diaHasta = DateOnly.FromDateTime(DateTime.UtcNow + DesfasePeru);
+    private string usuario = "";
+    private string categoria = "";
+
+    private List<string> usuarios = new();
+    private PaginaBitacoraDto? resultado;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            usuarios = await Http.GetFromJsonAsync<List<string>>("api/admin/bitacora/usuarios") ?? new();
+        }
+        catch (Exception)
+        {
+            // Sin la lista, el filtro por usuario queda en "Todos"; la tabla se carga igual.
+        }
+
+        await CargarAsync(1);
+    }
+
+    private async Task CargarAsync(int pagina)
+    {
+        // Días completos en hora de Perú: de las 00:00 del primero a las 00:00 del día siguiente al último.
+        var parametros = new List<string> { $"pagina={pagina}" };
+        if (diaDesde is { } d)
+        {
+            parametros.Add($"desde={Utc(d):O}");
+        }
+        if (diaHasta is { } h)
+        {
+            parametros.Add($"hasta={Utc(h.AddDays(1)):O}");
+        }
+        if (usuario.Length > 0)
+        {
+            parametros.Add($"usuario={Uri.EscapeDataString(usuario)}");
+        }
+        if (categoria.Length > 0)
+        {
+            parametros.Add($"categoria={categoria}");
+        }
+
+        try
+        {
+            error = null;
+            resultado = await Http.GetFromJsonAsync<PaginaBitacoraDto>($"api/admin/bitacora?{string.Join("&", parametros)}");
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            error = "La fecha inicial debe ser anterior a la final.";
+        }
+        catch (Exception)
+        {
+            error = "No se pudo cargar la bitácora. Revise que el servidor esté encendido.";
+        }
+    }
+
+    private static DateTime Utc(DateOnly dia) =>
+        DateTime.SpecifyKind(dia.ToDateTime(TimeOnly.MinValue) - DesfasePeru, DateTimeKind.Utc);
+
+    private static string NombreCategoria(CategoriaAuditoriaDto c) =>
+        Categorias.FirstOrDefault(x => x.Valor == c).Texto ?? c.ToString();
+
+    // Cada categoría con su ícono: no se distinguen solo por el color.
+    private static string IconoCategoria(CategoriaAuditoriaDto c) => c switch
+    {
+        CategoriaAuditoriaDto.Sesion => "usuario",
+        CategoriaAuditoriaDto.Rangos => "temperatura",
+        CategoriaAuditoriaDto.Alertas => "campana",
+        _ => "admin"
+    };
+
+    private static string ClaseCategoria(CategoriaAuditoriaDto c) => c switch
+    {
+        // Colores tranquilos: una categoría no es una gravedad (el rojo queda para las rupturas).
+        CategoriaAuditoriaDto.Sesion => "info",
+        CategoriaAuditoriaDto.Rangos => "neutra",
+        CategoriaAuditoriaDto.Alertas => "adv",
+        _ => "sen"
+    };
+}

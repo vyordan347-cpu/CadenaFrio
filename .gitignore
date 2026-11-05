@@ -483,4 +483,7 @@ $RECYCLE.BIN/
 *.db
 *.db-wal
 *.db-shm
+# Respaldos de la base (Fase 5c) y la copia que se guarda al restaurar.
+respaldos/
+antes-de-restaurar/
 firmware/**/credenciales.h

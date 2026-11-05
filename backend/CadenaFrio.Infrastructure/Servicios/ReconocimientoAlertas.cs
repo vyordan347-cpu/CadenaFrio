@@ -1,3 +1,4 @@
+using CadenaFrio.Domain.Enums;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Infrastructure.Notificaciones;
 using Microsoft.EntityFrameworkCore;
@@ -11,11 +12,13 @@ public class ReconocimientoAlertas
 {
     private readonly CadenaFrioDbContext _db;
     private readonly ClienteTelegram _telegram;
+    private readonly Bitacora _bitacora;
 
-    public ReconocimientoAlertas(CadenaFrioDbContext db, ClienteTelegram telegram)
+    public ReconocimientoAlertas(CadenaFrioDbContext db, ClienteTelegram telegram, Bitacora bitacora)
     {
         _db = db;
         _telegram = telegram;
+        _bitacora = bitacora;
     }
 
     public async Task<ResultadoReconocimiento> ReconocerAsync(int alertaId, string usuario, long? chatQueReconoce = null)
@@ -33,6 +36,8 @@ public class ReconocimientoAlertas
 
         alerta.ReconocidaPor = usuario;
         alerta.FechaReconocimiento = DateTime.UtcNow;
+        _bitacora.Registrar(CategoriaAuditoria.Alertas, "Marcó \"Lo estoy atendiendo\"", usuario,
+            $"{alerta.Equipo.Nombre}, alerta {alerta.Id}" + (chatQueReconoce is null ? " (desde la web)." : " (desde Telegram)."));
         await _db.SaveChangesAsync();
 
         // Se avisa a los demás, para que nadie duplique esfuerzos.

@@ -1,72 +1,346 @@
-.barra {
+/* Estructura: barra lateral + contenido.
+   - 1280 px o más: barra lateral completa (se puede plegar a solo íconos).
+   - 960 a 1279 px (tablet): barra lateral solo con íconos.
+   - Menos de 960 px (celular): la barra lateral se abre como cajón con el botón de menú. */
+
+.app {
+    --ancho-lateral: 15.5rem;
+    --ancho-lateral-plegada: 4.5rem;
+    display: grid;
+    grid-template-columns: var(--ancho-lateral) minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+.app.plegada {
+    grid-template-columns: var(--ancho-lateral-plegada) minmax(0, 1fr);
+}
+
+/* Enlace "Saltar al contenido": invisible hasta que recibe el foco del teclado. */
+.saltar {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 60;
+    padding: 0.5rem 0.9rem;
+    border: none;
+    border-radius: var(--radio);
+    background: var(--primario);
+    color: var(--sobre-primario);
+    font-weight: 700;
+    transform: translateY(-200%);
+}
+
+.saltar:focus {
+    transform: none;
+}
+
+/* ===== Barra lateral ===== */
+
+.lateral {
     position: sticky;
     top: 0;
-    z-index: 10;
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.6rem 1.25rem;
-    min-height: 4.5rem;
-    padding: 0.75rem 1.5rem;
+    flex-direction: column;
+    gap: 1.25rem;
+    height: 100vh;
+    padding: 1rem 0.75rem;
+    overflow-y: auto;
     background: var(--barra-fondo);
     color: var(--barra-texto);
+    scrollbar-width: thin;
 }
 
 .marca {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 0.7rem;
-    margin-right: auto;
-    color: #8cc8f5;
+    padding: 0.25rem 0.4rem;
+    border-radius: var(--radio);
+    color: var(--barra-texto);
     text-decoration: none;
+}
+
+.marca:hover {
+    color: var(--barra-texto);
+}
+
+.marca-logo {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: var(--radio);
+    background: linear-gradient(135deg, var(--acento-relleno), #0B4F6C);
+    color: #FFFFFF;
 }
 
 .marca-texto {
     display: flex;
     flex-direction: column;
+    min-width: 0;
     line-height: 1.2;
 }
 
 .marca-nombre {
-    color: var(--barra-texto);
-    font-size: 1.3rem;
+    font-size: 1.05rem;
     font-weight: 700;
+    white-space: nowrap;
 }
 
 .marca-sub {
     color: var(--barra-texto-2);
-    font-size: 0.85rem;
+    font-size: var(--t-xs);
+    white-space: nowrap;
 }
 
-.menu {
+.modulos {
     display: flex;
-    gap: 0.35rem;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.grupo {
+    margin: 0.9rem 0 0.35rem 0.75rem;
+    color: var(--barra-texto-2);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.grupo:first-child {
+    margin-top: 0;
 }
 
 /* Los enlaces los dibuja NavLink (un componente), por eso ::deep. */
-.menu ::deep a {
-    display: inline-flex;
+.modulos ::deep .enlace {
+    position: relative;
+    display: flex;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.55rem 1rem;
-    border-radius: 999px;
+    gap: 0.75rem;
+    min-height: 2.6rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radio);
     color: var(--barra-texto-2);
-    text-decoration: none;
     font-size: 0.95rem;
+    text-decoration: none;
+    transition: background-color var(--duracion) var(--curva), color var(--duracion) var(--curva);
 }
 
-.menu ::deep a:hover {
+.modulos ::deep .enlace:hover {
     background: var(--barra-hover);
     color: var(--barra-texto);
 }
 
-.menu ::deep a.active {
+/* Página actual: fondo verde azulado y una marca a la izquierda (no depende solo del color). */
+.modulos ::deep .enlace.active {
     background: var(--barra-activo);
-    color: #ffffff;
+    color: #FFFFFF;
     font-weight: 700;
 }
 
-/* Menú de la cuenta */
+.modulos ::deep .enlace.active::before {
+    content: "";
+    position: absolute;
+    left: -0.75rem;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: #5EEAD4;
+}
+
+.modulos ::deep .enlace:focus-visible {
+    outline: 2px solid #5EEAD4;
+    outline-offset: 2px;
+}
+
+.lateral-pie {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid var(--barra-borde);
+}
+
+/* El selector de tema sobre fondo oscuro. */
+.lateral-pie ::deep .selector-tema {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.lateral-pie ::deep .selector-tema button {
+    color: var(--barra-texto-2);
+}
+
+.lateral-pie ::deep .selector-tema button:hover {
+    color: var(--barra-texto);
+}
+
+.lateral-pie ::deep .selector-tema button.activo {
+    background: rgba(255, 255, 255, 0.14);
+    color: #FFFFFF;
+    box-shadow: none;
+}
+
+.plegar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 2.4rem;
+    padding: 0.4rem 0.75rem;
+    border: none;
+    border-radius: var(--radio);
+    background: transparent;
+    color: var(--barra-texto-2);
+    font-size: var(--t-s);
+}
+
+.plegar:hover {
+    background: var(--barra-hover);
+    color: var(--barra-texto);
+}
+
+/* ===== Barra lateral plegada (solo íconos) =====
+   Los textos quedan ocultos a la vista, pero los lectores de pantalla los siguen leyendo. */
+
+.plegada .lateral {
+    padding-inline: 0.6rem;
+}
+
+.plegada .marca {
+    justify-content: center;
+}
+
+.plegada .marca-texto,
+.plegada .texto,
+.plegada .lateral-pie ::deep .selector-tema span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.plegada .grupo {
+    height: 1px;
+    margin: 0.6rem 0.5rem;
+    overflow: hidden;
+    background: var(--barra-borde);
+    color: transparent;
+}
+
+.plegada .modulos ::deep .enlace,
+.plegada .plegar {
+    justify-content: center;
+    padding-inline: 0;
+}
+
+.plegada .modulos ::deep .enlace.active::before {
+    left: -0.6rem;
+}
+
+.plegada .lateral-pie ::deep .selector-tema {
+    grid-template-columns: 1fr;
+}
+
+/* ===== Contenido ===== */
+
+.principal {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.cabecera {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-height: 3.5rem;
+    padding: 0.4rem 1.5rem;
+    border-bottom: 1px solid var(--borde);
+    background: color-mix(in srgb, var(--superficie) 90%, transparent);
+    backdrop-filter: blur(8px);
+}
+
+.abrir-menu {
+    display: none;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: var(--radio);
+    background: transparent;
+    color: var(--texto);
+}
+
+.abrir-menu:hover {
+    background: var(--superficie-2);
+}
+
+/* Migas de pan: Módulo › Página */
+.migas {
+    min-width: 0;
+}
+
+.migas ol {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--t-s);
+    white-space: nowrap;
+}
+
+.migas li {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.migas li + li::before {
+    content: "›";
+    margin-right: 0.4rem;
+    color: var(--texto-3);
+}
+
+.migas-modulo {
+    color: var(--texto-3);
+}
+
+.migas-modulo a {
+    color: var(--texto-2);
+}
+
+.migas [aria-current="page"] {
+    color: var(--texto);
+    font-weight: 700;
+}
+
+.cabecera-acciones {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.cuerpo {
+    flex: 1;
+    outline: none;
+}
+
+.cuerpo-sin-sesion {
+    min-height: 100vh;
+}
+
+/* ===== Menú de la cuenta ===== */
+
 .cuenta {
     position: relative;
 }
@@ -74,18 +348,19 @@
 .avatar {
     display: grid;
     place-items: center;
-    width: 2.6rem;
-    height: 2.6rem;
-    border: 2px solid var(--barra-borde);
+    width: 2.4rem;
+    height: 2.4rem;
+    border: 2px solid var(--borde);
     border-radius: 50%;
-    background: var(--barra-activo);
-    color: #ffffff;
+    background: var(--primario);
+    color: var(--sobre-primario);
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    transition: border-color var(--duracion) var(--curva);
 }
 
 .avatar:hover {
-    border-color: #ffffff;
+    border-color: var(--acento-relleno);
 }
 
 /* Capa transparente detrás del menú: un clic fuera lo cierra. */
@@ -97,15 +372,15 @@
 
 .desplegable {
     position: absolute;
-    top: calc(100% + 0.6rem);
+    top: calc(100% + 0.5rem);
     right: 0;
     z-index: 21;
-    min-width: 240px;
+    min-width: 250px;
     padding: 0.4rem;
     border: 1px solid var(--borde);
     border-radius: var(--radio-grande);
     background: var(--superficie);
-    box-shadow: 0 12px 30px rgba(12, 32, 52, 0.18);
+    box-shadow: var(--sombra-2);
 }
 
 .desplegable-cabecera {
@@ -121,7 +396,7 @@
 
 .desplegable-rol {
     color: var(--texto-2);
-    font-size: 0.875rem;
+    font-size: var(--t-s);
 }
 
 .desplegable-opcion {
@@ -141,15 +416,152 @@
 
 .desplegable-opcion:hover {
     background: var(--superficie-2);
+    color: var(--texto);
 }
 
-/* En pantallas angostas (celular), se ocultan textos secundarios. */
-@media (max-width: 720px) {
-    .marca-sub {
+/* Fondo oscuro detrás del cajón del celular (solo se usa en pantallas angostas). */
+.velo {
+    display: none;
+}
+
+/* ===== Tablet: barra lateral solo con íconos (mismas reglas que "plegada") ===== */
+
+@media (min-width: 960px) and (max-width: 1279px) {
+    .app,
+    .app.plegada {
+        grid-template-columns: var(--ancho-lateral-plegada) minmax(0, 1fr);
+    }
+
+    .lateral {
+        padding-inline: 0.6rem;
+    }
+
+    .marca {
+        justify-content: center;
+    }
+
+    .marca-texto,
+    .texto,
+    .lateral-pie ::deep .selector-tema span {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    .grupo {
+        height: 1px;
+        margin: 0.6rem 0.5rem;
+        overflow: hidden;
+        background: var(--barra-borde);
+        color: transparent;
+    }
+
+    .modulos ::deep .enlace {
+        justify-content: center;
+        padding-inline: 0;
+    }
+
+    .modulos ::deep .enlace.active::before {
+        left: -0.6rem;
+    }
+
+    .lateral-pie ::deep .selector-tema {
+        grid-template-columns: 1fr;
+    }
+
+    /* En tablet siempre se ven solo íconos: plegar no tiene efecto. */
+    .plegar {
+        display: none;
+    }
+}
+
+/* ===== Celular: la barra lateral es un cajón ===== */
+
+@media (max-width: 959px) {
+    .app,
+    .app.plegada {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .lateral {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 40;
+        width: min(17rem, 85vw);
+        box-shadow: var(--sombra-2);
+        transform: translateX(-100%);
+        visibility: hidden;
+        /* Sin transición al cerrarse: así, al cambiar el tamaño de la ventana
+           (de escritorio a celular), el menú no se ve deslizándose. */
+    }
+
+    .menu-abierto .lateral {
+        transform: none;
+        visibility: visible;
+        transition: transform 220ms var(--curva);
+    }
+
+    /* En el cajón siempre se ven los nombres, aunque en escritorio se haya plegado. */
+    .plegada .marca-texto,
+    .plegada .texto,
+    .plegada .lateral-pie ::deep .selector-tema span {
+        position: static;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        clip: auto;
+    }
+
+    .plegada .grupo {
+        height: auto;
+        margin: 0.9rem 0 0.35rem 0.75rem;
+        background: none;
+        color: var(--barra-texto-2);
+    }
+
+    .plegada .modulos ::deep .enlace {
+        justify-content: flex-start;
+        padding-inline: 0.75rem;
+    }
+
+    .plegada .marca {
+        justify-content: flex-start;
+    }
+
+    .plegada .lateral-pie ::deep .selector-tema {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .plegar {
         display: none;
     }
 
-    .barra {
-        padding: 0.6rem 1rem;
+    .menu-abierto .velo {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        display: block;
+        border: none;
+        background: rgba(7, 17, 28, 0.55);
+    }
+
+    .abrir-menu {
+        display: grid;
+    }
+
+    .cabecera {
+        gap: 0.5rem;
+        padding: 0.4rem 0.75rem;
+    }
+
+    .migas-modulo {
+        display: none;
+    }
+
+    .migas li + li::before {
+        display: none;
     }
 }

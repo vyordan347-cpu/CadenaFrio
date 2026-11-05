@@ -18,10 +18,11 @@
     {
         get
         {
-            var minimo = Valores!.Min();
-            var rango = Math.Max(Valores.Max() - minimo, 0.5);
-            return string.Concat(Valores.Select((v, i) =>
-                $"{(i == 0 ? "M" : "L")}{F(i * Ancho / (Valores.Count - 1))} {F(Alto - 2 - (v - minimo) / rango * (Alto - 4))}"));
+            var valores = Valores!;
+            var minimo = valores.Min();
+            var rango = Math.Max(valores.Max() - minimo, 0.5);
+            return string.Concat(valores.Select((v, i) =>
+                $"{(i == 0 ? "M" : "L")}{F(i * Ancho / (valores.Count - 1))} {F(Alto - 2 - (v - minimo) / rango * (Alto - 4))}"));
         }
     }
 

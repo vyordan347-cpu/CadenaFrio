@@ -5,6 +5,10 @@ public class IndicadoresDto
 {
     public int Dias { get; set; }
 
+    // Periodo calculado (UTC): incluye Desde y excluye Hasta.
+    public DateTime Desde { get; set; }
+    public DateTime Hasta { get; set; }
+
     // Porcentaje de lecturas dentro del rango óptimo de su equipo.
     public double? PorcentajeOptimo { get; set; }
 

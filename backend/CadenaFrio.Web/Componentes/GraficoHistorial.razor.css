@@ -4,15 +4,91 @@
     height: auto;
 }
 
-.zona { opacity: 0.55; }
-.zona-ok { fill: var(--zona-optima); }
-.zona-adv { fill: var(--zona-adv); }
-.zona-rup { fill: var(--zona-rup); }
+/* Arriba del gráfico: el selector de modo y, en Análisis, "Ajustar a los datos". */
+.grafico-barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e-2) var(--e-3);
+    margin-bottom: var(--e-3);
+}
 
+.selector-modo {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+.selector-modo button {
+    min-height: 2rem;
+    padding: 0.3rem 0.8rem;
+    border: none;
+    border-radius: calc(var(--radio) - 2px);
+    background: transparent;
+    color: var(--texto-2);
+    font: inherit;
+    font-size: var(--t-s);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.selector-modo button.activo {
+    background: var(--superficie);
+    color: var(--texto);
+    box-shadow: var(--sombra);
+}
+
+.grafico-vista {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--e-2) var(--e-3);
+}
+
+.grafico-nota {
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+/* Rango óptimo: la única zona con color, muy tenue. */
+.franja-optimo {
+    fill: var(--ok);
+    fill-opacity: 0.09;
+}
+
+/* Escala vertical: líneas continuas casi invisibles. */
 .guia {
+    stroke: var(--borde);
+    stroke-width: 1;
+}
+
+/* Eje del tiempo. */
+.eje {
     stroke: var(--borde-fuerte);
     stroke-width: 1;
-    stroke-dasharray: 3 4;
+}
+
+/* Límites permitidos: discontinuos y discretos. */
+.linea-limite {
+    stroke: var(--rup);
+    stroke-opacity: 0.7;
+    stroke-width: 1.25;
+    stroke-dasharray: 6 5;
+}
+
+.limite-texto {
+    fill: var(--rup-texto);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* Periodos sin datos: barra gris fina sobre el eje (no se confunde con temperatura normal). */
+.hueco {
+    fill: var(--texto-3);
+    fill-opacity: 0.45;
 }
 
 .eje-y,
@@ -22,6 +98,11 @@
 }
 
 .eje-y { text-anchor: end; }
+
+.marca-eje {
+    stroke: var(--borde-fuerte);
+    stroke-width: 1;
+}
 .eje-x { text-anchor: middle; }
 
 .banda-minmax {
@@ -38,9 +119,20 @@
     stroke-linecap: round;
 }
 
-.marca-rup { fill: var(--rup); }
-.marca-adv { fill: var(--adv); }
-.marca-sen { fill: var(--sen); }
+/* Carril de alertas: advertencia amarilla, ruptura roja, sin señal / sensor con contorno
+   gris rayado (forma distinta, no solo color). */
+.barra-adv { fill: var(--adv); }
+.barra-rup { fill: var(--rup); }
+.barra-sen {
+    fill: var(--sen-fondo);
+    stroke: var(--sen);
+    stroke-width: 1;
+    stroke-dasharray: 3 2;
+}
+
+.alerta-barra:hover rect {
+    filter: brightness(1.15);
+}
 
 .sensible {
     fill: transparent;
@@ -84,8 +176,49 @@
     text-anchor: middle;
 }
 
-.punto-aislado {
+/* Lecturas sueltas (pocas o separadas por huecos): puntos turquesa. */
+.punto {
     fill: var(--acento);
+}
+
+/* Lo único en rojo: el valor que salió del límite. */
+.punto-fuera {
+    fill: var(--rup);
     stroke: var(--superficie);
     stroke-width: 1.5;
 }
+
+/* Leyenda: solo lo que aparece en el gráfico. */
+.grafico-leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--e-2) var(--e-4);
+    margin: var(--e-3) 0 0;
+    padding: 0;
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    list-style: none;
+}
+
+.grafico-leyenda li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.muestra {
+    display: inline-block;
+    width: 1.1rem;
+    height: 0.75rem;
+    border-radius: 3px;
+}
+
+.muestra-linea { height: 3px; border-radius: 2px; background: var(--acento); }
+.muestra-fuera { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--rup); }
+.muestra-optimo { background: color-mix(in srgb, var(--ok) 18%, transparent); }
+.muestra-limite { height: 0; border-top: 1.5px dashed var(--rup); border-radius: 0; }
+.muestra-hueco { height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--texto-3) 45%, transparent); }
+.muestra-banda { background: color-mix(in srgb, var(--acento) 20%, transparent); }
+.muestra-alerta { display: inline-flex; height: 0.35rem; overflow: hidden; }
+.muestra-alerta .adv { flex: 1; background: var(--adv); }
+.muestra-alerta .rup { flex: 1; background: var(--rup); }

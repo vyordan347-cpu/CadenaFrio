@@ -6,12 +6,10 @@
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Policy = Politicas.EsAdministrador)]
 @inject HttpClient Http
-@inject IJSRuntime JS
 
 <PageTitle>Vacunas · Administración · Cadena de Frío</PageTitle>
 
 <main class="pagina">
-    <PestanasAdmin />
 
     <header class="encabezado">
         <span class="encabezado-icono"><Icono Nombre="vacuna" Tamano="26" /></span>
@@ -50,15 +48,18 @@
                     </label>
                 </div>
 
+                @* Los rangos se pueden escribir en °F (insertos importados); se guardan en °C. *@
+                <SelectorUnidad @bind-Fahrenheit="enFahrenheit" />
+
                 <fieldset>
                     <legend>Rango óptimo (conservación normal)</legend>
                     <div class="campos">
-                        <label>Mínimo (°C)
-                            <InputNumber @bind-Value="solicitud.OptimoMinimo" step="0.1" />
+                        <label>Mínimo (@Unidad)
+                            <EntradaTemperatura @bind-Valor="solicitud.OptimoMinimo" Fahrenheit="enFahrenheit" />
                             <ValidationMessage For="() => solicitud.OptimoMinimo" />
                         </label>
-                        <label>Máximo (°C)
-                            <InputNumber @bind-Value="solicitud.OptimoMaximo" step="0.1" />
+                        <label>Máximo (@Unidad)
+                            <EntradaTemperatura @bind-Valor="solicitud.OptimoMaximo" Fahrenheit="enFahrenheit" />
                             <ValidationMessage For="() => solicitud.OptimoMaximo" />
                         </label>
                     </div>
@@ -67,12 +68,12 @@
                 <fieldset>
                     <legend>Rango límite (fuera de él hay ruptura)</legend>
                     <div class="campos">
-                        <label>Mínimo (°C)
-                            <InputNumber @bind-Value="solicitud.LimiteMinimo" step="0.1" />
+                        <label>Mínimo (@Unidad)
+                            <EntradaTemperatura @bind-Valor="solicitud.LimiteMinimo" Fahrenheit="enFahrenheit" />
                             <ValidationMessage For="() => solicitud.LimiteMinimo" />
                         </label>
-                        <label>Máximo (°C)
-                            <InputNumber @bind-Value="solicitud.LimiteMaximo" step="0.1" />
+                        <label>Máximo (@Unidad)
+                            <EntradaTemperatura @bind-Valor="solicitud.LimiteMaximo" Fahrenheit="enFahrenheit" />
                             <ValidationMessage For="() => solicitud.LimiteMaximo" />
                         </label>
                     </div>
@@ -131,12 +132,12 @@
                             }
                         </p>
                     </div>
-                    <span class="pastilla @(vacuna.Activo ? "activo" : "inactivo-pastilla")">@(vacuna.Activo ? "Activa" : "Retirada")</span>
+                    <span class="insignia @(vacuna.Activo ? "insignia-ok" : "insignia-neutra")"><Icono Nombre="@(vacuna.Activo ? "ok" : "apagar")" Tamano="14" /> @(vacuna.Activo ? "Activa" : "Retirada")</span>
                     <div class="vacuna-acciones">
                         <button class="boton boton-chico" @onclick="() => EditarVacuna(vacuna)">
                             <Icono Nombre="editar" Tamano="16" /> Editar
                         </button>
-                        <button class="boton boton-chico" @onclick="() => CambiarEstadoAsync(vacuna)">
+                        <button class="boton boton-chico @(vacuna.Activo ? "boton-peligro" : "")" @onclick="() => CambiarEstadoAsync(vacuna)">
                             <Icono Nombre="apagar" Tamano="16" /> @(vacuna.Activo ? "Retirar" : "Reactivar")
                         </button>
                     </div>
@@ -144,11 +145,20 @@
             }
         </section>
     }
+
+    <DialogoConfirmacion @ref="dialogo" />
 </main>
 
 @code {
+    // Confirmación para retirar una vacuna del catálogo.
+    private DialogoConfirmacion? dialogo;
+
     private List<VacunaDto>? vacunas;
     private string? errorAccion;
+
+    // Unidad en que se escriben los rangos del formulario (siempre se guardan en °C).
+    private bool enFahrenheit;
+    private string Unidad => enFahrenheit ? "°F" : "°C";
 
     private bool formularioVisible;
     private VacunaDto? enEdicion;
@@ -227,7 +237,7 @@
     private async Task CambiarEstadoAsync(VacunaDto vacuna)
     {
         if (vacuna.Activo &&
-            !await JS.InvokeAsync<bool>("confirm", $"¿Retirar \"{vacuna.Nombre}\" del catálogo?\n\nNo se borra: podrá reactivarla."))
+            !await dialogo!.PreguntarAsync($"¿Retirar \"{vacuna.Nombre}\" del catálogo?", "No se borra: podrá reactivarla cuando quiera.", "Retirar vacuna"))
         {
             return;
         }

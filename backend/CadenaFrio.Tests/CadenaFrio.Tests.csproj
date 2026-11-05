@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CadenaFrio.Domain\CadenaFrio.Domain.csproj" />
     <ProjectReference Include="..\CadenaFrio.Infrastructure\CadenaFrio.Infrastructure.csproj" />
+    <ProjectReference Include="..\CadenaFrio.Shared\CadenaFrio.Shared.csproj" />
   </ItemGroup>
 
 </Project>

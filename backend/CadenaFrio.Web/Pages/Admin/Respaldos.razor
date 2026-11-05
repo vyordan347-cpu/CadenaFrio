@@ -1,0 +1,145 @@
+@page "/admin/respaldos"
+@using System.Net.Http.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using CadenaFrio.Web.Utilidades
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = Politicas.EsAdministrador)]
+@inject HttpClient Http
+
+<PageTitle>Respaldos · Administración · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+
+    <header class="encabezado">
+        <span class="encabezado-icono"><Icono Nombre="descargar" Tamano="26" /></span>
+        <div class="encabezado-texto">
+            <h1>Respaldos</h1>
+            <p class="subtitulo">Copias de la base de datos. Se hace una automática cada día y se conservan las últimas 7 de cada tipo.</p>
+        </div>
+        <button class="boton boton-primario" disabled="@creando" @onclick="CrearAsync">
+            <Icono Nombre="agregar" Tamano="18" /> @(creando ? "Respaldando…" : "Respaldar ahora")
+        </button>
+    </header>
+
+    @* Los respaldos protegen contra errores en la base, pero no contra la pérdida de la PC. *@
+    <p class="aviso aviso-info aviso-con-icono">
+        <Icono Nombre="info" Tamano="18" />
+        Los respaldos están en el mismo disco que la base. Descargue uno de vez en cuando y guárdelo fuera de esta PC (USB o nube).
+    </p>
+
+    @if (mensaje is not null)
+    {
+        <p class="aviso aviso-ok">@mensaje</p>
+    }
+    @if (error is not null)
+    {
+        <p class="aviso aviso-error">@error</p>
+    }
+
+    @if (respaldos is null)
+    {
+        if (error is null)
+        {
+            <p class="nota">Cargando…</p>
+        }
+    }
+    else if (respaldos.Count == 0)
+    {
+        <p class="nota">Todavía no hay respaldos. El automático se crea cada día; también puede usar "Respaldar ahora".</p>
+    }
+    else
+    {
+        <section class="tarjeta">
+            <div class="tabla-contenedor">
+                <table class="tabla">
+                    <thead>
+                        <tr>
+                            <th>Fecha y hora</th>
+                            <th>Tipo</th>
+                            <th>Tamaño</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in respaldos)
+                        {
+                            <tr>
+                                <td class="cifras">@FormatoFecha.HoraPeru(r.Fecha)</td>
+                                <td>
+                                    <span class="insignia @(r.Automatico ? "insignia-ok" : "insignia-info")"><Icono Nombre="@(r.Automatico ? "reloj" : "usuario")" Tamano="14" />
+                                        @(r.Automatico ? "Automático" : "Manual")
+                                    </span>
+                                </td>
+                                <td class="cifras">@Tamano(r.Bytes)</td>
+                                <td class="accion">
+                                    @* La descarga queda registrada en la bitácora. *@
+                                    <a class="boton boton-chico" href="api/admin/respaldos/@r.Nombre" download="@r.Nombre">
+                                        <Icono Nombre="descargar" Tamano="16" /> Descargar
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+
+    <p class="nota pie">Para restaurar un respaldo, siga la guía <code>docs/restaurar-respaldo.md</code> (se hace con el servidor detenido).</p>
+</main>
+
+@code {
+    private List<RespaldoDto>? respaldos;
+    private bool creando;
+    private string? mensaje;
+    private string? error;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            respaldos = await Http.GetFromJsonAsync<List<RespaldoDto>>("api/admin/respaldos") ?? new();
+        }
+        catch (Exception)
+        {
+            error = "No se pudieron cargar los respaldos. Revise que el servidor esté encendido.";
+        }
+    }
+
+    private async Task CrearAsync()
+    {
+        creando = true;
+        mensaje = null;
+        error = null;
+
+        try
+        {
+            var respuesta = await Http.PostAsync("api/admin/respaldos", null);
+            if (respuesta.IsSuccessStatusCode)
+            {
+                var nuevo = await respuesta.Content.ReadFromJsonAsync<RespaldoDto>();
+                mensaje = $"Respaldo creado: {nuevo?.Nombre}.";
+                await CargarAsync();
+            }
+            else
+            {
+                error = "No se pudo crear el respaldo. Revise el espacio en disco e intente nuevamente.";
+            }
+        }
+        catch (Exception)
+        {
+            error = "No se pudo conectar con el servidor.";
+        }
+        finally
+        {
+            creando = false;
+        }
+    }
+
+    // "104 KB" o "2.3 MB".
+    private static string Tamano(long bytes) =>
+        bytes < 1024 * 1024 ? $"{bytes / 1024.0:0} KB" : $"{bytes / (1024.0 * 1024):0.0} MB";
+}

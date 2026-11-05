@@ -15,19 +15,26 @@
 <main class="pagina">
     @if (Aviso == "contrasena")
     {
-        <p class="aviso aviso-ok aviso-superior">
+        <p class="aviso aviso-ok aviso-con-icono aviso-superior">
             <Icono Nombre="check" Tamano="18" /> Su contraseña se cambió correctamente.
         </p>
     }
 
     <header class="encabezado">
-        <div>
-            <h1>Panel de equipos</h1>
-            <p class="subtitulo">Se actualiza cada 10 segundos. <a href="historial">Ver historial</a></p>
+        <div class="encabezado-texto">
+            <h1>Centro de monitoreo</h1>
+            <p class="subtitulo cifras">
+                @if (ultimaActualizacion is { } u)
+                {
+                    <span>Actualizado a las @FormatoFecha.HoraPeru(u)[11..] · </span>
+                }
+                <span>Se actualiza cada 10 segundos</span>
+            </p>
         </div>
 
         <div class="herramientas">
             <button class="boton boton-chico @(sonidoActivo ? "activo" : "")" @onclick="AlternarSonidoAsync"
+                    aria-pressed="@(sonidoActivo ? "true" : "false")"
                     title="Suena una alarma cuando un equipo entra en ruptura o pierde la señal">
                 <Icono Nombre="campana" Tamano="16" /> @(sonidoActivo ? "Sonido activado" : "Activar sonido")
             </button>
@@ -35,134 +42,225 @@
                 <Icono Nombre="@(pantallaCompleta ? "minimizar" : "maximizar")" Tamano="16" /> @(pantallaCompleta ? "Salir de pantalla completa" : "Pantalla completa")
             </button>
         </div>
-
-        @* Resumen: cuántos equipos hay en cada estado. *@
-        @if (estados is { Count: > 0 })
-        {
-            <div class="resumen" aria-label="Resumen de estados">
-                @foreach (var grupo in Resumen)
-                {
-                    <span class="resumen-item estado-@grupo.Clase">
-                        <strong class="cifras">@grupo.Cantidad</strong> @grupo.Texto
-                    </span>
-                }
-            </div>
-        }
     </header>
 
-    @* Indicadores clave de los últimos 7 días (métricas de la sección 8 del documento). *@
-    @if (indicadores is { } k)
-    {
-        <section class="indicadores" aria-label="Indicadores de los últimos 7 días">
-            <div class="tarjeta indicador-clave destacado">
-                <p class="kpi-valor cifras">@(k.PorcentajeOptimo is { } po ? $"{po:0.#} %" : "—")</p>
-                <p class="kpi-texto">del tiempo en rango óptimo</p>
-            </div>
-            <div class="tarjeta indicador-clave @(k.Rupturas > 0 ? "con-rupturas" : "")">
-                <p class="kpi-valor cifras">@k.Rupturas</p>
-                <p class="kpi-texto">@(k.Rupturas == 1 ? "ruptura" : "rupturas") de temperatura</p>
-            </div>
-            <div class="tarjeta indicador-clave">
-                <p class="kpi-valor cifras">@(k.MinutosPromedioRespuesta is { } m ? FormatoFecha.Duracion(TimeSpan.FromMinutes(m)) : "—")</p>
-                <p class="kpi-texto">tiempo promedio de respuesta</p>
-            </div>
-            <div class="tarjeta indicador-clave">
-                <p class="kpi-valor cifras">@(k.PorcentajeDisponibilidad is { } pd ? $"{pd:0.#} %" : "—")</p>
-                <p class="kpi-texto">de lecturas recibidas</p>
-            </div>
-            <p class="kpi-periodo">Últimos @k.Dias días · todos los equipos activos</p>
-        </section>
-    }
-
+    @* Sin conexión: se avisa, pero se siguen mostrando los últimos datos recibidos. *@
     @if (error is not null)
     {
-        <p class="aviso aviso-error">Sin conexión con el servidor. Se reintentará en unos segundos.</p>
+        <p class="aviso aviso-error aviso-con-icono aviso-superior" role="alert">
+            <Icono Nombre="sin-senal" Tamano="18" />
+            <span>Sin conexión con el servidor. Se reintentará en unos segundos@(estados is null ? "." : "; los datos de abajo pueden no estar al día.")</span>
+        </p>
     }
-    else if (estados is null)
+
+    @* Estado actual: cuántos equipos hay en cada situación y cuántas alertas esperan revisión. *@
+    @if (estados is { Count: > 0 })
     {
-        <p class="nota">Cargando…</p>
-    }
-    else if (estados.Count == 0)
-    {
-        <section class="tarjeta vacio">
-            <Icono Nombre="refrigeradora" Tamano="32" />
-            <p>No hay equipos activos. El administrador puede registrarlos en <a href="admin/equipos">Administración</a>.</p>
-        </section>
-    }
-    else
-    {
-        @* Una tarjeta por equipo, los que tienen problemas primero. *@
-        <section class="cuadricula" aria-label="Equipos">
-            @foreach (var (equipo, vista) in Ordenados)
+        <section class="resumen" aria-label="Estado actual de los equipos">
+            @foreach (var grupo in Resumen)
             {
-                <a class="tarjeta equipo borde-@vista.Clase" href="equipos/@equipo.EquipoId">
-                    <header class="equipo-cabecera">
-                        <span class="equipo-icono">
-                            <Icono Nombre="@(equipo.TipoEquipo == TipoEquipoDto.Termo ? "termo" : "refrigeradora")" Tamano="20" />
-                        </span>
-                        <div class="equipo-texto">
-                            <p class="equipo-nombre">@equipo.NombreEquipo</p>
-                            <p class="equipo-lugar">@(string.IsNullOrWhiteSpace(equipo.Ubicacion) ? (equipo.TipoEquipo == TipoEquipoDto.Termo ? "Termo portavacunas" : "Refrigeradora") : equipo.Ubicacion)</p>
-                        </div>
-                    </header>
-
-                    <IndicadorTemperatura Compacto="true" Temperatura="equipo.Temperatura"
-                                          OptimoMinimo="equipo.OptimoMinimo" OptimoMaximo="equipo.OptimoMaximo"
-                                          LimiteMinimo="equipo.LimiteMinimo" LimiteMaximo="equipo.LimiteMaximo"
-                                          Estado="@vista.Clase" TextoEstado="@vista.Estado" />
-
-                    @* Tendencia y mini gráfico de la última hora *@
-                    @if (Tendencia(equipo.Recientes) is { } tendencia)
-                    {
-                        <div class="tendencia texto-@vista.Clase">
-                            <span class="tendencia-texto @tendencia.Clase">@tendencia.Texto</span>
-                            <MiniGrafico Valores="equipo.Recientes" />
-                        </div>
-                    }
-
-                    <p class="equipo-accion texto-@vista.Clase">@vista.Accion</p>
-                    @if (equipo.AlertaUrgente is { } urgente)
-                    {
-                        <p class="equipo-atencion @(urgente.ReconocidaPor is null ? "sin-atender" : "")">
-                            <Icono Nombre="atendiendo" Tamano="16" />
-                            @(urgente.ReconocidaPor is null ? "Nadie la está atendiendo" : $"Atendiendo: {urgente.ReconocidaPor}")
-                        </p>
-                    }
-                    <p class="equipo-momento">@vista.Momento</p>
-                    <span class="ver-detalle">Ver detalle <Icono Nombre="abajo" Tamano="16" Clase="flecha" /></span>
-                </a>
+                <div class="resumen-item estado-@grupo.Clase @(grupo.Cantidad == 0 ? "cero" : "")">
+                    <span class="resumen-icono"><Icono Nombre="@grupo.Icono" Tamano="20" /></span>
+                    <strong class="resumen-cifra cifras">@grupo.Cantidad</strong>
+                    <span class="resumen-texto">@grupo.Texto</span>
+                </div>
             }
         </section>
     }
 
-    @* Alertas por revisar de todos los equipos (RF08). Se revisan en el detalle de cada equipo. *@
-    @if (pendientes.Count > 0)
-    {
-        <section class="eventos" aria-labelledby="titulo-eventos">
+    <div class="monitoreo">
+        <section class="equipos" aria-label="Equipos">
+            @if (estados is null && error is null)
+            {
+                @* Mientras carga: el lugar de las tarjetas, sin saltos cuando llegan los datos. *@
+                @for (var i = 0; i < 2; i++)
+                {
+                    <div class="tarjeta equipo esqueleto-tarjeta" aria-hidden="true">
+                        <span class="esqueleto" style="width: 60%; height: 1.2rem"></span>
+                        <span class="esqueleto" style="height: 9rem"></span>
+                        <span class="esqueleto" style="width: 80%"></span>
+                    </div>
+                }
+                <p class="solo-lector" role="status">Cargando equipos…</p>
+            }
+            else if (estados is { Count: 0 })
+            {
+                <div class="tarjeta estado-vacio">
+                    <Icono Nombre="refrigeradora" Tamano="36" />
+                    <h2>No hay equipos activos</h2>
+                    <p>El administrador puede registrarlos en <a href="admin/equipos">Administración → Equipos</a>.</p>
+                </div>
+            }
+            else if (estados is not null)
+            {
+                @* Una tarjeta por equipo, los que tienen problemas primero. *@
+                @foreach (var (equipo, vista) in Ordenados)
+                {
+                    var antigua = EstadoEquipo.LecturaAntigua(equipo);
+                    var termico = EstadoEquipo.Termico(equipo);
+                    var comunicacion = EstadoEquipo.Comunicacion(equipo);
+                    <article class="tarjeta equipo borde-@vista.Clase @(antigua ? "antigua" : "")" aria-labelledby="equipo-@equipo.EquipoId">
+                        <header class="equipo-cabecera">
+                            <span class="equipo-icono">
+                                <Icono Nombre="@(equipo.TipoEquipo == TipoEquipoDto.Termo ? "termo" : "refrigeradora")" Tamano="20" />
+                            </span>
+                            <div class="equipo-texto">
+                                <h2 class="equipo-nombre" id="equipo-@equipo.EquipoId">@equipo.NombreEquipo</h2>
+                                <p class="equipo-lugar">@(string.IsNullOrWhiteSpace(equipo.Ubicacion) ? (equipo.TipoEquipo == TipoEquipoDto.Termo ? "Termo portavacunas" : "Refrigeradora") : equipo.Ubicacion)</p>
+                            </div>
+                            @* Con lectura antigua, la insignia va con borde discontinuo y dice de cuándo es. *@
+                            <span class="insignia insignia-@termico.Clase @(antigua ? "insignia-antigua" : "")"
+                                  title="@(antigua ? "Estado térmico de la última lectura conocida" : "Estado térmico")">
+                                <Icono Nombre="@termico.Icono" Tamano="14" /> @termico.Texto
+                                @if (EstadoEquipo.Antiguedad(equipo) is { } hace)
+                                {
+                                    <span class="insignia-cuando">· @hace</span>
+                                }
+                            </span>
+                        </header>
+
+                        <div class="equipo-cuerpo">
+                            @* Con la lectura antigua, el medidor se atenúa y no pulsa: no es una medición en vivo. *@
+                            <div class="equipo-medidor">
+                                <IndicadorTemperatura Compacto="true" Temperatura="equipo.Temperatura"
+                                                      OptimoMinimo="equipo.OptimoMinimo" OptimoMaximo="equipo.OptimoMaximo"
+                                                      LimiteMinimo="equipo.LimiteMinimo" LimiteMaximo="equipo.LimiteMaximo"
+                                                      Estado="@vista.Clase" TextoEstado="@vista.Estado" />
+                                @if (antigua && equipo.Temperatura is not null)
+                                {
+                                    <span class="sello-antiguo"><Icono Nombre="reloj" Tamano="14" /> Última conocida</span>
+                                }
+                            </div>
+
+                            <dl class="equipo-datos">
+                                @* Comunicación y última lectura juntas: responden la misma pregunta
+                                   (¿la temperatura de la aguja es de ahora?). *@
+                                <div>
+                                    <dt>Comunicación</dt>
+                                    <dd class="cifras">
+                                        <span class="insignia insignia-@comunicacion.Clase">
+                                            <Icono Nombre="@comunicacion.Icono" Tamano="14" /> @comunicacion.Texto
+                                        </span>
+                                        @if (equipo.FechaMedicion is { } f)
+                                        {
+                                            <span class="@(antigua ? "dato-antiguo" : "")" title="@FormatoFecha.HoraPeru(f)[..16]">
+                                                <span class="solo-lector">Última lectura </span>@FormatoFecha.Antiguedad(f)
+                                            </span>
+                                            @* La fecha exacta solo importa si la lectura es antigua. *@
+                                            @if (antigua)
+                                            {
+                                                <span class="dato-secundario">@FormatoFecha.HoraPeru(f)[..16]</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span>Todavía no hay lecturas</span>
+                                        }
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt>Rango permitido</dt>
+                                    <dd class="cifras">
+                                        <span>Óptimo @equipo.OptimoMinimo.ToString("0.#")–@equipo.OptimoMaximo.ToString("0.#") °C</span>
+                                        <span class="dato-secundario">Límite @equipo.LimiteMinimo.ToString("0.#")–@equipo.LimiteMaximo.ToString("0.#") °C</span>
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt>Última hora</dt>
+                                    <dd>
+                                        @if (!antigua && Tendencia(equipo.Recientes) is { } tendencia)
+                                        {
+                                            <span class="tendencia-texto @tendencia.Clase">@tendencia.Texto</span>
+                                            <MiniGrafico Valores="equipo.Recientes" />
+                                        }
+                                        else
+                                        {
+                                            <span class="dato-secundario">Sin datos recientes</span>
+                                        }
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+
+                        <p class="equipo-accion accion-@vista.Clase">@vista.Accion</p>
+
+                        @if (equipo.AlertaUrgente is { } urgente)
+                        {
+                            <p class="equipo-atencion @(urgente.ReconocidaPor is null ? "sin-atender" : "")">
+                                <Icono Nombre="atendiendo" Tamano="16" />
+                                @(urgente.ReconocidaPor is null ? "Nadie la está atendiendo" : $"Atendiendo: {urgente.ReconocidaPor}")
+                            </p>
+                        }
+
+                        @* El enlace cubre toda la tarjeta: se puede tocar en cualquier parte. *@
+                        <a class="ver-detalle" href="equipos/@equipo.EquipoId">
+                            Ver detalle<span class="solo-lector"> de @equipo.NombreEquipo</span> <Icono Nombre="abajo" Tamano="16" Clase="flecha" />
+                        </a>
+                    </article>
+                }
+            }
+        </section>
+
+        @* Alertas por revisar de todos los equipos (RF08). Se revisan en el detalle de cada equipo. *@
+        <aside class="columna-alertas" aria-labelledby="titulo-eventos">
             <header class="eventos-cabecera">
                 <span class="eventos-icono"><Icono Nombre="campana" /></span>
                 <h2 id="titulo-eventos">Alertas por revisar</h2>
-                <span class="contador">@pendientes.Count</span>
+                @if (pendientes.Count > 0)
+                {
+                    <span class="contador cifras">@pendientes.Count</span>
+                }
             </header>
 
-            @foreach (var pendiente in pendientes.OrderByDescending(p => p.Inicio))
+            @if (pendientes.Count == 0)
             {
-                <a class="tarjeta pendiente" href="equipos/@pendiente.EquipoId">
-                    <span class="pendiente-icono">
-                        <Icono Nombre="@(pendiente.Tipo == TipoAlertaDto.SinSenal ? "sin-senal" : "ruptura")" />
-                    </span>
-                    <div class="pendiente-texto">
-                        <p class="pendiente-titulo">
-                            @(pendiente.Tipo == TipoAlertaDto.SinSenal ? "Silencio prolongado" : "Ruptura")
-                            en @pendiente.NombreEquipo
-                        </p>
-                        <p class="pendiente-linea cifras">Desde @FormatoFecha.HoraPeru(pendiente.Inicio)@(pendiente.DetectadaTarde ? ", detectada al sincronizar" : "")</p>
-                    </div>
-                    <span class="pendiente-ir">Revisar</span>
+                <p class="sin-pendientes"><Icono Nombre="ok" Tamano="18" /> No hay alertas por revisar.</p>
+            }
+            else
+            {
+                @* Solo las más urgentes; la lista completa, con filtros, está en Alertas. *@
+                <ul class="lista-pendientes">
+                    @foreach (var pendiente in PendientesVisibles)
+                    {
+                        var silencio = pendiente.Tipo == TipoAlertaDto.SinSenal;
+                        <li>
+                            <a class="pendiente @(silencio ? "pendiente-sen" : "pendiente-rup")" href="equipos/@pendiente.EquipoId">
+                                <span class="pendiente-icono">
+                                    <Icono Nombre="@(silencio ? "sin-senal" : "ruptura")" Tamano="16" />
+                                </span>
+                                <span class="pendiente-texto">
+                                    <span class="pendiente-titulo">@pendiente.NombreEquipo</span>
+                                    <span class="pendiente-linea cifras">
+                                        <span class="pendiente-tipo">@(silencio ? "Silencio prolongado" : "Ruptura")</span>
+                                        · desde @FormatoFecha.HoraPeru(pendiente.Inicio)[..16]@(pendiente.DetectadaTarde ? " · detectada al sincronizar" : "")
+                                    </span>
+                                    @if (pendiente.FechaLimiteNotificacion is { } limite)
+                                    {
+                                        var restante = limite - DateTime.UtcNow;
+                                        <span class="pendiente-plazo @(restante > TimeSpan.Zero ? "plazo-vigente" : "plazo-vencido")">
+                                            <Icono Nombre="reloj" Tamano="14" />
+                                            @(restante > TimeSpan.Zero ? $"Notificar en {FormatoFecha.Duracion(restante)}" : $"Plazo vencido hace {FormatoFecha.Duracion(-restante)}")
+                                        </span>
+                                    }
+                                </span>
+                                <span class="pendiente-ir">
+                                    <span class="solo-lector">Revisar</span>
+                                    <Icono Nombre="abajo" Tamano="18" Clase="flecha" />
+                                </span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+
+                <a class="ver-todas" href="alertas">
+                    @(pendientes.Count > MaximoPendientesVisibles
+                        ? $"Ver las {pendientes.Count} en Alertas"
+                        : "Abrir el centro de alertas")
+                    <Icono Nombre="abajo" Tamano="16" Clase="flecha" />
                 </a>
             }
-        </section>
-    }
+        </aside>
+    </div>
 </main>
 
 @code {
@@ -173,7 +271,6 @@
     private static readonly TimeSpan IntervaloActualizacion = TimeSpan.FromSeconds(10);
 
     private List<TemperaturaActualDto>? estados;
-    private IndicadoresDto? indicadores;
 
     // Avisos: sonido, pantalla completa y equipos que ya estaban en estado grave.
     private IJSObjectReference? avisos;
@@ -182,6 +279,9 @@
     private HashSet<int>? equiposGraves;
     private List<AlertaPendienteDto> pendientes = new();
     private string? error;
+
+    // Hora (UTC) de la última carga correcta, para mostrar qué tan al día está el panel.
+    private DateTime? ultimaActualizacion;
     private readonly CancellationTokenSource cancelacion = new();
 
     protected override async Task OnInitializedAsync()
@@ -206,15 +306,15 @@
         }
     }
 
-    // Tres peticiones para todo el panel, sin importar cuántos equipos haya.
+    // Dos peticiones para todo el panel, sin importar cuántos equipos haya.
     private async Task CargarAsync()
     {
         try
         {
             estados = await Http.GetFromJsonAsync<List<TemperaturaActualDto>>("api/equipos/estado", cancelacion.Token);
             pendientes = await Http.GetFromJsonAsync<List<AlertaPendienteDto>>("api/alertas/pendientes", cancelacion.Token) ?? new();
-            indicadores = await Http.GetFromJsonAsync<IndicadoresDto>("api/indicadores?dias=7", cancelacion.Token);
             error = null;
+            ultimaActualizacion = DateTime.UtcNow;
             await AvisarSiHayNuevosProblemasAsync();
         }
         catch (OperationCanceledException)
@@ -233,21 +333,44 @@
             .OrderByDescending(x => x.Vista.Gravedad)
             .ThenBy(x => x.Equipo.NombreEquipo);
 
-    private record GrupoResumen(string Clase, string Texto, int Cantidad);
+    // Columna de alertas del panel: las 5 más urgentes. Primero las rupturas cuyo plazo de
+    // notificación (Anexo 13) sigue corriendo, la más próxima a vencer arriba; después el resto,
+    // de la más reciente a la más antigua. Solo cambia el orden en pantalla, no qué se revisa.
+    private const int MaximoPendientesVisibles = 5;
 
+    private IEnumerable<AlertaPendienteDto> PendientesVisibles
+    {
+        get
+        {
+            var ahora = DateTime.UtcNow;
+            return pendientes
+                .OrderBy(p => p.FechaLimiteNotificacion is { } l && l > ahora ? 0 : 1)
+                .ThenBy(p => p.FechaLimiteNotificacion is { } l && l > ahora ? l : DateTime.MaxValue)
+                .ThenByDescending(p => p.Inicio)
+                .Take(MaximoPendientesVisibles);
+        }
+    }
+
+    private record GrupoResumen(string Clase, string Icono, string Texto, int Cantidad);
+
+    // Se muestran siempre los cinco, también en cero: la fila no cambia de forma entre actualizaciones.
+    // Estado térmico y comunicación se cuentan por separado: un equipo en ruptura que además
+    // perdió la señal aparece en las dos cifras.
     private IEnumerable<GrupoResumen> Resumen
     {
         get
         {
-            var vistas = estados!.Select(EstadoEquipo.Calcular).ToList();
-            var grupos = new[]
+            var termicos = estados!.Select(EstadoEquipo.Termico).ToList();
+            var sinComunicacion = estados!.Count(e => EstadoEquipo.Comunicacion(e).Clase != "ok");
+            var normales = estados!.Count(e => EstadoEquipo.Termico(e).Clase == "ok" && EstadoEquipo.Comunicacion(e).Clase == "ok");
+            return new[]
             {
-                new GrupoResumen("rup", "en ruptura", vistas.Count(v => v.Clase == "rup")),
-                new GrupoResumen("sen", "sin datos", vistas.Count(v => v.Clase == "sen")),
-                new GrupoResumen("adv", "en advertencia", vistas.Count(v => v.Clase == "adv")),
-                new GrupoResumen("ok", vistas.Count(v => v.Clase == "ok") == 1 ? "normal" : "normales", vistas.Count(v => v.Clase == "ok"))
+                new GrupoResumen("rup", "ruptura", "en ruptura", termicos.Count(t => t.Clase == "rup")),
+                new GrupoResumen("sen", "sin-senal", "sin señal o retrasados", sinComunicacion),
+                new GrupoResumen("adv", "advertencia", "en advertencia", termicos.Count(t => t.Clase == "adv")),
+                new GrupoResumen("ok", "ok", normales == 1 ? "normal y en línea" : "normales y en línea", normales),
+                new GrupoResumen("pendientes", "campana", pendientes.Count == 1 ? "alerta por revisar" : "alertas por revisar", pendientes.Count)
             };
-            return grupos.Where(g => g.Cantidad > 0);
         }
     }
 

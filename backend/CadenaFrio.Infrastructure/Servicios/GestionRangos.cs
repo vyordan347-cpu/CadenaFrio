@@ -1,4 +1,5 @@
 using CadenaFrio.Domain.Entities;
+using CadenaFrio.Domain.Enums;
 using CadenaFrio.Domain.Valores;
 using CadenaFrio.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +13,12 @@ public record ResultadoAsignacion(bool Exito, string? Error, RangoTemperatura? R
 public class GestionRangos
 {
     private readonly CadenaFrioDbContext _db;
+    private readonly Bitacora _bitacora;
 
-    public GestionRangos(CadenaFrioDbContext db)
+    public GestionRangos(CadenaFrioDbContext db, Bitacora bitacora)
     {
         _db = db;
+        _bitacora = bitacora;
     }
 
     private static LimitesTemperatura Limites(Vacuna v) =>
@@ -60,6 +63,13 @@ public class GestionRangos
             nuevo = await RegistrarSiCambioAsync(equipoId, limites, detalle, usuario);
         }
 
+        var nombreEquipo = await _db.Equipos.Where(e => e.Id == equipoId).Select(e => e.Nombre).FirstAsync();
+        var lista = vacunas.Count == 0 ? "ninguna" : string.Join(", ", vacunas.OrderBy(v => v.Nombre).Select(v => v.Nombre));
+        var efecto = nuevo is not null ? $"Rango nuevo: {Bitacora.DescribirRango(limites!)}."
+            : limites is null ? "Sin vacunas: conserva su rango." : "El rango no cambió.";
+        _bitacora.Registrar(CategoriaAuditoria.Rangos, "Asignó vacunas a un equipo", usuario,
+            $"{nombreEquipo}: {lista}. {efecto}");
+
         await _db.SaveChangesAsync();
         return new(true, null, nuevo);
     }
@@ -96,7 +106,11 @@ public class GestionRangos
 
             var nombre = vacunas.First(v => v.Id == vacunaId).Nombre;
             var detalle = $"Recalculado por cambio en \"{nombre}\". Según: {string.Join(", ", vacunas.OrderBy(v => v.Nombre).Select(v => v.Nombre))}";
-            await RegistrarSiCambioAsync(equipo.Id, limites, detalle, usuario);
+            if (await RegistrarSiCambioAsync(equipo.Id, limites, detalle, usuario) is not null)
+            {
+                _bitacora.Registrar(CategoriaAuditoria.Rangos, "Recalculó el rango de un equipo", usuario,
+                    $"{equipo.Nombre}: por cambio en la vacuna \"{nombre}\". Rango nuevo: {Bitacora.DescribirRango(limites)}.");
+            }
         }
 
         await _db.SaveChangesAsync();

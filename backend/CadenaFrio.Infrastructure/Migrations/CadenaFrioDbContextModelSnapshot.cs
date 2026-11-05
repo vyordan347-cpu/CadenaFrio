@@ -27,6 +27,18 @@ namespace CadenaFrio.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CausaRuptura")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetalleCausa")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetalleRestablecimiento")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("DetectadaTarde")
                         .HasColumnType("INTEGER");
 
@@ -46,6 +58,10 @@ namespace CadenaFrio.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("Fin")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FormaRestablecimiento")
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("Inicio")
@@ -80,6 +96,9 @@ namespace CadenaFrio.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool?>("VacunasInmovilizadas")
                         .HasColumnType("INTEGER");
 
                     b.Property<double>("ValorExtremo")
@@ -232,6 +251,39 @@ namespace CadenaFrio.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("CK_RangoTemperatura_MinimaMenorQueMaxima", "\"TemperaturaMinima\" < \"TemperaturaMaxima\"");
                         });
+                });
+
+            modelBuilder.Entity("CadenaFrio.Domain.Entities.RegistroAuditoria", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Accion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Categoria")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Detalle")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Usuario")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Fecha");
+
+                    b.ToTable("Bitacora", (string)null);
                 });
 
             modelBuilder.Entity("CadenaFrio.Domain.Entities.Usuario", b =>

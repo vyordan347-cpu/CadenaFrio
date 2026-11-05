@@ -1,0 +1,44 @@
+.selector-unidad {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.etiqueta-unidad {
+    color: var(--texto-2);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.opciones {
+    display: inline-flex;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    border-radius: 999px;
+    background: var(--superficie-2);
+}
+
+.opciones button {
+    min-width: 3rem;
+    padding: 0.35rem 0.8rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--texto-2);
+    font-weight: 700;
+}
+
+.opciones button.activo {
+    background: var(--barra-activo);
+    color: #ffffff;
+}
+
+.nota-unidad {
+    margin-top: 0.5rem;
+    padding: 0.55rem 0.8rem;
+    border-radius: var(--radio);
+    background: var(--info-fondo);
+    color: var(--info-texto);
+    font-size: 0.875rem;
+}

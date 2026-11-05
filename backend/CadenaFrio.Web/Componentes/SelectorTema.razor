@@ -1,0 +1,61 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@* Tema de la interfaz: Sistema (sigue al sistema operativo), Claro u Oscuro.
+   Se guarda en este navegador (tema.js) y se aplica antes de dibujar (index.html). *@
+
+<div class="selector-tema" role="radiogroup" aria-label="Tema de la interfaz">
+    @foreach (var (valor, texto, icono) in Opciones)
+    {
+        <button type="button" role="radio" aria-checked="@(tema == valor ? "true" : "false")"
+                class="@(tema == valor ? "activo" : "")" @onclick="() => ElegirAsync(valor)">
+            <Icono Nombre="@icono" Tamano="16" />
+            <span>@texto</span>
+        </button>
+    }
+</div>
+
+@code {
+    private static readonly (string Valor, string Texto, string Icono)[] Opciones =
+    {
+        ("sistema", "Sistema", "pantalla"),
+        ("claro", "Claro", "sol"),
+        ("oscuro", "Oscuro", "luna")
+    };
+
+    private string tema = "sistema";
+    private IJSObjectReference? modulo;
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        if (primeraVez)
+        {
+            modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js?v=1");
+            tema = await modulo.InvokeAsync<string>("obtener");
+            StateHasChanged();
+        }
+    }
+
+    private async Task ElegirAsync(string valor)
+    {
+        tema = valor;
+        if (modulo is not null)
+        {
+            await modulo.InvokeVoidAsync("aplicar", valor);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (modulo is not null)
+        {
+            try
+            {
+                await modulo.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

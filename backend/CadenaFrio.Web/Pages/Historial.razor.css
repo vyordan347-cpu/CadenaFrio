@@ -1,249 +1,359 @@
+/* Historial de un equipo: filtros, estadísticas, gráfico y alertas del periodo. */
+
 .pagina {
-    max-width: 1120px;
+    max-width: var(--ancho-contenido);
     margin: 0 auto;
-    padding: 1.75rem 1rem 3rem;
+    padding: var(--e-5) var(--e-5) var(--e-7);
 }
 
 .encabezado {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+    gap: var(--e-4);
+    margin-bottom: var(--e-4);
 }
 
 .encabezado-icono {
     display: grid;
     place-items: center;
-    width: 3.25rem;
-    height: 3.25rem;
-    border-radius: 50%;
-    background: var(--barra-activo);
-    color: #ffffff;
     flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--radio);
+    background: var(--primario);
+    color: var(--sobre-primario);
 }
 
-.subtitulo,
-.nota {
+.encabezado-texto {
+    flex: 1;
+    min-width: 14rem;
+}
+
+.subtitulo {
+    margin-top: 0.15rem;
     color: var(--texto-2);
 }
 
-/* Filtros */
+/* Verde de Excel, para que se reconozca el botón (también en Reportes). */
+.boton-excel {
+    border-color: #1D6F42;
+    background: #1D6F42;
+    color: #FFFFFF;
+}
+
+.boton-excel:hover {
+    border-color: #185C37;
+    background: #185C37;
+    color: #FFFFFF;
+}
+
+/* ===== Filtros ===== */
+
 .filtros {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 1rem 1.5rem;
-    margin-bottom: 1rem;
-    padding: 1rem 1.25rem;
+    gap: var(--e-4) var(--e-5);
+    margin-bottom: var(--e-4);
+    padding: var(--e-4) var(--e-5);
 }
 
-.filtros > label {
-    min-width: 240px;
+.filtro-equipo {
+    min-width: 15rem;
+}
+
+.filtro-periodo {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.filtro-etiqueta {
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
 }
 
 .periodos {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
+    gap: 0.25rem;
     padding: 0.25rem;
-    border-radius: 999px;
+    border-radius: var(--radio);
     background: var(--superficie-2);
 }
 
 .periodo {
-    padding: 0.45rem 0.9rem;
+    min-height: 2rem;
+    padding: 0.3rem 0.85rem;
     border: none;
-    border-radius: 999px;
+    border-radius: var(--radio-s);
     background: transparent;
     color: var(--texto-2);
+    font-size: var(--t-s);
     font-weight: 700;
 }
 
+.periodo:hover {
+    color: var(--texto);
+}
+
 .periodo.activo {
-    background: var(--barra-activo);
-    color: #ffffff;
+    background: var(--superficie);
+    color: var(--acento);
+    box-shadow: var(--sombra);
 }
 
 .personalizado {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 0.75rem;
+    gap: var(--e-3);
 }
 
-.boton {
-    border-radius: 999px;
+/* ===== Cargando ===== */
+
+.esqueletos {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--e-3);
 }
 
-.boton-chico {
-    padding: 0.4rem 0.85rem;
-    font-size: 0.875rem;
-    text-decoration: none;
+.esqueleto-cifra {
+    height: 6rem;
 }
 
-/* Estadísticas */
+.esqueleto-grafico {
+    grid-column: 1 / -1;
+    height: 20rem;
+}
+
+/* ===== Resumen y estadísticas ===== */
+
+.resumen-periodo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: var(--e-4);
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+.resumen-periodo strong {
+    color: var(--texto);
+}
+
+.dato-secundario {
+    color: var(--texto-3);
+}
+
 .estadisticas {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--e-3);
+    margin-bottom: var(--e-4);
 }
 
 .estadistica {
-    padding: 1rem 1.2rem;
+    padding: var(--e-4);
+}
+
+.estadistica-etiqueta {
+    color: var(--texto-3);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 .estadistica-valor {
-    font-size: 1.6rem;
+    margin-top: 0.2rem;
+    color: var(--texto);
+    font-size: var(--t-2xl);
     font-weight: 700;
-    color: var(--acento);
+    line-height: 1.15;
 }
 
 .estadistica-texto {
     color: var(--texto-2);
-    font-size: 0.9rem;
+    font-size: var(--t-s);
 }
 
+/* Cumplimiento térmico: el indicador principal, con borde de acento. */
 .estadistica.destacada {
-    background: var(--barra-fondo);
-    border-color: var(--barra-fondo);
+    border-top: 4px solid var(--acento-relleno);
 }
 
 .estadistica.destacada .estadistica-valor {
-    color: #8fe3b8;
-    font-size: 2rem;
+    color: var(--acento);
 }
 
-.estadistica.destacada .estadistica-texto {
-    color: #c5dbec;
+.estadistica.alerta {
+    border-top: 4px solid var(--rup);
 }
 
 .estadistica.alerta .estadistica-valor {
-    color: var(--rup);
+    color: var(--rup-texto);
 }
 
-/* Secciones */
+/* ===== Secciones ===== */
+
 .seccion {
-    margin-bottom: 1rem;
-    padding: 1.25rem 1.5rem;
+    margin-bottom: var(--e-4);
+    padding: var(--e-4) var(--e-5);
 }
 
 .seccion-cabecera {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+    gap: var(--e-2);
+    margin-bottom: var(--e-3);
 }
 
 h2 {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--e-2);
+    font-size: var(--t-l);
 }
 
-.leyenda {
-    margin-top: 0.6rem;
-    font-size: 0.85rem;
-}
 
-.muestra {
-    display: inline-block;
-    width: 0.8rem;
-    height: 0.8rem;
-    margin: 0 0.25rem 0 0.6rem;
-    border-radius: 3px;
-    vertical-align: middle;
-}
 
-.muestra-ok { background: var(--zona-optima); }
-.muestra-adv { background: var(--zona-adv); }
-.muestra-rup { background: var(--zona-rup); }
+/* ===== Tabla de alertas ===== */
 
 .sin-alertas {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--e-2);
+    padding: var(--e-3);
+    border-radius: var(--radio);
+    background: var(--ok-fondo);
     color: var(--ok-texto);
 }
 
-/* Tabla de alertas */
-.tabla-contenedor {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.925rem;
-}
-
-th,
-td {
-    padding: 0.7rem 0.6rem;
-    text-align: left;
-    vertical-align: top;
-    border-bottom: 1px solid var(--borde);
-}
-
-th {
-    color: var(--texto-2);
-    font-size: 0.85rem;
-}
-
-td.cifras {
+.tabla-alertas td.cifras {
     white-space: nowrap;
 }
-
-.etiqueta {
-    display: inline-block;
-    padding: 0.15rem 0.6rem;
-    border-radius: 999px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    white-space: nowrap;
-}
-
-.etiqueta-rup { background: var(--rup-fondo); color: var(--rup-texto); }
-.etiqueta-adv { background: var(--adv-fondo); color: var(--adv-texto); }
-.etiqueta-sen { background: var(--sen-fondo); color: var(--sen-texto); }
 
 .tarde {
     display: block;
-    margin-top: 0.2rem;
+    margin-top: 0.25rem;
     color: var(--adv-texto);
-    font-size: 0.8rem;
+    font-size: var(--t-xs);
+    font-weight: 700;
 }
 
 .revision {
-    min-width: 220px;
+    min-width: 14rem;
 }
 
-.revision strong {
-    display: block;
+.revision strong,
+.revision .causa {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
 }
 
 .revision span {
+    display: block;
     color: var(--texto-2);
 }
 
 .revision .pendiente {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
     color: var(--rup-texto);
     font-weight: 700;
 }
 
 .no-aplica {
-    color: var(--texto-3);
+    color: var(--texto-3) !important;
 }
 
-/* Verde de Excel, para que se reconozca el botón de exportar. */
-.boton-excel {
-    border-color: #1d6f42;
-    background: #1d6f42;
-    color: #ffffff;
+.boton-anexo {
+    margin-top: var(--e-2);
 }
 
-.boton-excel:hover {
-    background: #185c37;
+/* ===== Pantallas medianas y celular ===== */
+
+@media (max-width: 1000px) {
+    .estadisticas,
+    .esqueletos {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .pagina {
+        padding: var(--e-4) var(--e-3) var(--e-6);
+    }
+
+    .filtros {
+        padding: var(--e-4);
+    }
+
+    .filtro-equipo,
+    .filtro-periodo {
+        width: 100%;
+    }
+
+    .seccion {
+        padding: var(--e-3);
+    }
+
+    /* Cada alerta como tarjeta con sus datos rotulados. */
+    .tabla-alertas thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+
+    .tabla-alertas,
+    .tabla-alertas tbody,
+    .tabla-alertas tr,
+    .tabla-alertas td {
+        display: block;
+    }
+
+    .tabla-alertas tr {
+        padding: var(--e-3) 0;
+        border-bottom: 1px solid var(--borde);
+    }
+
+    .tabla-alertas td {
+        display: grid;
+        grid-template-columns: 6rem minmax(0, 1fr);
+        gap: var(--e-2);
+        padding: 0.3rem 0;
+        border-bottom: none;
+    }
+
+    .tabla-alertas td::before {
+        content: attr(data-titulo);
+        color: var(--texto-3);
+        font-size: var(--t-xs);
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .tabla-alertas td > * {
+        grid-column: 2;
+    }
+
+    .revision {
+        min-width: 0;
+    }
+}
+
+/* Estado vacío: botones para ir a las fechas con datos. */
+.acciones-vacio {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--e-2);
 }

@@ -57,6 +57,15 @@ public class Alerta
     public DateTime? FechaAtencion { get; set; }
     public string? ObservacionAtencion { get; set; }
 
+    // Notificación de ruptura (Anexo N° 13 de la NTS 242). Solo para rupturas de temperatura;
+    // los códigos salen de CatalogoAnexo13. Las revisiones anteriores a este formato
+    // quedan con estos campos vacíos y solo con su observación.
+    public string? CausaRuptura { get; set; }
+    public string? DetalleCausa { get; set; }
+    public string? FormaRestablecimiento { get; set; }
+    public string? DetalleRestablecimiento { get; set; }
+    public bool? VacunasInmovilizadas { get; set; }
+
     // "Lo estoy atendiendo": alguien confirmó que reacciona mientras la alerta sigue activa.
     // Detiene el escalamiento. (La revisión de arriba es posterior: qué se hizo.)
     public string? ReconocidaPor { get; set; }

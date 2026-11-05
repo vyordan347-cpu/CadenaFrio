@@ -1,0 +1,27 @@
+.conversion {
+    display: block;
+    margin-top: 0.3rem;
+    color: var(--texto-2);
+    font-size: 0.85rem;
+    font-weight: 400;
+}
+
+.sugerencia {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.35rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radio);
+    background: var(--adv-fondo);
+    color: var(--adv-texto);
+    font-size: 0.85rem;
+    font-weight: 400;
+}
+
+.sugerencia .boton {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+}

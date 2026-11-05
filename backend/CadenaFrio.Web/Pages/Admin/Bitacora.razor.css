@@ -1,0 +1,52 @@
+/* Administración → Bitácora. Estructura de página y tabla (.tabla) en sistema.css. */
+
+/* Filtros */
+.filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--e-4);
+    margin-bottom: var(--e-4);
+    padding: var(--e-4) var(--e-5);
+}
+
+.filtros > label {
+    flex: 1;
+    min-width: 10rem;
+}
+
+.tarjeta {
+    padding: var(--e-2) var(--e-4);
+}
+
+.filtros.tarjeta {
+    padding: var(--e-4) var(--e-5);
+}
+
+td.cifras {
+    white-space: nowrap;
+}
+
+.detalle {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--texto-2);
+}
+
+/* Páginas */
+.paginas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e-3);
+    padding: var(--e-3) 0;
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+@media (max-width: 640px) {
+    .filtros.tarjeta {
+        padding: var(--e-4);
+    }
+}

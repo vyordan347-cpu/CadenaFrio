@@ -1,5 +1,6 @@
 @page "/equipos/{EquipoId:int}"
 @using System.Net.Http.Json
+@using System.Text.Json
 @using CadenaFrio.Shared.Contracts
 @using CadenaFrio.Web.Componentes
 @using CadenaFrio.Web.Utilidades
@@ -12,51 +13,92 @@
 <PageTitle>@(datos?.NombreEquipo ?? "Equipo") · Cadena de Frío</PageTitle>
 
 <main class="pagina">
-    <nav class="migas">
-        <a href=""><Icono Nombre="arriba" Tamano="16" Clase="volver-icono" /> Volver al panel</a>
-        <span class="migas-derecha">
-            <a href="historial?equipo=@EquipoId"><Icono Nombre="grafico" Tamano="16" /> Ver historial</a>
-            <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos">
-                <a href="configuracion?equipo=@EquipoId"><Icono Nombre="configuracion" Tamano="16" /> Configurar este equipo</a>
-            </AuthorizeView>
-        </span>
-    </nav>
+    <a class="volver" href=""><Icono Nombre="arriba" Tamano="16" Clase="volver-icono" /> Volver al centro de monitoreo</a>
 
+    @* Sin conexión: se avisa, pero se siguen mostrando los últimos datos recibidos. *@
     @if (error is not null)
     {
-        <section class="tarjeta panel">
-            <div class="accion-caja estado-rup">
-                <Icono Nombre="sin-senal" />
-                <span>Sin conexión con el servidor. Se reintentará en unos segundos.</span>
-            </div>
-        </section>
+        <p class="aviso aviso-error aviso-con-icono aviso-superior" role="alert">
+            <Icono Nombre="sin-senal" Tamano="18" />
+            <span>Sin conexión con el servidor. Se reintentará en unos segundos@(datos is null ? "." : "; los datos pueden no estar al día.")</span>
+        </p>
     }
-    else if (datos is null)
+
+    @if (datos is null)
     {
-        <p class="cargando">Cargando…</p>
+        @if (error is null)
+        {
+            <div class="tarjeta panel esqueleto-panel" aria-hidden="true">
+                <span class="esqueleto" style="width: 40%; height: 1.6rem"></span>
+                <span class="esqueleto" style="height: 16rem"></span>
+            </div>
+            <p class="solo-lector" role="status">Cargando el equipo…</p>
+        }
     }
     else
     {
+        <header class="encabezado">
+            <span class="equipo-icono"><Icono Nombre="@(datos.TipoEquipo == TipoEquipoDto.Termo ? "termo" : "refrigeradora")" Tamano="26" /></span>
+            <div class="encabezado-texto">
+                <h1>@datos.NombreEquipo</h1>
+                <p class="subtitulo">
+                    @(datos.TipoEquipo == TipoEquipoDto.Termo ? "Termo portavacunas" : "Refrigeradora")@(string.IsNullOrWhiteSpace(datos.Ubicacion) ? "" : $" · {datos.Ubicacion}")
+                </p>
+                @* Estado térmico y comunicación, por separado y siempre con texto. *@
+                <div class="insignias">
+                    <span class="insignia insignia-@Termico.Clase @(Antigua ? "insignia-antigua" : "")"
+                          title="@(Antigua ? "Estado térmico de la última lectura conocida" : "Estado térmico")">
+                        <Icono Nombre="@Termico.Icono" Tamano="14" /> @Termico.Texto
+                        @if (EstadoEquipo.Antiguedad(datos!) is { } hace)
+                        {
+                            <span class="insignia-cuando">· @hace</span>
+                        }
+                    </span>
+                    <span class="insignia insignia-@Comunicacion.Clase" title="Comunicación con el dispositivo">
+                        <Icono Nombre="@Comunicacion.Icono" Tamano="14" /> @Comunicacion.Texto
+                    </span>
+                </div>
+            </div>
+            <div class="acciones-pagina">
+                <a class="boton" href="historial?equipo=@EquipoId"><Icono Nombre="grafico" Tamano="18" /> Ver historial</a>
+                <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos">
+                    <a class="boton" href="configuracion?equipo=@EquipoId"><Icono Nombre="configuracion" Tamano="18" /> Configurar rango</a>
+                </AuthorizeView>
+            </div>
+        </header>
+    }
+
+    @* Lectura a la izquierda, alertas por revisar a la derecha (en pantallas anchas). *@
+    <div class="detalle">
+    @if (datos is not null)
+    {
         var vista = Vista;
 
-        <section class="tarjeta panel" aria-live="polite">
-            <header class="cabecera">
-                <span class="equipo-icono"><Icono Nombre="@(datos.TipoEquipo == TipoEquipoDto.Termo ? "termo" : "refrigeradora")" Tamano="28" /></span>
-                <div class="equipo-texto">
-                    <h1 class="equipo">@datos.NombreEquipo</h1>
-                    <p class="momento">@vista.Momento@(string.IsNullOrWhiteSpace(datos.Ubicacion) ? "" : $" · {datos.Ubicacion}")</p>
-                </div>
-            </header>
-
+        <section class="tarjeta panel @(Antigua ? "antigua" : "")" aria-live="polite" aria-label="Lectura actual">
             <div class="lectura">
-                @* Indicador tipo instrumento: componente propio, reutilizable en el dashboard. *@
-                <IndicadorTemperatura Temperatura="datos.Temperatura"
-                                      OptimoMinimo="datos.OptimoMinimo" OptimoMaximo="datos.OptimoMaximo"
-                                      LimiteMinimo="datos.LimiteMinimo" LimiteMaximo="datos.LimiteMaximo"
-                                      Estado="@vista.Clase" TextoEstado="@vista.Estado"
-                                      Historial="historial" />
+                @* Con la lectura antigua, el medidor se atenúa y no pulsa: no es una medición en vivo. *@
+                <div class="medidor">
+                    <IndicadorTemperatura Temperatura="datos.Temperatura"
+                                          OptimoMinimo="datos.OptimoMinimo" OptimoMaximo="datos.OptimoMaximo"
+                                          LimiteMinimo="datos.LimiteMinimo" LimiteMaximo="datos.LimiteMaximo"
+                                          Estado="@vista.Clase" TextoEstado="@vista.Estado"
+                                          Historial="historial" />
+                    @if (Antigua && datos.Temperatura is not null)
+                    {
+                        <span class="sello-antiguo"><Icono Nombre="reloj" Tamano="14" /> Última temperatura conocida</span>
+                    }
+                </div>
 
                 <dl class="datos">
+                    <div class="dato">
+                        <Icono Nombre="reloj" Clase="dato-icono" />
+                        <div>
+                            <dt>Última lectura</dt>
+                            <dd class="cifras @(Antigua ? "dato-antiguo" : "")">
+                                @(datos.FechaMedicion is { } f ? $"{FormatoFecha.Antiguedad(f)} · {FormatoFecha.HoraPeru(f)[..16]}" : "Todavía no hay lecturas")
+                            </dd>
+                        </div>
+                    </div>
                     <div class="dato">
                         <Icono Nombre="temperatura" Clase="dato-icono" />
                         <div>
@@ -139,7 +181,7 @@
 
         @foreach (var pendiente in PendientesVisibles)
         {
-            <article class="tarjeta pendiente">
+            <article class="tarjeta pendiente @(pendiente.Tipo == TipoAlertaDto.SinSenal ? "pendiente-sen" : "")">
                 <div class="pendiente-fila">
                     <span class="pendiente-icono">
                         <Icono Nombre="@(pendiente.Tipo == TipoAlertaDto.SinSenal ? "sin-senal" : "ruptura")" />
@@ -154,6 +196,17 @@
                             <Icono Nombre="temperatura" Tamano="16" />
                             @ValorPendiente(pendiente)
                         </p>
+                        @if (pendiente.FechaLimiteNotificacion is { } limite)
+                        {
+                            @* Plazo para notificar la ruptura: 24 h (NTS 242, numeral 6.10.2.1). *@
+                            var restante = limite - DateTime.UtcNow;
+                            <p class="plazo @(restante > TimeSpan.Zero ? "plazo-vigente" : "plazo-vencido")">
+                                <Icono Nombre="reloj" Tamano="16" />
+                                @(restante > TimeSpan.Zero
+                                    ? $"Quedan {FormatoFecha.Duracion(restante)} para notificar (Anexo 13)."
+                                    : $"Plazo de notificación vencido hace {FormatoFecha.Duracion(-restante)}.")
+                            </p>
+                        }
                         @if (pendiente.DetectadaTarde)
                         {
                             <p class="etiqueta-tarde">Detectada al sincronizar</p>
@@ -171,12 +224,87 @@
                 {
                     <EditForm Model="revision" OnValidSubmit="() => RegistrarRevisionAsync(pendiente.Id)" class="revision">
                         <DataAnnotationsValidator />
-                        <label>
-                            ¿Qué acciones se realizaron?
-                            <InputTextArea @bind-Value="revision.Observacion" rows="3"
-                                           placeholder="Se trasladaron las vacunas al termo y se informó a la Red de Salud." />
-                            <ValidationMessage For="() => revision.Observacion" />
-                        </label>
+                        @if (pendiente.RequiereAnexo13 && catalogo is not null)
+                        {
+                            @* Notificación de ruptura con las listas del Anexo N° 13 (NTS 242). *@
+                            <p class="revision-nota">Datos para el formato de notificación de ruptura (Anexo N° 13).</p>
+                            <label>
+                                Causa de la ruptura
+                                <InputSelect @bind-Value="revision.CausaRuptura">
+                                    <option value="">Elija una causa</option>
+                                    @foreach (var (grupo, opciones) in AgruparConsecutivas(CausasPara(pendiente)))
+                                    {
+                                        if (grupo is null)
+                                        {
+                                            foreach (var opcion in opciones)
+                                            {
+                                                <option value="@opcion.Codigo">@opcion.Descripcion</option>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <optgroup label="@grupo">
+                                                @foreach (var opcion in opciones)
+                                                {
+                                                    <option value="@opcion.Codigo">@opcion.Descripcion</option>
+                                                }
+                                            </optgroup>
+                                        }
+                                    }
+                                </InputSelect>
+                            </label>
+                            @if (PideDetalle(CausasPara(pendiente), revision.CausaRuptura))
+                            {
+                                <label>
+                                    Especifique la causa
+                                    <InputText @bind-Value="revision.DetalleCausa" maxlength="200" />
+                                </label>
+                            }
+                            <label>
+                                ¿Cómo se restableció la cadena de frío?
+                                <InputSelect @bind-Value="revision.FormaRestablecimiento">
+                                    <option value="">Elija una opción</option>
+                                    @foreach (var opcion in catalogo.FormasRestablecimiento)
+                                    {
+                                        <option value="@opcion.Codigo">@opcion.Descripcion</option>
+                                    }
+                                </InputSelect>
+                            </label>
+                            @if (PideDetalle(catalogo.FormasRestablecimiento, revision.FormaRestablecimiento))
+                            {
+                                <label>
+                                    Especifique cómo
+                                    <InputText @bind-Value="revision.DetalleRestablecimiento" maxlength="200" />
+                                </label>
+                            }
+                            <fieldset class="si-no">
+                                <legend>¿Las vacunas están inmovilizadas?</legend>
+                                <label>
+                                    <input type="radio" name="inmovilizadas-@pendiente.Id"
+                                           checked="@(revision.VacunasInmovilizadas == true)"
+                                           @onchange="() => revision.VacunasInmovilizadas = true" /> Sí
+                                </label>
+                                <label>
+                                    <input type="radio" name="inmovilizadas-@pendiente.Id"
+                                           checked="@(revision.VacunasInmovilizadas == false)"
+                                           @onchange="() => revision.VacunasInmovilizadas = false" /> No
+                                </label>
+                            </fieldset>
+                            <label>
+                                Comentarios (opcional)
+                                <InputTextArea @bind-Value="revision.Observacion" rows="2" />
+                                <ValidationMessage For="() => revision.Observacion" />
+                            </label>
+                        }
+                        else
+                        {
+                            <label>
+                                ¿Qué acciones se realizaron?
+                                <InputTextArea @bind-Value="revision.Observacion" rows="3"
+                                               placeholder="Se verificó la conexión del equipo y se reinició el dispositivo." />
+                                <ValidationMessage For="() => revision.Observacion" />
+                            </label>
+                        }
                         @if (errorRevision is not null)
                         {
                             <p class="aviso aviso-error">@errorRevision</p>
@@ -201,6 +329,7 @@
             </button>
         }
     </section>
+    </div>
 
     <p class="pie">Se actualiza cada 10 segundos.</p>
 </main>
@@ -285,6 +414,11 @@
     // El estado visible se calcula en un solo lugar, compartido con el panel.
     private VistaEstado Vista => EstadoEquipo.Calcular(datos!);
 
+    // Estado térmico y comunicación por separado (las mismas reglas que el panel).
+    private Dimension Termico => EstadoEquipo.Termico(datos!);
+    private Dimension Comunicacion => EstadoEquipo.Comunicacion(datos!);
+    private bool Antigua => EstadoEquipo.LecturaAntigua(datos!);
+
     // ---------- Pendientes de revisión ----------
 
     private const int MaximoVisibles = 2;
@@ -309,12 +443,54 @@
         _ => $"Mínima: {p.ValorExtremo:0.0} °C (límite {p.LimiteMinimo:0.0} °C)."
     };
 
-    private void IniciarRevision(int alertaId)
+    // Listas del Anexo 13. Se piden una sola vez, al abrir la primera revisión.
+    private CatalogoAnexo13Dto? catalogo;
+
+    private async Task IniciarRevision(int alertaId)
     {
         alertaEnRevision = alertaId;
         revision = new AtenderAlertaRequest();
         errorRevision = null;
+
+        if (catalogo is null)
+        {
+            try
+            {
+                catalogo = await Http.GetFromJsonAsync<CatalogoAnexo13Dto>("api/alertas/catalogo-anexo13");
+            }
+            catch (Exception)
+            {
+                errorRevision = "No se pudieron cargar las listas del Anexo 13.";
+            }
+        }
     }
+
+    // El formato tiene una lista de causas para refrigeradoras y otra para termos.
+    private List<OpcionAnexo13Dto> CausasPara(AlertaPendienteDto p) =>
+        p.TipoEquipo == TipoEquipoDto.Termo ? catalogo!.CausasTermo : catalogo!.CausasRefrigerador;
+
+    // Junta las opciones seguidas que comparten encabezado (por ejemplo, las de falla de energía)
+    // sin cambiar el orden del formato.
+    private static List<(string? Grupo, List<OpcionAnexo13Dto> Opciones)> AgruparConsecutivas(List<OpcionAnexo13Dto> opciones)
+    {
+        var grupos = new List<(string? Grupo, List<OpcionAnexo13Dto> Opciones)>();
+        foreach (var opcion in opciones)
+        {
+            if (grupos.Count > 0 && grupos[^1].Grupo == opcion.Grupo)
+            {
+                grupos[^1].Opciones.Add(opcion);
+            }
+            else
+            {
+                grupos.Add((opcion.Grupo, new List<OpcionAnexo13Dto> { opcion }));
+            }
+        }
+        return grupos;
+    }
+
+    // "Otro" y "Otra causa" muestran un campo para escribir cuál fue.
+    private static bool PideDetalle(List<OpcionAnexo13Dto> opciones, string? codigo) =>
+        opciones.Any(o => o.Codigo == codigo && o.RequiereDetalle);
 
     private void CancelarRevision()
     {
@@ -338,7 +514,7 @@
             }
             else
             {
-                errorRevision = "No se pudo registrar la revisión. Intente nuevamente.";
+                errorRevision = await LeerErrorAsync(respuesta);
             }
         }
         catch (Exception)
@@ -349,6 +525,24 @@
         {
             guardandoRevision = false;
         }
+    }
+
+    // La API explica qué falta en { "mensaje": "..." }; si no, un mensaje general.
+    private static async Task<string> LeerErrorAsync(HttpResponseMessage respuesta)
+    {
+        try
+        {
+            using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+            if (documento.RootElement.TryGetProperty("mensaje", out var mensaje))
+            {
+                return mensaje.GetString() ?? "No se pudo registrar la revisión.";
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return "No se pudo registrar la revisión. Intente nuevamente.";
     }
 
     private bool reconociendo;

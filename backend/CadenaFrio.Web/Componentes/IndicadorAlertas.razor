@@ -1,0 +1,71 @@
+@using System.Net.Http.Json
+@using CadenaFrio.Shared.Contracts
+@implements IDisposable
+@inject HttpClient Http
+
+@* Campana de la cabecera con las alertas que esperan revisión (RF08).
+   Usa la misma consulta que el panel (api/alertas/pendientes); se actualiza cada 30 segundos. *@
+
+<a class="indicador-alertas @(cantidad > 0 ? "con-pendientes" : "")" href="alertas"
+   aria-label="@Etiqueta" title="@Etiqueta">
+    <Icono Nombre="campana" Tamano="20" />
+    @if (cantidad > 0)
+    {
+        <span class="cantidad cifras" aria-hidden="true">@(cantidad > 99 ? "99+" : cantidad.ToString())</span>
+    }
+</a>
+
+@code {
+    private static readonly TimeSpan Intervalo = TimeSpan.FromSeconds(30);
+
+    private int cantidad;
+    private readonly CancellationTokenSource cancelacion = new();
+
+    private string Etiqueta => cantidad switch
+    {
+        0 => "No hay alertas por revisar",
+        1 => "1 alerta por revisar",
+        _ => $"{cantidad} alertas por revisar"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        _ = ActualizarPeriodicamenteAsync();
+    }
+
+    private async Task ActualizarPeriodicamenteAsync()
+    {
+        using var temporizador = new PeriodicTimer(Intervalo);
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(cancelacion.Token))
+            {
+                await CargarAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            var pendientes = await Http.GetFromJsonAsync<List<AlertaPendienteDto>>("api/alertas/pendientes", cancelacion.Token);
+            cantidad = pendientes?.Count ?? 0;
+        }
+        catch (Exception)
+        {
+            // Sin conexión: se conserva la última cifra; el panel ya avisa del problema.
+        }
+    }
+
+    public void Dispose()
+    {
+        cancelacion.Cancel();
+        cancelacion.Dispose();
+    }
+}

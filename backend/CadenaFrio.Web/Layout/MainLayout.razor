@@ -1,93 +1,205 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @using CadenaFrio.Shared.Contracts
 @using CadenaFrio.Web.Autenticacion
 @using CadenaFrio.Web.Componentes
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
 @inject ProveedorEstadoAutenticacion Autenticacion
 @inject NavigationManager Navegacion
+@inject IJSRuntime JS
 
-@* Estructura común a todas las pantallas: barra superior con menú y contenido. *@
+@* Estructura común: barra lateral con los módulos, cabecera compacta y contenido.
+   Sin sesión (pantalla de ingreso) solo se muestra el contenido. *@
 
-<header class="barra">
-    <a class="marca" href="">
-        <Icono Nombre="copo" Tamano="30" />
-        <span class="marca-texto">
-            <span class="marca-nombre">Cadena de Frío</span>
-            <span class="marca-sub">Monitoreo de vacunas</span>
-        </span>
-    </a>
+<AuthorizeView>
+    <Authorized>
+        <div class="app @(plegada ? "plegada" : "") @(menuAbierto ? "menu-abierto" : "")" @onkeydown="Tecla">
+            @* Para teclado y lectores de pantalla: salta la navegación. *@
+            <button type="button" class="saltar" @onclick="SaltarAlContenidoAsync">Saltar al contenido</button>
 
-    @* Solo con sesión iniciada se muestran el menú y los datos de la sesión. *@
-    <AuthorizeView>
-        <Authorized>
-            <nav class="menu" aria-label="Principal">
-                @* NavLink marca con la clase "active" el enlace de la página actual. *@
-                <NavLink href="" Match="NavLinkMatch.All">
-                    <Icono Nombre="temperatura" Tamano="18" /> Panel
-                </NavLink>
-                <NavLink href="historial">
-                    <Icono Nombre="grafico" Tamano="18" /> Historial
-                </NavLink>
+            <aside class="lateral" id="lateral" aria-label="Navegación principal">
+                <a class="marca" href="" title="Cadena de Frío · Panel">
+                    <span class="marca-logo"><Icono Nombre="copo" Tamano="22" /></span>
+                    <span class="marca-texto">
+                        <span class="marca-nombre">Cadena de Frío</span>
+                        <span class="marca-sub">Monitoreo de vacunas</span>
+                    </span>
+                </a>
 
-                @* "Configuración" solo aparece para quien tiene permiso de cambiar rangos. *@
-                <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos" Context="permiso">
-                    <NavLink href="configuracion">
-                        <Icono Nombre="configuracion" Tamano="18" /> Configuración
+                <nav class="modulos">
+                    <p class="grupo">Monitoreo</p>
+                    <NavLink class="enlace" href="" Match="NavLinkMatch.All" title="Panel">
+                        <Icono Nombre="temperatura" /> <span class="texto">Panel</span>
                     </NavLink>
-                </AuthorizeView>
-
-                @* "Administración" solo para el rol Administrador (RF19). *@
-                <AuthorizeView Policy="@Politicas.EsAdministrador" Context="administrador">
-                    @* Coincide con cualquier página que empiece con "admin" (equipos, usuarios). *@
-                    <NavLink href="admin" Match="NavLinkMatch.Prefix">
-                        <Icono Nombre="admin" Tamano="18" /> Administración
+                    <NavLink class="enlace" href="alertas" title="Alertas">
+                        <Icono Nombre="campana" /> <span class="texto">Alertas</span>
                     </NavLink>
-                </AuthorizeView>
-            </nav>
+                    <NavLink class="enlace" href="historial" title="Historial">
+                        <Icono Nombre="grafico" /> <span class="texto">Historial</span>
+                    </NavLink>
+                    <NavLink class="enlace" href="reportes" title="Reportes">
+                        <Icono Nombre="lista" /> <span class="texto">Reportes</span>
+                    </NavLink>
 
-            @* Menú de la cuenta: círculo con iniciales que despliega las opciones del usuario. *@
-            <div class="cuenta">
-                <button class="avatar" @onclick="() => menuAbierto = !menuAbierto"
-                        aria-haspopup="true" aria-expanded="@(menuAbierto ? "true" : "false")"
-                        title="Mi cuenta">
-                    @Iniciales(context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value)
-                </button>
+                    @* "Configuración" solo para quien tiene permiso de cambiar rangos. *@
+                    <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos" Context="permiso">
+                        <p class="grupo">Gestión</p>
+                        <NavLink class="enlace" href="configuracion" title="Configuración de rangos">
+                            <Icono Nombre="configuracion" /> <span class="texto">Configuración</span>
+                        </NavLink>
+                    </AuthorizeView>
 
-                @if (menuAbierto)
-                {
-                    @* Capa invisible: un clic fuera del menú lo cierra. *@
-                    <div class="capa" @onclick="() => menuAbierto = false"></div>
+                    @* Administración solo para el rol Administrador (RF19). *@
+                    <AuthorizeView Policy="@Politicas.EsAdministrador" Context="administrador">
+                        <p class="grupo">Administración</p>
+                        <NavLink class="enlace" href="admin/equipos" title="Equipos">
+                            <Icono Nombre="refrigeradora" /> <span class="texto">Equipos</span>
+                        </NavLink>
+                        <NavLink class="enlace" href="admin/vacunas" title="Vacunas">
+                            <Icono Nombre="vacuna" /> <span class="texto">Vacunas</span>
+                        </NavLink>
+                        <NavLink class="enlace" href="admin/usuarios" title="Usuarios">
+                            <Icono Nombre="usuario" /> <span class="texto">Usuarios</span>
+                        </NavLink>
+                        <NavLink class="enlace" href="admin/bitacora" title="Bitácora">
+                            <Icono Nombre="lista" /> <span class="texto">Bitácora</span>
+                        </NavLink>
+                        <NavLink class="enlace" href="admin/respaldos" title="Respaldos">
+                            <Icono Nombre="descargar" /> <span class="texto">Respaldos</span>
+                        </NavLink>
+                    </AuthorizeView>
+                </nav>
 
-                    <div class="desplegable" role="menu">
-                        <div class="desplegable-cabecera">
-                            <p class="desplegable-nombre">@context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value</p>
-                            <p class="desplegable-rol">@Roles.Nombre(context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "")</p>
+                <div class="lateral-pie">
+                    <SelectorTema />
+                    <button type="button" class="plegar" @onclick="AlternarPlegadoAsync"
+                            aria-controls="lateral" aria-expanded="@(plegada ? "false" : "true")"
+                            title="@(plegada ? "Mostrar los nombres del menú" : "Mostrar solo íconos")">
+                        <Icono Nombre="@(plegada ? "expandir" : "plegar")" Tamano="18" />
+                        <span class="texto">@(plegada ? "Expandir menú" : "Plegar menú")</span>
+                    </button>
+                </div>
+            </aside>
+
+            @* Celular: fondo oscuro detrás del menú abierto; un toque lo cierra. *@
+            <button type="button" class="velo" aria-label="Cerrar el menú" tabindex="-1" @onclick="CerrarMenu"></button>
+
+            <div class="principal" inert="@menuAbierto">
+                <header class="cabecera">
+                    <button type="button" class="abrir-menu" @onclick="AbrirMenu"
+                            aria-controls="lateral" aria-expanded="@(menuAbierto ? "true" : "false")" aria-label="Abrir el menú">
+                        <Icono Nombre="menu" Tamano="22" />
+                    </button>
+
+                    @* Dónde está: módulo y página. *@
+                    <nav class="migas" aria-label="Ubicación">
+                        <ol>
+                            <li class="migas-modulo">@ubicacion.Modulo</li>
+                            @if (ubicacion.Padre is { } padre)
+                            {
+                                <li class="migas-modulo"><a href="@padre.Ruta">@padre.Texto</a></li>
+                            }
+                            <li aria-current="page">@ubicacion.Pagina</li>
+                        </ol>
+                    </nav>
+
+                    <div class="cabecera-acciones">
+                        <IndicadorAlertas />
+
+                        @* Menú de la cuenta: círculo con iniciales. *@
+                        <div class="cuenta">
+                            <button type="button" class="avatar" @onclick="() => cuentaAbierta = !cuentaAbierta"
+                                    aria-haspopup="true" aria-expanded="@(cuentaAbierta ? "true" : "false")"
+                                    aria-label="Mi cuenta" title="Mi cuenta">
+                                @Iniciales(context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value)
+                            </button>
+
+                            @if (cuentaAbierta)
+                            {
+                                @* Capa invisible: un clic fuera del menú lo cierra. *@
+                                <div class="capa" @onclick="() => cuentaAbierta = false"></div>
+
+                                <div class="desplegable" role="menu">
+                                    <div class="desplegable-cabecera">
+                                        <p class="desplegable-nombre">@context.User.FindFirst(ClaimTiposCadenaFrio.NombreCompleto)?.Value</p>
+                                        <p class="desplegable-rol">@Roles.Nombre(context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "")</p>
+                                    </div>
+                                    <a class="desplegable-opcion" href="mis-avisos" role="menuitem">
+                                        <Icono Nombre="campana" Tamano="18" /> Mis avisos (Telegram)
+                                    </a>
+                                    <a class="desplegable-opcion" href="cambiar-contrasena" role="menuitem">
+                                        <Icono Nombre="clave" Tamano="18" /> Cambiar contraseña
+                                    </a>
+                                    <button type="button" class="desplegable-opcion" @onclick="CerrarSesionAsync" role="menuitem">
+                                        <Icono Nombre="salir" Tamano="18" /> Cerrar sesión
+                                    </button>
+                                </div>
+                            }
                         </div>
-                        <a class="desplegable-opcion" href="mis-avisos" role="menuitem">
-                            <Icono Nombre="campana" Tamano="18" /> Mis avisos (Telegram)
-                        </a>
-                        <a class="desplegable-opcion" href="cambiar-contrasena" role="menuitem">
-                            <Icono Nombre="clave" Tamano="18" /> Cambiar contraseña
-                        </a>
-                        <button class="desplegable-opcion" @onclick="CerrarSesionAsync" role="menuitem">
-                            <Icono Nombre="salir" Tamano="18" /> Cerrar sesión
-                        </button>
                     </div>
-                }
-            </div>
-        </Authorized>
-    </AuthorizeView>
-</header>
+                </header>
 
-<div class="cuerpo">
-    @Body
-</div>
+                <div class="cuerpo" id="contenido" tabindex="-1">
+                    @Body
+                </div>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        @* Pantalla de ingreso: sin menú. *@
+        <div class="cuerpo-sin-sesion">
+            @Body
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
 
 @code {
     [CascadingParameter]
     private Task<AuthenticationState>? EstadoAutenticacion { get; set; }
 
+    private bool cuentaAbierta;
     private bool menuAbierto;
+    private bool plegada;
+    private bool enfocarMenu;
+    private Ubicacion ubicacion = new("Monitoreo", "Panel");
+    private IJSObjectReference? interfaz;
+
+    // Módulo y página para las migas de pan. Padre: un nivel intermedio con enlace.
+    private sealed record Ubicacion(string Modulo, string Pagina, (string Ruta, string Texto)? Padre = null);
+
+    protected override void OnInitialized()
+    {
+        ubicacion = Ubicar(Navegacion.Uri);
+        Navegacion.LocationChanged += AlCambiarDePagina;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        if (primeraVez)
+        {
+            try
+            {
+                interfaz = await JS.InvokeAsync<IJSObjectReference>("import", "./js/interfaz.js?v=1");
+                if (await interfaz.InvokeAsync<bool>("lateralPlegada"))
+                {
+                    plegada = true;
+                    StateHasChanged();
+                }
+            }
+            catch (JSException)
+            {
+                // Sin el módulo, la barra lateral simplemente empieza expandida.
+            }
+        }
+
+        // Al abrir el menú del celular, el foco pasa a su primer enlace.
+        if (enfocarMenu && interfaz is not null)
+        {
+            enfocarMenu = false;
+            await interfaz.InvokeVoidAsync("enfocar", ".lateral .enlace");
+        }
+    }
 
     // Iniciales para el círculo de la cuenta, por ejemplo "JV" para "Jordan Viza".
     private static string Iniciales(string? nombre) =>
@@ -98,7 +210,8 @@
     // se le lleva a cambiarla antes de dejarlo usar el sistema.
     protected override async Task OnParametersSetAsync()
     {
-        // Al cambiar de página, el menú de la cuenta se cierra.
+        // Al cambiar de página, los menús se cierran.
+        cuentaAbierta = false;
         menuAbierto = false;
 
         if (EstadoAutenticacion is null)
@@ -116,10 +229,81 @@
         }
     }
 
+    private void AlCambiarDePagina(object? remitente, LocationChangedEventArgs e)
+    {
+        ubicacion = Ubicar(e.Location);
+        menuAbierto = false;
+        cuentaAbierta = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private Ubicacion Ubicar(string uri)
+    {
+        var ruta = Navegacion.ToBaseRelativePath(uri).Split('?', '#')[0].TrimEnd('/');
+        return ruta switch
+        {
+            "" => new("Monitoreo", "Panel"),
+            "alertas" => new("Monitoreo", "Alertas"),
+            "historial" => new("Monitoreo", "Historial"),
+            "reportes" => new("Monitoreo", "Reportes"),
+            "configuracion" => new("Gestión", "Configuración"),
+            "admin/equipos" => new("Administración", "Equipos"),
+            "admin/vacunas" => new("Administración", "Vacunas"),
+            "admin/usuarios" => new("Administración", "Usuarios"),
+            "admin/bitacora" => new("Administración", "Bitácora"),
+            "admin/respaldos" => new("Administración", "Respaldos"),
+            "mis-avisos" => new("Mi cuenta", "Mis avisos"),
+            "cambiar-contrasena" => new("Mi cuenta", "Cambiar contraseña"),
+            _ when ruta.StartsWith("equipos/") => new("Monitoreo", "Detalle del equipo", ("", "Panel")),
+            _ => new("Cadena de Frío", "Página")
+        };
+    }
+
+    private async Task AlternarPlegadoAsync()
+    {
+        plegada = !plegada;
+        if (interfaz is not null)
+        {
+            await interfaz.InvokeVoidAsync("guardarLateralPlegada", plegada);
+        }
+    }
+
+    private void AbrirMenu()
+    {
+        menuAbierto = true;
+        enfocarMenu = true;
+    }
+
+    private void CerrarMenu() => menuAbierto = false;
+
+    private async Task SaltarAlContenidoAsync()
+    {
+        if (interfaz is not null)
+        {
+            await interfaz.InvokeVoidAsync("enfocar", "#contenido");
+        }
+    }
+
+    // Escape cierra el menú del celular y el de la cuenta.
+    private void Tecla(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            menuAbierto = false;
+            cuentaAbierta = false;
+        }
+    }
+
     private async Task CerrarSesionAsync()
     {
-        menuAbierto = false;
+        cuentaAbierta = false;
         await Autenticacion.CerrarSesionAsync();
         Navegacion.NavigateTo("login");
+    }
+
+    public void Dispose()
+    {
+        Navegacion.LocationChanged -= AlCambiarDePagina;
+        _ = interfaz?.DisposeAsync();
     }
 }

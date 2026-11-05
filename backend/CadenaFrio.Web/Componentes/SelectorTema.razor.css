@@ -1,0 +1,33 @@
+.selector-tema {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.2rem;
+    padding: 0.2rem;
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+.selector-tema button {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.4rem 0.3rem;
+    border: none;
+    border-radius: var(--radio-s);
+    background: transparent;
+    color: var(--texto-2);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    transition: background-color var(--duracion) var(--curva), color var(--duracion) var(--curva);
+}
+
+.selector-tema button:hover {
+    color: var(--texto);
+}
+
+.selector-tema button.activo {
+    background: var(--superficie);
+    color: var(--acento);
+    box-shadow: var(--sombra);
+}

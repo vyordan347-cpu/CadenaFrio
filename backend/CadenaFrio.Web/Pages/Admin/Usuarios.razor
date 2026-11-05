@@ -12,7 +12,6 @@
 <PageTitle>Usuarios · Administración · Cadena de Frío</PageTitle>
 
 <main class="pagina">
-    <PestanasAdmin />
 
     <header class="encabezado">
         <span class="encabezado-icono"><Icono Nombre="usuario" Tamano="26" /></span>
@@ -142,8 +141,8 @@
                             }
                         </p>
                     </div>
-                    <span class="pastilla @(usuario.Activo ? "activo" : "inactivo-pastilla")">
-                        @(usuario.Activo ? "Activo" : "Inactivo")
+                    <span class="insignia @(usuario.Activo ? "insignia-ok" : "insignia-neutra")">
+                        <Icono Nombre="@(usuario.Activo ? "ok" : "apagar")" Tamano="14" /> @(usuario.Activo ? "Activo" : "Inactivo")
                     </span>
 
                     @if (usuarioEditandoAvisos == usuario.Id)
@@ -190,10 +189,10 @@
                                 <button class="boton boton-chico" @onclick="() => IniciarCambioRol(usuario)">
                                     <Icono Nombre="editar" Tamano="16" /> Cambiar rol
                                 </button>
-                                <button class="boton boton-chico" @onclick="() => RestablecerAsync(usuario)">
+                                <button class="boton boton-chico boton-peligro" @onclick="() => RestablecerAsync(usuario)">
                                     <Icono Nombre="clave" Tamano="16" /> Restablecer contraseña
                                 </button>
-                                <button class="boton boton-chico" @onclick="() => CambiarEstadoAsync(usuario)">
+                                <button class="boton boton-chico @(usuario.Activo ? "boton-peligro" : "")" @onclick="() => CambiarEstadoAsync(usuario)">
                                     <Icono Nombre="apagar" Tamano="16" /> @(usuario.Activo ? "Desactivar" : "Activar")
                                 </button>
                             }
@@ -203,11 +202,16 @@
             }
         </section>
     }
+
+    <DialogoConfirmacion @ref="dialogo" />
 </main>
 
 @code {
     [CascadingParameter]
     private Task<AuthenticationState>? EstadoAutenticacion { get; set; }
+
+    // Confirmación de acciones sensibles (restablecer contraseña, desactivar).
+    private DialogoConfirmacion? dialogo;
 
     private List<UsuarioAdminDto>? usuarios;
     private string? nombreUsuarioActual;
@@ -325,8 +329,8 @@
 
     private async Task RestablecerAsync(UsuarioAdminDto usuario)
     {
-        var confirmado = await JS.InvokeAsync<bool>("confirm",
-            $"¿Restablecer la contraseña de {usuario.NombreCompleto}?\n\nSe generará una contraseña temporal y se cerrarán sus sesiones abiertas.");
+        var confirmado = await dialogo!.PreguntarAsync($"¿Restablecer la contraseña de {usuario.NombreCompleto}?",
+            "Se generará una contraseña temporal y se cerrarán sus sesiones abiertas.", "Restablecer contraseña");
         if (!confirmado)
         {
             return;
@@ -349,8 +353,8 @@
     {
         if (usuario.Activo)
         {
-            var confirmado = await JS.InvokeAsync<bool>("confirm",
-                $"¿Desactivar a {usuario.NombreCompleto}?\n\nNo podrá ingresar y sus sesiones abiertas se cerrarán de inmediato. Su nombre se conserva en el historial.");
+            var confirmado = await dialogo!.PreguntarAsync($"¿Desactivar a {usuario.NombreCompleto}?",
+                "No podrá ingresar y sus sesiones abiertas se cerrarán de inmediato. Su nombre se conserva en el historial.", "Desactivar usuario");
             if (!confirmado)
             {
                 return;

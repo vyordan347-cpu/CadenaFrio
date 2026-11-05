@@ -20,6 +20,7 @@ public class CadenaFrioDbContext : DbContext
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Vacuna> Vacunas => Set<Vacuna>();
     public DbSet<EquipoVacuna> EquipoVacunas => Set<EquipoVacuna>();
+    public DbSet<RegistroAuditoria> Bitacora => Set<RegistroAuditoria>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -90,6 +91,12 @@ public class CadenaFrioDbContext : DbContext
             alerta.Property(a => a.ObservacionAtencion).HasMaxLength(500);
             alerta.Property(a => a.ReconocidaPor).HasMaxLength(100);
 
+            // Anexo N° 13: códigos del catálogo y el texto de "Otro".
+            alerta.Property(a => a.CausaRuptura).HasMaxLength(50);
+            alerta.Property(a => a.DetalleCausa).HasMaxLength(200);
+            alerta.Property(a => a.FormaRestablecimiento).HasMaxLength(50);
+            alerta.Property(a => a.DetalleRestablecimiento).HasMaxLength(200);
+
             // El historial de alertas también se protege contra borrados.
             alerta.HasOne(a => a.Equipo)
                   .WithMany(e => e.Alertas)
@@ -105,6 +112,17 @@ public class CadenaFrioDbContext : DbContext
 
             // Para consultar el historial de alertas por fechas (Sprint 5).
             alerta.HasIndex(a => new { a.EquipoId, a.Inicio });
+        });
+
+        modelBuilder.Entity<RegistroAuditoria>(registro =>
+        {
+            registro.ToTable("Bitacora");
+            registro.Property(r => r.Usuario).IsRequired().HasMaxLength(100);
+            registro.Property(r => r.Accion).IsRequired().HasMaxLength(100);
+            registro.Property(r => r.Detalle).HasMaxLength(500);
+
+            // La consulta de la bitácora siempre ordena y filtra por fecha.
+            registro.HasIndex(r => r.Fecha);
         });
 
         modelBuilder.Entity<Usuario>(usuario =>

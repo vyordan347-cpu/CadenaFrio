@@ -1,0 +1,37 @@
+.indicador-alertas {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radio);
+    color: var(--texto-2);
+    transition: background-color var(--duracion) var(--curva), color var(--duracion) var(--curva);
+}
+
+.indicador-alertas:hover {
+    background: var(--superficie-2);
+    color: var(--texto);
+}
+
+.indicador-alertas.con-pendientes {
+    color: var(--rup-texto);
+}
+
+/* Cantidad sobre la campana: rojo sólido con texto de contraste (también en tema oscuro). */
+.cantidad {
+    position: absolute;
+    top: 0.1rem;
+    right: 0.05rem;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    padding: 0 0.3rem;
+    border: 2px solid var(--superficie);
+    border-radius: var(--radio-pildora);
+    background: var(--rup);
+    color: var(--sobre-rup);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 0.85rem;
+    text-align: center;
+}

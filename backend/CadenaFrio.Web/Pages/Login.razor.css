@@ -1,5 +1,5 @@
 .contenedor {
-    min-height: calc(100vh - 4.5rem);
+    min-height: 100vh;
     display: grid;
     place-items: center;
     padding: 1.5rem 1rem;

@@ -1,0 +1,409 @@
+@page "/alertas"
+@using System.Net.Http.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using CadenaFrio.Web.Utilidades
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@implements IDisposable
+
+@* Centro de alertas: lo que está pasando ahora y lo que falta revisar, de todos los equipos.
+   Usa las mismas consultas que el panel (api/equipos/estado y api/alertas/pendientes):
+   no hay reglas nuevas, solo otra forma de ordenar y filtrar la información. *@
+
+<PageTitle>Alertas · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+    <header class="encabezado">
+        <div class="encabezado-texto">
+            <h1>Centro de alertas</h1>
+            <p class="subtitulo cifras">
+                @if (ultimaActualizacion is { } u)
+                {
+                    <span>Actualizado a las @FormatoFecha.HoraPeru(u)[11..] · </span>
+                }
+                <span>Se actualiza cada 10 segundos</span>
+            </p>
+        </div>
+    </header>
+
+    @if (error is not null)
+    {
+        <p class="aviso aviso-error aviso-con-icono aviso-superior" role="alert">
+            <Icono Nombre="sin-senal" Tamano="18" />
+            <span>Sin conexión con el servidor. Se reintentará en unos segundos@(activas is null ? "." : "; los datos pueden no estar al día.")</span>
+        </p>
+    }
+
+    @* Filtros por tipo y por equipo. Cada tipo dice cuántas hay (activas + por revisar). *@
+    <div class="barra-filtros">
+        <div class="filtros" role="group" aria-label="Filtrar por tipo de alerta">
+            @foreach (var (clave, texto, icono) in Filtros)
+            {
+                <button type="button" class="filtro filtro-@clave @(filtro == clave ? "activo" : "")"
+                        aria-pressed="@(filtro == clave ? "true" : "false")" @onclick="() => CambiarFiltro(clave)">
+                    <Icono Nombre="@icono" Tamano="16" /> @texto
+                    <span class="filtro-cifra cifras">@Contar(clave)</span>
+                </button>
+            }
+        </div>
+
+        @if (equiposDisponibles.Count > 1)
+        {
+            <label class="filtro-equipo">
+                <span>Equipo</span>
+                <select value="@equipoId" @onchange="CambiarEquipo">
+                    <option value="">Todos los equipos</option>
+                    @foreach (var (id, nombre) in equiposDisponibles)
+                    {
+                        <option value="@id">@nombre</option>
+                    }
+                </select>
+            </label>
+        }
+    </div>
+    <p class="nota nota-conteo">
+        Cada número suma las activas y las por revisar. La campana de arriba cuenta solo las por revisar.
+    </p>
+
+    <div class="columnas">
+        @* ===== Activas ahora ===== *@
+        <section class="bloque" aria-labelledby="titulo-activas">
+            <header class="bloque-cabecera">
+                <h2 id="titulo-activas">
+                    Activas ahora
+                    @if (activas is not null)
+                    {
+                        <span class="bloque-cifra cifras">@ActivasFiltradas.Count()</span>
+                    }
+                </h2>
+                <p class="bloque-ayuda">Situaciones que siguen ocurriendo. Se cierran solas cuando el equipo se normaliza.</p>
+            </header>
+
+            @if (activas is null)
+            {
+                @if (error is null)
+                {
+                    <span class="esqueleto fila-esqueleto" aria-hidden="true"></span>
+                    <span class="esqueleto fila-esqueleto" aria-hidden="true"></span>
+                    <p class="solo-lector" role="status">Cargando alertas…</p>
+                }
+            }
+            else if (!ActivasFiltradas.Any())
+            {
+                <p class="vacio"><Icono Nombre="ok" Tamano="18" /> No hay alertas activas@(filtro == "todas" ? "" : " de este tipo").</p>
+            }
+            else
+            {
+                <ul class="lista">
+                    @foreach (var a in ActivasFiltradas)
+                    {
+                        <li class="alerta categoria-@a.Categoria">
+                            <span class="alerta-icono"><Icono Nombre="@IconoDe(a.Categoria)" Tamano="20" /></span>
+                            <div class="alerta-cuerpo">
+                                <p class="alerta-titulo">
+                                    <span class="alerta-categoria">@NombreDe(a.Categoria)</span>
+                                    <span class="alerta-detalle">@a.Detalle</span>
+                                </p>
+                                <p class="alerta-equipo"><a href="equipos/@a.EquipoId">@a.Equipo</a></p>
+                                <p class="alerta-linea cifras">
+                                    <Icono Nombre="reloj" Tamano="14" /> Desde hace @FormatoFecha.Duracion(DateTime.UtcNow - a.Desde)
+                                    <span class="dato-secundario">(@FormatoFecha.HoraPeru(a.Desde)[..16])</span>
+                                </p>
+                                @if (a.Valor is not null)
+                                {
+                                    <p class="alerta-linea cifras"><Icono Nombre="temperatura" Tamano="14" /> @a.Valor</p>
+                                }
+
+                                @* Quién la atiende: solo las urgentes (ruptura, sin señal, sensor) piden confirmación. *@
+                                @if (a.Urgente is { } urgente)
+                                {
+                                    @if (urgente.ReconocidaPor is not null)
+                                    {
+                                        <p class="atencion atendida">
+                                            <Icono Nombre="atendiendo" Tamano="16" /> Atendiendo: <strong>@urgente.ReconocidaPor</strong>
+                                        </p>
+                                    }
+                                    else
+                                    {
+                                        <div class="atencion sin-atender">
+                                            <span><Icono Nombre="advertencia" Tamano="16" /> Nadie la está atendiendo</span>
+                                            <button class="boton boton-chico boton-primario" disabled="@(reconociendo == urgente.Id)"
+                                                    @onclick="() => ReconocerAsync(urgente.Id)">
+                                                <Icono Nombre="atendiendo" Tamano="16" /> Lo estoy atendiendo
+                                            </button>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                            <a class="boton boton-chico alerta-ir" href="equipos/@a.EquipoId">Ver equipo</a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        @* ===== Por revisar (RF08) ===== *@
+        <section class="bloque" aria-labelledby="titulo-pendientes">
+            <header class="bloque-cabecera">
+                <h2 id="titulo-pendientes">
+                    Por revisar
+                    @if (activas is not null)
+                    {
+                        <span class="bloque-cifra cifras">@PendientesFiltradas.Count()</span>
+                    }
+                </h2>
+                <p class="bloque-ayuda">Rupturas y silencios largos que alguien debe revisar, aunque ya hayan terminado.</p>
+            </header>
+
+            @if (activas is not null && !PendientesFiltradas.Any())
+            {
+                <p class="vacio"><Icono Nombre="ok" Tamano="18" /> No hay alertas por revisar@(filtro == "todas" ? "" : " de este tipo").</p>
+            }
+            else if (activas is not null)
+            {
+                <ul class="lista">
+                    @foreach (var p in PendientesFiltradas.Take(pendientesVisibles))
+                    {
+                        var silencio = p.Tipo == TipoAlertaDto.SinSenal;
+                        <li class="alerta pendiente categoria-@(silencio ? "senal" : "critica")">
+                            <span class="alerta-icono"><Icono Nombre="@(silencio ? "sin-senal" : "ruptura")" Tamano="20" /></span>
+                            <div class="alerta-cuerpo">
+                                <p class="alerta-titulo">
+                                    <span class="alerta-categoria">@(silencio ? "Silencio prolongado" : "Ruptura")</span>
+                                    <span class="estado-revision">@(p.Fin is null ? "en curso" : "terminada")</span>
+                                </p>
+                                <p class="alerta-equipo"><a href="equipos/@p.EquipoId">@p.NombreEquipo</a></p>
+                                <p class="alerta-linea cifras">
+                                    <Icono Nombre="calendario" Tamano="14" /> @FormatoFecha.HoraPeru(p.Inicio)[..16]
+                                    @{
+                                        // Datos extra entre paréntesis: si la línea se parte, no empieza con "·".
+                                        var extras = new List<string>();
+                                        if (p.Fin is { } fin) extras.Add($"duró {FormatoFecha.Duracion(fin - p.Inicio)}");
+                                        if (p.DetectadaTarde) extras.Add("detectada al sincronizar");
+                                    }
+                                    @if (extras.Count > 0)
+                                    {
+                                        <span class="dato-secundario">(@string.Join(", ", extras))</span>
+                                    }
+                                </p>
+                                @if (p.FechaLimiteNotificacion is { } limite)
+                                {
+                                    var restante = limite - DateTime.UtcNow;
+                                    <p class="plazo @(restante > TimeSpan.Zero ? "plazo-vigente" : "plazo-vencido")">
+                                        <Icono Nombre="reloj" Tamano="14" />
+                                        @(restante > TimeSpan.Zero ? $"Notificar (Anexo 13) en {FormatoFecha.Duracion(restante)}" : $"Plazo del Anexo 13 vencido hace {FormatoFecha.Duracion(-restante)}")
+                                    </p>
+                                }
+                            </div>
+                            @* La revisión se registra en el detalle del equipo, donde está el formulario. *@
+                            <a class="boton boton-chico alerta-ir" href="equipos/@p.EquipoId">Revisar</a>
+                        </li>
+                    }
+                </ul>
+
+                @* La API devuelve todas; se muestran de a 10 para no alargar la página. *@
+                @if (PendientesFiltradas.Count() > pendientesVisibles)
+                {
+                    var quedan = PendientesFiltradas.Count() - pendientesVisibles;
+                    <button type="button" class="boton mostrar-mas" @onclick="() => pendientesVisibles += TamanoPagina">
+                        <Icono Nombre="abajo" Tamano="16" />
+                        Mostrar @Math.Min(TamanoPagina, quedan) más <span class="dato-secundario">(quedan @quedan)</span>
+                    </button>
+                }
+            }
+
+            <p class="nota-atendidas">
+                <Icono Nombre="info" Tamano="16" />
+                Las alertas ya revisadas, con quién las revisó y la causa, están en el <a href="historial">Historial</a> de cada equipo.
+            </p>
+        </section>
+    </div>
+</main>
+
+@code {
+    private static readonly TimeSpan IntervaloActualizacion = TimeSpan.FromSeconds(10);
+
+    // Categorías: crítica (ruptura), advertencia, pérdida de señal y fallo de sensor.
+    private static readonly (string Clave, string Texto, string Icono)[] Filtros =
+    {
+        ("todas", "Todas", "lista"),
+        ("critica", "Críticas", "ruptura"),
+        ("advertencia", "Advertencias", "advertencia"),
+        ("senal", "Pérdida de señal", "sin-senal"),
+        ("sensor", "Fallo de sensor", "temperatura")
+    };
+
+    // Una situación activa en un equipo. Un mismo equipo puede tener varias (por ejemplo,
+    // una ruptura y además sin señal).
+    private sealed record Activa(
+        string Categoria, int Orden, string Detalle, int EquipoId, string Equipo,
+        DateTime Desde, string? Valor, AlertaUrgenteDto? Urgente);
+
+    private List<Activa>? activas;
+    private List<AlertaPendienteDto> pendientes = new();
+    private string filtro = "todas";
+
+    // Filtro por equipo (nulo = todos) y equipos que se pueden elegir (los activos).
+    private int? equipoId;
+    private List<(int Id, string Nombre)> equiposDisponibles = new();
+
+    // "Por revisar" se muestra de a 10.
+    private const int TamanoPagina = 10;
+    private int pendientesVisibles = TamanoPagina;
+    private string? error;
+    private DateTime? ultimaActualizacion;
+    private int? reconociendo;
+    private readonly CancellationTokenSource cancelacion = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        _ = ActualizarPeriodicamenteAsync();
+    }
+
+    private async Task ActualizarPeriodicamenteAsync()
+    {
+        using var temporizador = new PeriodicTimer(IntervaloActualizacion);
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(cancelacion.Token))
+            {
+                await CargarAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            var estados = await Http.GetFromJsonAsync<List<TemperaturaActualDto>>("api/equipos/estado", cancelacion.Token) ?? new();
+            pendientes = await Http.GetFromJsonAsync<List<AlertaPendienteDto>>("api/alertas/pendientes", cancelacion.Token) ?? new();
+            activas = estados.SelectMany(Activas).OrderBy(a => a.Orden).ThenBy(a => a.Desde).ToList();
+            equiposDisponibles = estados.Select(e => (e.EquipoId, e.NombreEquipo)).OrderBy(e => e.NombreEquipo).ToList();
+            error = null;
+            ultimaActualizacion = DateTime.UtcNow;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    // Las situaciones activas de un equipo, con los mismos datos que muestra el panel.
+    private static IEnumerable<Activa> Activas(TemperaturaActualDto e)
+    {
+        AlertaUrgenteDto? UrgenteDe(TipoAlertaDto tipo) => e.AlertaUrgente?.Tipo == tipo ? e.AlertaUrgente : null;
+
+        if (e.AlertaActiva is { } a)
+        {
+            var critica = a.Nivel == NivelAlertaDto.Ruptura;
+            var alta = a.Tipo == TipoAlertaDto.TemperaturaAlta;
+            var limite = alta ? e.LimiteMaximo : e.LimiteMinimo;
+            yield return new Activa(
+                critica ? "critica" : "advertencia", critica ? 0 : 3,
+                alta ? "Temperatura alta" : "Temperatura baja",
+                e.EquipoId, e.NombreEquipo,
+                critica ? a.FechaRuptura ?? a.Inicio : a.Inicio,
+                $"{(alta ? "Máxima" : "Mínima")} {a.ValorExtremo:0.0} °C (límite {limite:0.0} °C)",
+                UrgenteDe(a.Tipo));
+        }
+
+        if (e.SinSenalDesde is { } sinSenal)
+        {
+            yield return new Activa("senal", 1, "Sin datos del dispositivo", e.EquipoId, e.NombreEquipo, sinSenal,
+                e.Temperatura is { } t ? $"Última temperatura conocida: {t:0.0} °C" : null,
+                UrgenteDe(TipoAlertaDto.SinSenal));
+        }
+
+        if (e.SensorSinVariacionDesde is { } fijo)
+        {
+            yield return new Activa("sensor", 2, "El sensor marca siempre el mismo valor", e.EquipoId, e.NombreEquipo, fijo,
+                e.Temperatura is { } t ? $"Valor repetido: {t:0.0} °C" : null,
+                UrgenteDe(TipoAlertaDto.SensorSinVariacion));
+        }
+    }
+
+    private IEnumerable<Activa> ActivasDelEquipo =>
+        (activas ?? new()).Where(a => equipoId is null || a.EquipoId == equipoId);
+
+    private IEnumerable<AlertaPendienteDto> PendientesDelEquipo =>
+        pendientes.Where(p => equipoId is null || p.EquipoId == equipoId);
+
+    private IEnumerable<Activa> ActivasFiltradas =>
+        ActivasDelEquipo.Where(a => filtro == "todas" || a.Categoria == filtro);
+
+    // Las pendientes son rupturas (críticas) o silencios (pérdida de señal).
+    private IEnumerable<AlertaPendienteDto> PendientesFiltradas =>
+        PendientesDelEquipo
+            .Where(p => filtro == "todas" || CategoriaDe(p) == filtro)
+            .OrderBy(p => p.FechaLimiteNotificacion ?? DateTime.MaxValue)
+            .ThenByDescending(p => p.Inicio);
+
+    private static string CategoriaDe(AlertaPendienteDto p) => p.Tipo == TipoAlertaDto.SinSenal ? "senal" : "critica";
+
+    // Los números de los filtros respetan el equipo elegido.
+    private int Contar(string clave) =>
+        clave == "todas"
+            ? ActivasDelEquipo.Count() + PendientesDelEquipo.Count()
+            : ActivasDelEquipo.Count(a => a.Categoria == clave) + PendientesDelEquipo.Count(p => CategoriaDe(p) == clave);
+
+    // Al cambiar un filtro, la lista vuelve a empezar desde las primeras 10.
+    private void CambiarFiltro(string clave)
+    {
+        filtro = clave;
+        pendientesVisibles = TamanoPagina;
+    }
+
+    private void CambiarEquipo(ChangeEventArgs e)
+    {
+        equipoId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        pendientesVisibles = TamanoPagina;
+    }
+
+    private static string NombreDe(string categoria) => categoria switch
+    {
+        "critica" => "Crítica",
+        "advertencia" => "Advertencia",
+        "senal" => "Pérdida de señal",
+        _ => "Fallo de sensor"
+    };
+
+    private static string IconoDe(string categoria) => categoria switch
+    {
+        "critica" => "ruptura",
+        "advertencia" => "advertencia",
+        "senal" => "sin-senal",
+        _ => "temperatura"
+    };
+
+    // "Lo estoy atendiendo": el mismo endpoint que el detalle del equipo y el botón de Telegram.
+    private async Task ReconocerAsync(int alertaId)
+    {
+        reconociendo = alertaId;
+        try
+        {
+            await Http.PostAsync($"api/alertas/{alertaId}/reconocer", null);
+            await CargarAsync();
+        }
+        finally
+        {
+            reconociendo = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        cancelacion.Cancel();
+        cancelacion.Dispose();
+    }
+}

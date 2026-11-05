@@ -1,0 +1,23 @@
+@* Elige en qué unidad se escriben los rangos. El valor siempre se guarda en °C. *@
+
+<div class="selector-unidad">
+    <span class="etiqueta-unidad">Escribir en</span>
+    <div class="opciones" role="group" aria-label="Unidad de temperatura">
+        <button type="button" class="@(Fahrenheit ? "" : "activo")" aria-pressed="@(!Fahrenheit)" @onclick="() => CambiarAsync(false)">°C</button>
+        <button type="button" class="@(Fahrenheit ? "activo" : "")" aria-pressed="@Fahrenheit" @onclick="() => CambiarAsync(true)">°F</button>
+    </div>
+</div>
+@if (Fahrenheit)
+{
+    <p class="nota-unidad">Escriba los valores en °F tal como vienen en el inserto. Se guardan en °C, como pide la NTS 242: revise la conversión debajo de cada campo.</p>
+}
+
+@code {
+    [Parameter]
+    public bool Fahrenheit { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> FahrenheitChanged { get; set; }
+
+    private Task CambiarAsync(bool fahrenheit) => FahrenheitChanged.InvokeAsync(fahrenheit);
+}

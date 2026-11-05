@@ -1,0 +1,74 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@* Confirmación de acciones sensibles (regenerar una clave, desactivar, restablecer una contraseña).
+   Reemplaza al confirm() del navegador: explica las consecuencias y usa el diseño del sistema.
+   Es un <dialog> nativo abierto como modal: bloquea la página, mantiene el foco dentro y se
+   cierra con Escape (equivale a "Cancelar").
+   Uso: <DialogoConfirmacion @ref="dialogo" />  y luego  await dialogo.PreguntarAsync(...) *@
+
+<dialog class="dialogo dialogo-confirmacion" @ref="elemento" aria-labelledby="@($"dialogo-titulo-{id}")"
+        aria-describedby="@($"dialogo-mensaje-{id}")">
+    <form method="dialog">
+        <div class="dialogo-cuerpo">
+            <span class="dialogo-icono"><Icono Nombre="advertencia" Tamano="22" /></span>
+            <div>
+                <h2 id="dialogo-titulo-@id">@titulo</h2>
+                <p id="dialogo-mensaje-@id">@mensaje</p>
+            </div>
+        </div>
+        <div class="dialogo-acciones">
+            @* Cancelar va primero y recibe el foco: lo seguro es lo más fácil de elegir. *@
+            <button type="submit" value="no" class="boton" autofocus>Cancelar</button>
+            <button type="submit" value="si" class="boton boton-peligro-solido">@textoConfirmar</button>
+        </div>
+    </form>
+</dialog>
+
+@code {
+    private readonly string id = Guid.NewGuid().ToString("N")[..8];
+    private ElementReference elemento;
+    private IJSObjectReference? interfaz;
+    private DotNetObjectReference<DialogoConfirmacion>? referencia;
+    private TaskCompletionSource<bool>? respuesta;
+
+    private string titulo = string.Empty;
+    private string mensaje = string.Empty;
+    private string textoConfirmar = "Confirmar";
+
+    // Muestra el diálogo y espera la respuesta: true si se confirmó, false si se canceló.
+    public async Task<bool> PreguntarAsync(string titulo, string mensaje, string textoConfirmar)
+    {
+        this.titulo = titulo;
+        this.mensaje = mensaje;
+        this.textoConfirmar = textoConfirmar;
+        respuesta = new TaskCompletionSource<bool>();
+        StateHasChanged();
+
+        interfaz ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/interfaz.js?v=1");
+        referencia ??= DotNetObjectReference.Create(this);
+        await interfaz.InvokeVoidAsync("abrirDialogo", elemento, referencia);
+
+        return await respuesta.Task;
+    }
+
+    // La llama interfaz.js cuando el diálogo se cierra (botón o Escape).
+    [JSInvokable]
+    public void AlCerrar(string valor) => respuesta?.TrySetResult(valor == "si");
+
+    public async ValueTask DisposeAsync()
+    {
+        respuesta?.TrySetResult(false);
+        referencia?.Dispose();
+        if (interfaz is not null)
+        {
+            try
+            {
+                await interfaz.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

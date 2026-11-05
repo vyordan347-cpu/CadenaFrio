@@ -12,7 +12,6 @@
 <PageTitle>Equipos · Administración · Cadena de Frío</PageTitle>
 
 <main class="pagina">
-    <PestanasAdmin />
 
     <header class="encabezado">
         <span class="encabezado-icono"><Icono Nombre="admin" Tamano="26" /></span>
@@ -98,58 +97,161 @@
 
     @if (errorCarga is not null)
     {
-        <p class="aviso aviso-error">@errorCarga</p>
+        <p class="aviso aviso-error aviso-con-icono"><Icono Nombre="sin-senal" Tamano="18" /> @errorCarga</p>
     }
     else if (equipos is null)
     {
-        <p class="nota">Cargando…</p>
+        <div class="tarjeta tabla-tarjeta" aria-hidden="true">
+            @for (var i = 0; i < 3; i++)
+            {
+                <span class="esqueleto fila-esqueleto"></span>
+            }
+        </div>
+        <p class="solo-lector" role="status">Cargando equipos…</p>
+    }
+    else if (equipos.Count == 0)
+    {
+        <div class="tarjeta estado-vacio">
+            <Icono Nombre="refrigeradora" Tamano="36" />
+            <h2>Todavía no hay equipos</h2>
+            <p>Registre la primera refrigeradora o termo para empezar a recibir lecturas.</p>
+        </div>
     }
     else
     {
-        <section class="lista" aria-label="Equipos registrados">
-            @foreach (var equipo in equipos)
-            {
-                <article class="tarjeta equipo @(equipo.Activo ? "" : "inactivo")">
-                    <span class="equipo-icono">
-                        <Icono Nombre="@(equipo.Tipo == TipoEquipoDto.Termo ? "termo" : "refrigeradora")" Tamano="24" />
-                    </span>
-                    <div class="equipo-texto">
-                        <p class="equipo-nombre">@equipo.Nombre</p>
-                        <p class="equipo-detalle">
-                            @(equipo.Tipo == TipoEquipoDto.Termo ? "Termo portavacunas" : "Refrigeradora")
-                            @if (!string.IsNullOrWhiteSpace(equipo.Ubicacion))
-                            {
-                                <span>, @equipo.Ubicacion</span>
-                            }
-                        </p>
-                        <p class="equipo-senal">
-                            <Icono Nombre="reloj" Tamano="16" />
-                            @(equipo.UltimaSenal is { } s ? $"Última señal {FormatoFecha.Antiguedad(s)}" : "Nunca ha enviado datos")
-                        </p>
-                    </div>
-                    <span class="pastilla @(equipo.Activo ? "activo" : "inactivo-pastilla")">
-                        @(equipo.Activo ? "Activo" : "Inactivo")
-                    </span>
-                    <div class="equipo-acciones">
-                        <button class="boton boton-chico" @onclick="() => EditarEquipo(equipo)">
-                            <Icono Nombre="editar" Tamano="16" /> Editar
-                        </button>
-                        <button class="boton boton-chico" @onclick="() => RegenerarClaveAsync(equipo)">
-                            <Icono Nombre="regenerar" Tamano="16" /> Nueva clave
-                        </button>
-                        <button class="boton boton-chico" @onclick="() => CambiarEstadoAsync(equipo)">
-                            <Icono Nombre="apagar" Tamano="16" /> @(equipo.Activo ? "Desactivar" : "Activar")
-                        </button>
-                    </div>
-                </article>
-            }
+        <section class="tarjeta tabla-tarjeta" aria-labelledby="titulo-lista">
+            <h2 id="titulo-lista" class="solo-lector">Equipos registrados</h2>
+            <div class="tabla-contenedor">
+                <table class="tabla tabla-equipos">
+                    <thead>
+                        <tr>
+                            <th scope="col">Equipo</th>
+                            <th scope="col">Ubicación</th>
+                            <th scope="col">Habilitación</th>
+                            <th scope="col">Conexión</th>
+                            <th scope="col">Temperatura</th>
+                            <th scope="col"><span class="solo-lector">Acciones</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var equipo in equipos)
+                        {
+                            <tr class="@(equipo.Activo ? "" : "inactivo")">
+                                <td data-titulo="Equipo">
+                                    <div class="equipo-celda">
+                                        <span class="equipo-icono">
+                                            <Icono Nombre="@(equipo.Tipo == TipoEquipoDto.Termo ? "termo" : "refrigeradora")" Tamano="20" />
+                                        </span>
+                                        <span class="equipo-texto">
+                                            @if (equipo.Activo)
+                                            {
+                                                <a class="equipo-nombre" href="equipos/@equipo.Id">@equipo.Nombre</a>
+                                            }
+                                            else
+                                            {
+                                                <span class="equipo-nombre">@equipo.Nombre</span>
+                                            }
+                                            <span class="equipo-tipo">@(equipo.Tipo == TipoEquipoDto.Termo ? "Termo portavacunas" : "Refrigeradora")</span>
+                                        </span>
+                                    </div>
+                                </td>
+                                <td data-titulo="Ubicación">@(string.IsNullOrWhiteSpace(equipo.Ubicacion) ? "—" : equipo.Ubicacion)</td>
+                                @* Tres estados distintos: habilitado no significa que se esté comunicando,
+                                   y comunicarse no significa que la temperatura esté bien. *@
+                                <td data-titulo="Habilitación">
+                                    <span class="insignia insignia-neutra" title="Decisión administrativa: si el sistema acepta lecturas de este equipo">
+                                        <Icono Nombre="@(equipo.Activo ? "ok" : "apagar")" Tamano="14" /> @(equipo.Activo ? "Habilitado" : "Deshabilitado")
+                                    </span>
+                                </td>
+                                @{ var estado = equipo.Activo && estados is not null ? estados.GetValueOrDefault(equipo.Id) : null; }
+                                <td data-titulo="Conexión">
+                                    <div class="estado-celda">
+                                        @if (estado is not null)
+                                        {
+                                            var conexion = EstadoEquipo.Comunicacion(estado);
+                                            <span class="insignia insignia-@conexion.Clase">
+                                                <Icono Nombre="@conexion.Icono" Tamano="14" /> @conexion.Texto
+                                            </span>
+                                        }
+                                        else if (equipo.Activo)
+                                        {
+                                            <span class="dato-secundario">No disponible</span>
+                                        }
+                                        <span class="dato-secundario cifras">
+                                            @if (equipo.UltimaSenal is { } s)
+                                            {
+                                                @($"Última señal {FormatoFecha.Antiguedad(s)} · {FormatoFecha.HoraPeru(s)[..16]}")
+                                            }
+                                            else
+                                            {
+                                                @("Nunca ha enviado datos")
+                                            }
+                                        </span>
+                                    </div>
+                                </td>
+                                <td data-titulo="Temperatura">
+                                    <div class="estado-celda">
+                                        @if (!equipo.Activo)
+                                        {
+                                            <span class="dato-secundario">No se monitorea</span>
+                                        }
+                                        else if (estado is null)
+                                        {
+                                            <span class="dato-secundario">No disponible</span>
+                                        }
+                                        else
+                                        {
+                                            var termico = EstadoEquipo.Termico(estado);
+                                            var hace = EstadoEquipo.Antiguedad(estado);
+                                            <span class="insignia insignia-@termico.Clase @(hace is null ? "" : "insignia-antigua")">
+                                                <Icono Nombre="@termico.Icono" Tamano="14" /> @termico.Texto
+                                            </span>
+                                            @if (estado.Temperatura is { } t)
+                                            {
+                                                <span class="dato-secundario cifras">
+                                                    @(hace is null ? $"{t:0.0} °C ahora" : $"{t:0.0} °C, última conocida ({hace})")
+                                                </span>
+                                            }
+                                        }
+                                    </div>
+                                </td>
+                                <td class="celda-acciones">
+                                    @* Editar es la acción habitual; las otras dos cambian el funcionamiento
+                                       del dispositivo y piden confirmación. *@
+                                    <div class="equipo-acciones">
+                                        <button class="boton boton-chico" @onclick="() => EditarEquipo(equipo)">
+                                            <Icono Nombre="editar" Tamano="16" /> Editar
+                                        </button>
+                                        <button class="boton boton-chico boton-peligro" @onclick="() => RegenerarClaveAsync(equipo)"
+                                                title="La clave actual deja de funcionar al instante">
+                                            <Icono Nombre="regenerar" Tamano="16" /> Nueva clave
+                                        </button>
+                                        <button class="boton boton-chico @(equipo.Activo ? "boton-peligro" : "")" @onclick="() => CambiarEstadoAsync(equipo)">
+                                            <Icono Nombre="apagar" Tamano="16" /> @(equipo.Activo ? "Desactivar" : "Activar")
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </section>
     }
+
+    <DialogoConfirmacion @ref="dialogo" />
 </main>
 
 @code {
+    // Confirmación de acciones sensibles (nueva clave, desactivar).
+    private DialogoConfirmacion? dialogo;
+
     private List<EquipoAdminDto>? equipos;
     private string? errorCarga;
+
+    // Estado en vivo de los equipos habilitados (la misma consulta del panel), por id.
+    // Nulo si no se pudo cargar: la tabla se muestra igual y esas columnas dicen "No disponible".
+    private Dictionary<int, TemperaturaActualDto>? estados;
 
     // Formulario
     private bool formularioVisible;
@@ -175,6 +277,17 @@
         catch (Exception)
         {
             errorCarga = "No se pudo cargar la lista de equipos. Revise que el servidor esté encendido.";
+        }
+
+        // Aparte: si falla, la administración de equipos sigue funcionando.
+        try
+        {
+            var lista = await Http.GetFromJsonAsync<List<TemperaturaActualDto>>("api/equipos/estado");
+            estados = lista?.ToDictionary(e => e.EquipoId);
+        }
+        catch (Exception)
+        {
+            estados = null;
         }
     }
 
@@ -242,8 +355,8 @@
 
     private async Task RegenerarClaveAsync(EquipoAdminDto equipo)
     {
-        var confirmado = await JS.InvokeAsync<bool>("confirm",
-            $"¿Generar una nueva clave para \"{equipo.Nombre}\"?\n\nLa clave actual dejará de funcionar de inmediato y habrá que actualizar el dispositivo.");
+        var confirmado = await dialogo!.PreguntarAsync($"¿Generar una nueva clave para \"{equipo.Nombre}\"?",
+            "La clave actual dejará de funcionar de inmediato y habrá que cargar la nueva en el dispositivo.", "Generar nueva clave");
         if (!confirmado)
         {
             return;
@@ -261,8 +374,8 @@
     {
         if (equipo.Activo)
         {
-            var confirmado = await JS.InvokeAsync<bool>("confirm",
-                $"¿Desactivar \"{equipo.Nombre}\"?\n\nDejará de aceptar lecturas y sus alertas abiertas se cerrarán. Su historial se conserva.");
+            var confirmado = await dialogo!.PreguntarAsync($"¿Desactivar \"{equipo.Nombre}\"?",
+                "Dejará de aceptar lecturas y sus alertas abiertas se cerrarán. Su historial se conserva.", "Desactivar equipo");
             if (!confirmado)
             {
                 return;

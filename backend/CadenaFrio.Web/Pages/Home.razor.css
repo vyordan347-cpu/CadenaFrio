@@ -1,14 +1,11 @@
-.pagina {
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: 1.75rem 1rem 2.5rem;
-}
+/* Centro de monitoreo.
+   Orden de lectura: estado general → equipos (los graves primero) → alertas por revisar.
+   En pantallas anchas, las alertas quedan en una columna a la derecha. */
 
-.aviso-superior {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+.pagina {
+    max-width: var(--ancho-contenido);
+    margin: 0 auto;
+    padding: var(--e-5) var(--e-5) var(--e-7);
 }
 
 .encabezado {
@@ -16,300 +13,270 @@
     flex-wrap: wrap;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+    gap: var(--e-3) var(--e-4);
+    margin-bottom: var(--e-4);
 }
 
-.subtitulo,
-.nota {
-    color: var(--texto-2);
+.subtitulo {
+    margin-top: 0.2rem;
+    color: var(--texto-3);
+    font-size: var(--t-s);
 }
 
-/* Resumen de estados */
-.resumen {
+.herramientas {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--e-2);
+}
+
+.herramientas .boton.activo {
+    border-color: var(--acento-relleno);
+    background: var(--acento-suave);
+    color: var(--acento);
+}
+
+.aviso-superior {
+    margin-bottom: var(--e-4);
+}
+
+/* ===== Estado actual (cinco cifras) ===== */
+
+.resumen {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--e-3);
+    margin-bottom: var(--e-5);
 }
 
 .resumen-item {
-    padding: 0.4rem 0.9rem;
-    border-radius: 999px;
-    font-size: 0.925rem;
-}
-
-.resumen-item strong {
-    font-size: 1.05rem;
-}
-
-.estado-ok { background: var(--ok-fondo); color: var(--ok-texto); }
-.estado-adv { background: var(--adv-fondo); color: var(--adv-texto); }
-.estado-rup { background: var(--rup-fondo); color: var(--rup-texto); }
-.estado-sen { background: var(--sen-fondo); color: var(--sen-texto); }
-
-/* Cuadrícula de equipos: se adapta al ancho (3, 2 o 1 por fila). */
-.cuadricula {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: var(--e-3);
+    padding: var(--e-2) var(--e-3);
+    border: 1px solid var(--borde);
+    border-left: 4px solid var(--color-estado, var(--borde-fuerte));
+    border-radius: var(--radio);
+    background: var(--superficie);
 }
+
+.resumen-icono {
+    grid-row: span 2;
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radio);
+    background: var(--fondo-estado, var(--superficie-2));
+    color: var(--texto-estado, var(--texto-2));
+}
+
+.resumen-cifra {
+    font-size: var(--t-l);
+    line-height: 1.1;
+}
+
+.resumen-texto {
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+.resumen-item.estado-rup { --color-estado: var(--rup); --fondo-estado: var(--rup-fondo); --texto-estado: var(--rup-texto); }
+.resumen-item.estado-sen { --color-estado: var(--sen); --fondo-estado: var(--sen-fondo); --texto-estado: var(--sen-texto); }
+.resumen-item.estado-adv { --color-estado: var(--adv); --fondo-estado: var(--adv-fondo); --texto-estado: var(--adv-texto); }
+.resumen-item.estado-ok { --color-estado: var(--ok); --fondo-estado: var(--ok-fondo); --texto-estado: var(--ok-texto); }
+.resumen-item.estado-pendientes { --color-estado: var(--rup); --fondo-estado: var(--rup-fondo); --texto-estado: var(--rup-texto); }
+
+/* En cero, la cifra se ve tenue: lo que importa salta a la vista. */
+.resumen-item.cero {
+    border-left-color: var(--borde);
+}
+
+.resumen-item.cero .resumen-icono {
+    background: var(--superficie-2);
+    color: var(--texto-3);
+}
+
+.resumen-item.cero .resumen-cifra {
+    color: var(--texto-3);
+}
+
+/* ===== Equipos + columna de alertas ===== */
+
+.monitoreo {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--e-5);
+    align-items: start;
+}
+
+@media (min-width: 1280px) {
+    .monitoreo {
+        grid-template-columns: minmax(0, 1fr) 22rem;
+    }
+}
+
+.equipos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+    gap: var(--e-4);
+}
+
+/* ===== Tarjeta de equipo ===== */
 
 .equipo {
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding: 1.1rem 1.25rem 1rem;
-    border-top: 5px solid var(--borde-fuerte);
-    color: var(--texto);
-    text-decoration: none;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    gap: var(--e-3);
+    padding: var(--e-4) var(--e-4) var(--e-3);
+    border-top: 4px solid var(--borde-fuerte);
+    transition: box-shadow var(--duracion) var(--curva), border-color var(--duracion) var(--curva);
 }
 
 .equipo:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 24px rgba(12, 32, 52, 0.14);
+    box-shadow: var(--sombra-2);
 }
 
-/* El borde superior toma el color del estado: los problemas se ven de lejos. */
-.borde-ok { border-top-color: var(--ok); }
-.borde-adv { border-top-color: var(--adv); }
-.borde-rup { border-top-color: var(--rup); }
-.borde-sen { border-top-color: var(--sen); }
+.equipo:focus-within {
+    border-color: var(--acento-relleno);
+}
 
+/* Borde superior según el estado: el color acompaña a la insignia con texto. */
+.borde-rup { border-top-color: var(--rup); }
+.borde-adv { border-top-color: var(--adv); }
+.borde-sen { border-top-color: var(--sen); }
+.borde-ok { border-top-color: var(--ok); }
+
+/* Lectura antigua: borde rayado. Se distingue de una ruptura actual sin depender del color. */
+.equipo.antigua {
+    border-top-style: dashed;
+}
+
+/* Si la insignia no cabe junto al nombre (p. ej. "Ruptura · hace 18 días"), baja a su
+   propia línea, alineada a la derecha, en vez de apretar el nombre del equipo. */
 .equipo-cabecera {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--e-2) var(--e-3);
+}
+
+.equipo-cabecera > .insignia {
+    margin-left: auto;
 }
 
 .equipo-icono {
     display: grid;
     place-items: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
-    background: var(--acento-suave);
-    color: var(--acento);
     flex-shrink: 0;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+    color: var(--texto-2);
 }
 
 .equipo-texto {
+    flex: 1 1 10rem;
     min-width: 0;
 }
 
+/* El nombre se parte en dos líneas antes que cortarse: es el dato que identifica al equipo.
+   Se corta entre palabras; dentro de una palabra solo si no hay otra opción. */
 .equipo-nombre {
-    font-weight: 700;
+    font-size: var(--t-m);
+    overflow-wrap: break-word;
+}
+
+.equipo-lugar {
     overflow: hidden;
+    color: var(--texto-3);
+    font-size: var(--t-s);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.equipo-lugar,
-.equipo-momento {
-    color: var(--texto-2);
-    font-size: 0.875rem;
+/* El medidor mide 7.5rem (antes 9.5rem): conserva su forma y deja más lugar a los datos. */
+.equipo-cuerpo {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    align-items: center;
+    gap: var(--e-4);
 }
 
-.equipo-accion {
-    font-size: 0.925rem;
-    line-height: 1.4;
+.equipo-medidor {
+    position: relative;
+    display: grid;
+    justify-items: center;
 }
 
-.texto-ok { color: var(--ok-texto); }
-.texto-adv { color: var(--adv-texto); }
-.texto-rup { color: var(--rup-texto); font-weight: 700; }
-.texto-sen { color: var(--sen-texto); }
+/* Lectura antigua: el medidor se atenúa y no pulsa (no es una medición en vivo). */
+.antigua .equipo-medidor ::deep .indicador {
+    opacity: 0.5;
+    filter: grayscale(0.7);
+}
 
-.ver-detalle {
+.antigua .equipo-medidor ::deep .halo {
+    animation: none;
+    opacity: 0;
+}
+
+.sello-antiguo {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    margin-top: auto;
-    color: var(--acento);
-    font-size: 0.9rem;
-    font-weight: 700;
-}
-
-.ver-detalle ::deep .flecha {
-    transform: rotate(-90deg);
-}
-
-.vacio {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.5rem;
-    color: var(--texto-2);
-}
-
-/* Alertas por revisar */
-.eventos {
-    margin-top: 2rem;
-}
-
-.eventos-cabecera {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.9rem;
-}
-
-.eventos-icono {
-    display: grid;
-    place-items: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border: 1px solid var(--borde);
-    border-radius: var(--radio);
+    margin-top: -0.4rem;
+    padding: 0.1rem 0.45rem;
+    white-space: nowrap;
+    border: 1px dashed var(--borde-fuerte);
+    border-radius: var(--radio-pildora);
     background: var(--superficie);
-}
-
-.contador {
-    padding: 0.05rem 0.55rem;
-    border-radius: 999px;
-    background: var(--rup);
-    color: #ffffff;
-    font-size: 0.85rem;
-    font-weight: 700;
-}
-
-.pendiente {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.6rem;
-    padding: 0.85rem 1.1rem;
-    border-left: 4px solid var(--rup);
-    color: var(--texto);
-    text-decoration: none;
-}
-
-.pendiente:hover {
-    background: var(--superficie-2);
-}
-
-.pendiente-icono {
-    display: grid;
-    place-items: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
-    background: var(--rup-fondo);
-    color: var(--rup);
-    flex-shrink: 0;
-}
-
-.pendiente-texto {
-    flex: 1;
-    min-width: 0;
-}
-
-.pendiente-titulo {
-    font-weight: 700;
-}
-
-.pendiente-linea {
     color: var(--texto-2);
-    font-size: 0.9rem;
-}
-
-.pendiente-ir {
-    padding: 0.4rem 0.9rem;
-    border-radius: 999px;
-    background: var(--rup-fondo);
-    color: var(--rup-texto);
+    font-size: var(--t-xs);
     font-weight: 700;
-    font-size: 0.9rem;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .equipo {
-        transition: none;
-    }
-
-    .equipo:hover {
-        transform: none;
-    }
+.equipo-datos {
+    display: grid;
+    gap: var(--e-2);
+    margin: 0;
 }
 
-/* Herramientas: sonido y pantalla completa */
-.herramientas {
+.equipo-datos > div {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.equipo-datos dt {
+    color: var(--texto-3);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.equipo-datos dd {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.boton-chico {
-    padding: 0.4rem 0.85rem;
-    border-radius: 999px;
-    font-size: 0.875rem;
-}
-
-.boton-chico.activo {
-    border-color: var(--ok);
-    background: var(--ok-fondo);
-    color: var(--ok-texto);
-}
-
-/* Indicadores clave */
-.indicadores {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
-}
-
-.indicador-clave {
-    padding: 0.9rem 1.1rem;
-}
-
-.kpi-valor {
-    color: var(--acento);
-    font-size: 1.6rem;
-    font-weight: 700;
-    line-height: 1.2;
-}
-
-.kpi-texto {
-    color: var(--texto-2);
-    font-size: 0.875rem;
-}
-
-.indicador-clave.destacado {
-    background: var(--barra-fondo);
-    border-color: var(--barra-fondo);
-}
-
-.indicador-clave.destacado .kpi-valor {
-    color: #8fe3b8;
-    font-size: 1.9rem;
-}
-
-.indicador-clave.destacado .kpi-texto {
-    color: #c5dbec;
-}
-
-.indicador-clave.con-rupturas .kpi-valor {
-    color: var(--rup);
-}
-
-.kpi-periodo {
-    grid-column: 1 / -1;
-    margin-top: -0.25rem;
-    color: var(--texto-3);
-    font-size: 0.8rem;
-}
-
-/* Tendencia en cada tarjeta */
-.tendencia {
-    display: grid;
-    grid-template-columns: auto 1fr;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.2rem var(--e-2);
+    margin: 0;
+    font-size: var(--t-s);
+}
+
+.dato-secundario {
+    color: var(--texto-3);
+}
+
+/* "hace 17 días": la antigüedad de la lectura, en negrita cuando ya no es reciente. */
+.dato-antiguo {
+    color: var(--adv-texto);
+    font-weight: 700;
 }
 
 .tendencia-texto {
-    font-size: 0.875rem;
     font-weight: 700;
     white-space: nowrap;
 }
@@ -318,15 +285,307 @@
 .tendencia-texto.baja { color: var(--acento); }
 .tendencia-texto.estable { color: var(--texto-2); }
 
+/* Qué hacer: con el color del estado, pero siempre con texto. */
+.equipo-accion {
+    padding: var(--e-2) var(--e-3);
+    border-radius: var(--radio);
+    font-size: var(--t-s);
+}
+
+.accion-rup { background: var(--rup-fondo); color: var(--rup-texto); font-weight: 700; }
+.accion-adv { background: var(--adv-fondo); color: var(--adv-texto); }
+.accion-sen { background: var(--sen-fondo); color: var(--sen-texto); }
+.accion-ok { padding: 0; color: var(--texto-2); }
+
 .equipo-atencion {
     display: flex;
     align-items: center;
     gap: 0.35rem;
     color: var(--ok-texto);
-    font-size: 0.875rem;
+    font-size: var(--t-s);
     font-weight: 700;
 }
 
 .equipo-atencion.sin-atender {
     color: var(--rup-texto);
+}
+
+/* "Ver detalle": su zona táctil cubre toda la tarjeta. */
+.ver-detalle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: auto;
+    padding-top: var(--e-2);
+    border-top: 1px solid var(--borde);
+    color: var(--acento);
+    font-size: var(--t-s);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.ver-detalle::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radio-grande);
+}
+
+.ver-detalle:focus-visible {
+    outline: none;
+}
+
+.ver-detalle:focus-visible::after {
+    outline: 2px solid var(--acento-relleno);
+    outline-offset: 2px;
+}
+
+.ver-detalle ::deep .flecha {
+    transform: rotate(-90deg);
+    transition: transform var(--duracion) var(--curva);
+}
+
+.equipo:hover .ver-detalle ::deep .flecha {
+    transform: rotate(-90deg) translateY(3px);
+}
+
+/* Mientras carga */
+.esqueleto-tarjeta {
+    gap: var(--e-4);
+    min-height: 18rem;
+}
+
+/* ===== Alertas por revisar ===== */
+
+.columna-alertas {
+    padding: var(--e-4);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-grande);
+    background: var(--superficie);
+}
+
+@media (min-width: 1280px) {
+    /* Junto a los equipos: queda a la vista al desplazarse, con su propia barra si hay muchas. */
+    .columna-alertas {
+        position: sticky;
+        top: 4.5rem;
+        max-height: calc(100vh - 6rem);
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+}
+
+.eventos-cabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--e-2);
+    margin-bottom: var(--e-3);
+}
+
+.eventos-cabecera h2 {
+    font-size: var(--t-m);
+}
+
+.eventos-icono {
+    display: grid;
+    place-items: center;
+    color: var(--texto-2);
+}
+
+.contador {
+    min-width: 1.6rem;
+    padding: 0.05rem 0.5rem;
+    border-radius: var(--radio-pildora);
+    background: var(--rup);
+    color: var(--sobre-rup);
+    font-size: var(--t-s);
+    font-weight: 700;
+    text-align: center;
+}
+
+.sin-pendientes {
+    display: flex;
+    align-items: center;
+    gap: var(--e-2);
+    padding: var(--e-3);
+    border-radius: var(--radio);
+    background: var(--ok-fondo);
+    color: var(--ok-texto);
+    font-size: var(--t-s);
+}
+
+.lista-pendientes {
+    display: grid;
+    gap: var(--e-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.pendiente {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--e-2) var(--e-3);
+    padding: var(--e-2) var(--e-3);
+    border: 1px solid var(--borde);
+    border-left: 4px solid var(--rup);
+    border-radius: var(--radio);
+    color: var(--texto);
+    text-decoration: none;
+    transition: background-color var(--duracion) var(--curva);
+}
+
+.pendiente:hover {
+    background: var(--superficie-2);
+    color: var(--texto);
+}
+
+/* Silencio prolongado: gris y rayado, distinto de una ruptura. */
+.pendiente-sen {
+    border-left-color: var(--sen);
+    border-left-style: dashed;
+}
+
+.pendiente-icono {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--radio-s);
+    background: var(--rup-fondo);
+    color: var(--rup-texto);
+}
+
+.pendiente-sen .pendiente-icono {
+    background: var(--sen-fondo);
+    color: var(--sen-texto);
+}
+
+.pendiente-texto {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+/* El equipo en una sola línea; el tipo y la fecha van en la línea de abajo. */
+.pendiente-titulo {
+    overflow: hidden;
+    font-size: var(--t-s);
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pendiente-tipo {
+    color: var(--rup-texto);
+    font-weight: 700;
+}
+
+.pendiente-sen .pendiente-tipo {
+    color: var(--texto-2);
+}
+
+.pendiente-linea {
+    color: var(--texto-3);
+    font-size: var(--t-xs);
+}
+
+.pendiente-plazo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    justify-self: start;
+    margin-top: 0.2rem;
+    padding: 0.05rem 0.5rem;
+    border-radius: var(--radio-pildora);
+    font-size: var(--t-xs);
+    font-weight: 700;
+}
+
+.plazo-vigente { background: var(--adv-fondo); color: var(--adv-texto); }
+.plazo-vencido { background: var(--rup-fondo); color: var(--rup-texto); }
+
+.pendiente-ir {
+    display: grid;
+    align-self: center;
+    color: var(--texto-3);
+}
+
+.pendiente-ir ::deep .flecha,
+.ver-todas ::deep .flecha {
+    transform: rotate(-90deg);
+    transition: transform var(--duracion) var(--curva);
+}
+
+.pendiente:hover .pendiente-ir {
+    color: var(--acento);
+}
+
+.pendiente:hover .pendiente-ir ::deep .flecha,
+.ver-todas:hover ::deep .flecha {
+    transform: rotate(-90deg) translateY(3px);
+}
+
+/* Enlace al centro de alertas, debajo de la lista. */
+.ver-todas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    margin-top: var(--e-3);
+    padding: var(--e-2);
+    border-radius: var(--radio);
+    color: var(--acento);
+    font-size: var(--t-s);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.ver-todas:hover {
+    background: var(--superficie-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pendiente-ir ::deep .flecha,
+    .ver-todas ::deep .flecha {
+        transition: none;
+    }
+}
+
+/* ===== Pantallas medianas y celular ===== */
+
+@media (max-width: 1100px) {
+    .resumen {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .pagina {
+        padding: var(--e-4) var(--e-3) var(--e-6);
+    }
+
+    /* En el celular, el resumen es una sola fila que se desliza de lado: así los equipos
+       aparecen enseguida, en vez de quedar debajo de cinco recuadros apilados. */
+    .resumen {
+        display: flex;
+        gap: var(--e-2);
+        margin-right: calc(-1 * var(--e-3));
+        padding-right: var(--e-3);
+        padding-bottom: var(--e-1);
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        scrollbar-width: thin;
+    }
+
+    .resumen-item {
+        flex: 0 0 9.5rem;
+        scroll-snap-align: start;
+    }
+
+    .equipo-cuerpo {
+        grid-template-columns: 6.5rem minmax(0, 1fr);
+        gap: var(--e-3);
+    }
 }

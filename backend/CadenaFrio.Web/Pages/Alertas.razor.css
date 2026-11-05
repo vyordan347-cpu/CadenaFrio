@@ -1,0 +1,352 @@
+/* Centro de alertas: activas ahora y por revisar.
+   Cada categoría se distingue por ícono, palabra y tipo de borde, no solo por el color:
+   crítica (continuo grueso), advertencia (continuo), pérdida de señal (rayado),
+   fallo de sensor (punteado). */
+
+.pagina {
+    max-width: var(--ancho-contenido);
+    margin: 0 auto;
+    padding: var(--e-5) var(--e-5) var(--e-7);
+}
+
+.encabezado {
+    margin-bottom: var(--e-4);
+}
+
+.subtitulo {
+    margin-top: 0.2rem;
+    color: var(--texto-3);
+    font-size: var(--t-s);
+}
+
+.aviso-superior {
+    margin-bottom: var(--e-4);
+}
+
+/* ===== Filtros ===== */
+
+/* Tipos a la izquierda y equipo a la derecha; en pantallas angostas, uno debajo del otro. */
+.barra-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--e-3);
+}
+
+.filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--e-2);
+}
+
+.filtro-equipo {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 13rem;
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.nota-conteo {
+    margin: var(--e-2) 0 var(--e-5);
+}
+
+.filtro {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.4rem;
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio-pildora);
+    background: var(--superficie);
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
+    transition: background-color var(--duracion) var(--curva), border-color var(--duracion) var(--curva);
+}
+
+.filtro:hover {
+    border-color: var(--texto-3);
+    color: var(--texto);
+}
+
+.filtro.activo {
+    border-color: var(--primario);
+    background: var(--primario);
+    color: var(--sobre-primario);
+}
+
+.filtro-cifra {
+    min-width: 1.4rem;
+    padding: 0 0.4rem;
+    border-radius: var(--radio-pildora);
+    background: var(--superficie-2);
+    color: var(--texto);
+    text-align: center;
+}
+
+.filtro.activo .filtro-cifra {
+    background: rgba(255, 255, 255, 0.2);
+    color: inherit;
+}
+
+/* ===== Dos columnas en pantallas anchas ===== */
+
+.columnas {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--e-5);
+    align-items: start;
+}
+
+@media (min-width: 1200px) {
+    .columnas {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Cada columna es solo un título y su lista: sin un marco alrededor de las tarjetas,
+   que ya tienen el suyo (antes había tarjeta dentro de tarjeta). */
+.bloque {
+    min-width: 0;
+}
+
+.bloque-cabecera {
+    margin-bottom: var(--e-3);
+}
+
+.bloque-cabecera h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--e-2);
+    font-size: var(--t-l);
+}
+
+/* Cuántas hay en la columna, con los filtros aplicados. */
+.bloque-cifra {
+    min-width: 1.6rem;
+    padding: 0.05rem 0.5rem;
+    border-radius: var(--radio-pildora);
+    background: var(--superficie-2);
+    color: var(--texto);
+    font-size: var(--t-s);
+    text-align: center;
+}
+
+.mostrar-mas {
+    width: 100%;
+    justify-content: center;
+    margin-top: var(--e-3);
+}
+
+/* Sobre el fondo del botón, el gris más claro no llega al contraste mínimo (3.2:1). */
+.mostrar-mas .dato-secundario {
+    color: var(--texto-2);
+    font-weight: 400;
+}
+
+.bloque-ayuda {
+    margin-top: 0.15rem;
+    color: var(--texto-3);
+    font-size: var(--t-s);
+}
+
+.fila-esqueleto {
+    height: 5rem;
+    margin-bottom: var(--e-3);
+}
+
+.vacio {
+    display: flex;
+    align-items: center;
+    gap: var(--e-2);
+    padding: var(--e-3);
+    border-radius: var(--radio);
+    background: var(--ok-fondo);
+    color: var(--ok-texto);
+    font-size: var(--t-s);
+}
+
+.lista {
+    display: grid;
+    gap: var(--e-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* ===== Una alerta ===== */
+
+.alerta {
+    --color: var(--borde-fuerte);
+    --fondo-icono: var(--superficie-2);
+    --texto-icono: var(--texto-2);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--e-3);
+    padding: var(--e-3) var(--e-4);
+    border: 1px solid var(--borde);
+    border-left: 4px solid var(--color);
+    border-radius: var(--radio);
+    background: var(--superficie);
+}
+
+.categoria-critica { --color: var(--rup); --fondo-icono: var(--rup-fondo); --texto-icono: var(--rup-texto); border-left-width: 6px; }
+.categoria-advertencia { --color: var(--adv); --fondo-icono: var(--adv-fondo); --texto-icono: var(--adv-texto); }
+.categoria-senal { --color: var(--sen); --fondo-icono: var(--sen-fondo); --texto-icono: var(--sen-texto); border-left-style: dashed; }
+.categoria-sensor { --color: var(--sen); --fondo-icono: var(--sen-fondo); --texto-icono: var(--sen-texto); border-left-style: dotted; }
+
+.alerta-icono {
+    display: grid;
+    place-items: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: var(--radio);
+    background: var(--fondo-icono);
+    color: var(--texto-icono);
+}
+
+.alerta-cuerpo {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.alerta-titulo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem var(--e-2);
+}
+
+.alerta-categoria {
+    color: var(--texto-icono);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.alerta-detalle {
+    font-weight: 700;
+}
+
+.estado-revision {
+    padding: 0 0.45rem;
+    border-radius: var(--radio-pildora);
+    background: var(--superficie-2);
+    color: var(--texto-2);
+    font-size: var(--t-xs);
+    font-weight: 700;
+}
+
+.alerta-equipo a {
+    color: var(--texto);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.alerta-equipo a:hover {
+    color: var(--acento);
+    text-decoration: underline;
+}
+
+.alerta-linea {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+.dato-secundario {
+    color: var(--texto-3);
+}
+
+.alerta-ir {
+    align-self: center;
+}
+
+/* Quién la atiende */
+.atencion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e-2);
+    margin-top: var(--e-2);
+    font-size: var(--t-s);
+}
+
+.atencion span,
+.atendida {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.atendida {
+    justify-content: flex-start;
+    color: var(--ok-texto);
+}
+
+.sin-atender {
+    padding: var(--e-2) var(--e-3);
+    border: 1px dashed var(--rup);
+    border-radius: var(--radio);
+    color: var(--rup-texto);
+    font-weight: 700;
+}
+
+/* Plazo del Anexo 13 */
+.plazo {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    gap: 0.3rem;
+    margin-top: 0.2rem;
+    padding: 0.05rem 0.55rem;
+    border-radius: var(--radio-pildora);
+    font-size: var(--t-xs);
+    font-weight: 700;
+}
+
+.plazo-vigente { background: var(--adv-fondo); color: var(--adv-texto); }
+.plazo-vencido { background: var(--rup-fondo); color: var(--rup-texto); }
+
+.nota-atendidas {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--e-2);
+    margin-top: var(--e-4);
+    padding-top: var(--e-3);
+    border-top: 1px solid var(--borde);
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+/* ===== Celular ===== */
+
+@media (max-width: 640px) {
+    .pagina {
+        padding: var(--e-4) var(--e-3) var(--e-6);
+    }
+
+    .filtro-equipo {
+        width: 100%;
+    }
+
+    .alerta {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .alerta-ir {
+        grid-column: 1 / -1;
+        justify-self: stretch;
+    }
+}

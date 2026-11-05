@@ -1,0 +1,270 @@
+@page "/reportes"
+@using System.Net.Http.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using CadenaFrio.Web.Utilidades
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>Reportes · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+    <header class="encabezado">
+        <span class="encabezado-icono"><Icono Nombre="lista" Tamano="24" /></span>
+        <div class="encabezado-texto">
+            <h1>Reportes</h1>
+            <p class="subtitulo">Indicadores del periodo que elija y su Excel, solo con esas fechas.</p>
+        </div>
+        @if (indicadores is not null)
+        {
+            @* Acción principal: el Excel trae solo este periodo y estos equipos. *@
+            <a class="boton boton-primario boton-excel" href="@UrlExcel" download>
+                <Icono Nombre="descargar" Tamano="18" /> Descargar Excel
+            </a>
+        }
+    </header>
+
+    @* Filtros: periodo (días completos en hora de Perú) y equipo. *@
+    <section class="tarjeta filtros" aria-label="Filtros">
+        <div class="filtro-periodo">
+            <span class="filtro-etiqueta" id="etiqueta-periodo">Periodo</span>
+            <div class="periodos" role="group" aria-labelledby="etiqueta-periodo">
+                @foreach (var (clave, texto) in Periodos)
+                {
+                    <button class="periodo @(periodo == clave ? "activo" : "")" aria-pressed="@(periodo == clave ? "true" : "false")"
+                            @onclick="() => CambiarPeriodoAsync(clave)">@texto</button>
+                }
+            </div>
+        </div>
+
+        @if (equipos is { Count: > 1 })
+        {
+            <label class="filtro-equipo">
+                Equipo
+                <select value="@equipoId" @onchange="CambiarEquipoAsync">
+                    <option value="">Todos los equipos</option>
+                    @foreach (var equipo in equipos)
+                    {
+                        <option value="@equipo.Id">@equipo.Nombre</option>
+                    }
+                </select>
+            </label>
+        }
+
+        @if (periodo == "personalizado")
+        {
+            <div class="personalizado">
+                <label>Desde <InputDate @bind-Value="diaDesde" /></label>
+                <label>Hasta <InputDate @bind-Value="diaHasta" /></label>
+                <button class="boton boton-primario" @onclick="CargarAsync">Ver</button>
+                <p class="ayuda">Para ver un solo día, elija la misma fecha en "Desde" y "Hasta".</p>
+            </div>
+        }
+    </section>
+
+    @if (error is not null)
+    {
+        <p class="aviso aviso-error aviso-con-icono"><Icono Nombre="advertencia" Tamano="18" /> @error</p>
+    }
+    else if (indicadores is not { } k)
+    {
+        <div class="esqueletos" aria-hidden="true">
+            @for (var i = 0; i < 4; i++)
+            {
+                <span class="esqueleto esqueleto-cifra"></span>
+            }
+        </div>
+        <p class="solo-lector" role="status">Cargando los indicadores…</p>
+    }
+    else
+    {
+        <p class="resumen-periodo cifras">
+            <Icono Nombre="calendario" Tamano="16" />
+            <strong>@TextoPeriodo</strong>
+            <span>· @(NombreEquipo ?? "Todos los equipos activos")</span>
+        </p>
+
+        @* ===== Indicadores del periodo: dependen de las fechas elegidas ===== *@
+        <section class="grupo" aria-labelledby="titulo-periodo">
+            <header class="grupo-cabecera">
+                <h2 id="titulo-periodo">Del periodo</h2>
+                <p class="grupo-ayuda">Calculados con las lecturas y alertas de las fechas elegidas.</p>
+            </header>
+
+            <div class="indicadores">
+                <article class="tarjeta indicador destacado">
+                    <p class="indicador-etiqueta"><Icono Nombre="ok" Tamano="16" /> Cumplimiento térmico</p>
+                    <p class="indicador-valor cifras">@(k.PorcentajeOptimo is { } po ? $"{po:0.#} %" : "—")</p>
+                    <p class="indicador-texto">de las lecturas en rango óptimo</p>
+                    <p class="indicador-explicacion">Lecturas dentro del rango óptimo de su equipo, sobre el total recibido.</p>
+                </article>
+                <article class="tarjeta indicador @(k.Rupturas > 0 ? "con-problemas" : "")">
+                    <p class="indicador-etiqueta"><Icono Nombre="ruptura" Tamano="16" /> Rupturas</p>
+                    <p class="indicador-valor cifras">@k.Rupturas</p>
+                    <p class="indicador-texto">@(k.Rupturas == 1 ? "ruptura" : "rupturas") de temperatura</p>
+                    <p class="indicador-explicacion">Episodios que salieron del rango límite y empezaron en el periodo.</p>
+                </article>
+                <article class="tarjeta indicador">
+                    <p class="indicador-etiqueta"><Icono Nombre="reloj" Tamano="16" /> Tiempo de respuesta</p>
+                    <p class="indicador-valor cifras">@(k.MinutosPromedioRespuesta is { } m ? FormatoFecha.Duracion(TimeSpan.FromMinutes(m)) : "—")</p>
+                    <p class="indicador-texto">en promedio</p>
+                    <p class="indicador-explicacion">Desde que una alerta exige revisión hasta que alguien la registra.</p>
+                </article>
+                <article class="tarjeta indicador">
+                    <p class="indicador-etiqueta"><Icono Nombre="sin-senal" Tamano="16" /> Lecturas recibidas</p>
+                    <p class="indicador-valor cifras">@(k.PorcentajeDisponibilidad is { } pd ? $"{pd:0.#} %" : "—")</p>
+                    <p class="indicador-texto">de las esperadas</p>
+                    <p class="indicador-explicacion">Lecturas que llegaron frente a las esperadas: una por minuto por equipo.</p>
+                </article>
+            </div>
+
+            @if (desde is { } d && hasta is { } h && h - d > TimeSpan.FromDays(7))
+            {
+                <p class="ayuda"><Icono Nombre="info" Tamano="14" /> Para periodos de más de 7 días, el Excel trae el resumen y las alertas, pero no cada lectura.</p>
+            }
+        </section>
+
+        @* ===== Estado actual: no depende del periodo ===== *@
+        <section class="grupo" aria-labelledby="titulo-actual">
+            <header class="grupo-cabecera">
+                <h2 id="titulo-actual">Estado actual</h2>
+                <p class="grupo-ayuda">Situación de hoy, sin importar el periodo elegido.</p>
+            </header>
+
+            <div class="indicadores">
+            <article class="tarjeta indicador indicador-ancho @(k.PendientesDeRevision > 0 ? "con-problemas" : "")">
+                <div>
+                    <p class="indicador-etiqueta"><Icono Nombre="campana" Tamano="16" /> Pendientes de revisión</p>
+                    <p class="indicador-valor cifras">@k.PendientesDeRevision</p>
+                    <p class="indicador-texto">@(k.PendientesDeRevision == 1 ? "alerta espera" : "alertas esperan") revisión, de cualquier fecha</p>
+                </div>
+                @if (k.PendientesDeRevision > 0)
+                {
+                    <a class="boton" href="alertas">Ir al centro de alertas</a>
+                }
+            </article>
+            </div>
+        </section>
+    }
+</main>
+
+@code {
+    private static readonly TimeSpan DesfasePeru = TimeSpan.FromHours(-5);
+
+    private static readonly (string Clave, string Texto)[] Periodos =
+    {
+        ("hoy", "Hoy"),
+        ("7d", "7 días"),
+        ("30d", "30 días"),
+        ("personalizado", "Personalizado")
+    };
+
+    private List<EquipoResumenDto>? equipos;
+    private int? equipoId;
+    private string periodo = "7d";
+
+    // Días del periodo personalizado (en hora de Perú).
+    private DateOnly? diaDesde = HoyPeru.AddDays(-6);
+    private DateOnly? diaHasta = HoyPeru;
+
+    // Periodo consultado, en UTC: incluye "desde" y excluye "hasta".
+    private DateTime? desde;
+    private DateTime? hasta;
+    private IndicadoresDto? indicadores;
+    private string? error;
+
+    private static DateOnly HoyPeru => DateOnly.FromDateTime(DateTime.UtcNow + DesfasePeru);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            equipos = await Http.GetFromJsonAsync<List<EquipoResumenDto>>("api/equipos/lista") ?? new();
+        }
+        catch (Exception)
+        {
+            // Sin la lista, se muestran todos los equipos; los indicadores se cargan igual.
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CambiarPeriodoAsync(string clave)
+    {
+        periodo = clave;
+        if (clave != "personalizado")
+        {
+            await CargarAsync();
+        }
+    }
+
+    private async Task CambiarEquipoAsync(ChangeEventArgs e)
+    {
+        equipoId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        await CargarAsync();
+    }
+
+    // Días completos en hora de Perú: de las 00:00 del primero a las 00:00 del día siguiente al último.
+    private async Task CargarAsync()
+    {
+        var hoy = HoyPeru;
+        (DateOnly Primero, DateOnly Ultimo) dias = periodo switch
+        {
+            "hoy" => (hoy, hoy),
+            "30d" => (hoy.AddDays(-29), hoy),
+            "personalizado" => (diaDesde ?? hoy, diaHasta ?? hoy),
+            _ => (hoy.AddDays(-6), hoy)
+        };
+
+        if (dias.Ultimo < dias.Primero)
+        {
+            error = "La fecha \"Hasta\" debe ser igual o posterior a \"Desde\".";
+            return;
+        }
+        if (dias.Ultimo.DayNumber - dias.Primero.DayNumber + 1 > 92)
+        {
+            error = "El periodo puede ser de como máximo 92 días.";
+            return;
+        }
+
+        desde = Utc(dias.Primero);
+        hasta = Utc(dias.Ultimo.AddDays(1));
+
+        try
+        {
+            error = null;
+            indicadores = null;
+            indicadores = await Http.GetFromJsonAsync<IndicadoresDto>($"api/indicadores?{Consulta}");
+        }
+        catch (Exception)
+        {
+            error = "No se pudieron cargar los indicadores. Revise que el servidor esté encendido.";
+        }
+    }
+
+    private static DateTime Utc(DateOnly dia) =>
+        DateTime.SpecifyKind(dia.ToDateTime(TimeOnly.MinValue) - DesfasePeru, DateTimeKind.Utc);
+
+    private string Consulta =>
+        $"desde={desde:O}&hasta={hasta:O}" + (equipoId is { } id ? $"&equipoId={id}" : "");
+
+    private string UrlExcel => $"api/reportes/excel?{Consulta}";
+
+    private string? NombreEquipo => equipos?.FirstOrDefault(e => e.Id == equipoId)?.Nombre;
+
+    // "22/10/2026" o "22/10/2026 al 28/10/2026". "hasta" no se incluye: el último día es el anterior.
+    private string TextoPeriodo
+    {
+        get
+        {
+            if (desde is not { } d || hasta is not { } h)
+            {
+                return "";
+            }
+            var primero = DateOnly.FromDateTime(d + DesfasePeru);
+            var ultimo = DateOnly.FromDateTime(h + DesfasePeru).AddDays(-1);
+            return primero == ultimo ? $"{primero:dd/MM/yyyy}" : $"{primero:dd/MM/yyyy} al {ultimo:dd/MM/yyyy}";
+        }
+    }
+}

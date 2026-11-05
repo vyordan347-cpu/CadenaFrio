@@ -1,6 +1,27 @@
 /* Sistema de diseño de Cadena de Frío.
-   Todos los colores, tipografía y espaciados salen de aquí, para que las pantallas
-   sean consistentes. Las páginas solo usan estas variables, nunca colores sueltos. */
+   Todos los colores, tipografía, espacios y formas salen de aquí: las páginas solo usan
+   estas variables y estas clases, nunca colores sueltos.
+
+   Índice
+   1. Tipografía (Atkinson Hyperlegible)
+   2. Tokens: tema claro
+   3. Tokens: tema oscuro (automático o elegido con el selector de tema)
+   4. Base
+   5. Formularios
+   6. Botones
+   7. Tarjetas, avisos e insignias
+   8. Tablas
+   9. Estados: vacío, carga (esqueleto) y error
+   10. Diálogos y ayudas emergentes
+   11. Estructura de página (ancho, encabezado, formularios)
+   12. Utilidades y accesibilidad
+
+   Puntos de corte (no se pueden usar variables en @media, por eso se anotan aquí):
+   - 640 px: celular        - 960 px: tablet (barra lateral solo con íconos)
+   - 1280 px: escritorio    - 1600 px: pantallas grandes (cuadrículas de 4 columnas) */
+
+
+/* ===== 1. Tipografía ===== */
 
 /* Atkinson Hyperlegible: tipografía diseñada para máxima legibilidad, incluso a distancia
    y con poca visión. Está incluida en el proyecto, así funciona sin internet. (Licencia OFL) */
@@ -20,108 +41,217 @@
     font-display: swap;
 }
 
+
+/* ===== 2. Tokens: tema claro ===== */
+
 :root {
     color-scheme: light;
 
-    /* Superficies: fondo gris frío en lugar de blanco puro, para no cansar la vista. */
-    --fondo: #e7edf2;
-    --superficie: #fbfcfd;
-    --superficie-2: #f2f5f7;
-    --borde: #dce3e8;
-    --borde-fuerte: #c3cdd5;
+    /* Marca: azul marino profundo (confianza, precisión) y verde azulado (frío, salud). */
+    --marca: #123653;
+    --marca-profunda: #0B2239;
+    --primario: #123653;           /* botones principales */
+    --primario-hover: #0B2239;
+    --sobre-primario: #FFFFFF;
 
-    /* Texto: tres niveles de importancia. */
-    --texto: #1d2a33;
-    --texto-2: #52606b;
-    --texto-3: #7e8b95;
+    /* Acento verde azulado. #0D9488 sobre blanco no alcanza 4.5:1 para texto:
+       se usa #0F766E en textos y enlaces, y #0D9488 solo en rellenos e íconos. */
+    --acento: #0F766E;
+    --acento-relleno: #0D9488;
+    --acento-hover: #115E59;
+    --acento-suave: #E6F4F2;
+    --sobre-acento: #FFFFFF;
 
-    /* Acento: azul frío, color de la marca. */
-    --acento: #1f5f8b;
-    --acento-hover: #184d72;
-    --acento-suave: #e3eef6;
-    --sobre-acento: #ffffff;
+    /* Superficies */
+    --fondo: #F5F8FC;
+    --superficie: #FFFFFF;
+    --superficie-2: #EEF3F9;
+    --borde: #DDE5EF;
+    --borde-fuerte: #C3CFDD;
 
-    /* Estados. Cada uno tiene color principal, fondo suave y texto legible sobre ese fondo. */
-    --ok: #2f7d5b;
-    --ok-fondo: #e2f2ea;
-    --ok-texto: #1e5a40;
-    --adv: #b7791f;
-    --adv-fondo: #fbf0dc;
-    --adv-texto: #7a4e0e;
-    --rup: #b4443c;
-    --rup-fondo: #f8e3e1;
-    --rup-texto: #7e2a24;
-    --sen: #6b7680;
-    --sen-fondo: #eceff2;
-    --sen-texto: #3f4a53;
+    /* Texto: tres niveles. Todos cumplen 4.5:1 sobre el fondo y las superficies. */
+    --texto: #172B4D;
+    --texto-2: #4A5B73;
+    --texto-3: #5E6E84;   /* #64748B daba 4.47:1 sobre el fondo: justo bajo el mínimo */
 
-    /* Zonas de la banda tipo termómetro. */
-    --zona-optima: #bfe3d0;
-    --zona-adv: #f6ddb0;
-    --zona-rup: #f2c4bf;
+    /* Estados. Cada uno: color principal (íconos, bordes), fondo suave y texto legible
+       sobre ese fondo. Nunca se usa solo el color: siempre va con ícono y palabra. */
+    --ok: #15803D;
+    --ok-fondo: #E8F5EC;
+    --ok-texto: #14532D;
+    --adv: #D97706;
+    --adv-fondo: #FEF3E2;
+    --adv-texto: #92400E;
+    --rup: #DC2626;
+    --rup-fondo: #FDECEC;
+    --rup-texto: #991B1B;
+    --sobre-rup: #FFFFFF;   /* texto sobre relleno rojo sólido (contadores) */
+    --sen: #64748B;
+    --sen-fondo: #EEF2F6;
+    --sen-texto: #334155;
+    --info-fondo: #E8F1FA;
+    --info-texto: #123653;
 
-    /* Barra superior: azul marino, identidad del sistema. */
-    --barra-fondo: #14304a;
-    --barra-texto: #f1f6fa;
-    --barra-texto-2: #a6bdd0;
-    --barra-activo: #2b7bc4;
+    /* Zonas de la banda tipo termómetro (NTS 242). */
+    --zona-optima: #CDEBD7;
+    --zona-adv: #FBE3BF;
+    --zona-rup: #F7CFCF;
+
+    /* Barra de navegación: azul marino profundo, identidad del sistema. */
+    --barra-fondo: #0B2239;
+    --barra-texto: #EEF4FA;
+    --barra-texto-2: #9FB6CC;
+    --barra-activo: #0F766E;
     --barra-hover: rgba(255, 255, 255, 0.08);
-    --barra-borde: rgba(255, 255, 255, 0.28);
+    --barra-borde: rgba(255, 255, 255, 0.2);
 
-    /* Recuadro de acción (información). */
-    --info-fondo: #e4eff8;
-    --info-texto: #1d4f75;
+    /* Tipografía: escala de 12 a 48 px. */
+    --fuente: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    --t-xs: 0.75rem;     /* 12 */
+    --t-s: 0.875rem;     /* 14 */
+    --t-m: 1rem;         /* 16 */
+    --t-l: 1.125rem;     /* 18 */
+    --t-xl: 1.375rem;    /* 22 */
+    --t-2xl: 1.75rem;    /* 28 */
+    --t-3xl: 2.25rem;    /* 36 */
+    --t-4xl: 3rem;       /* 48 */
 
-    /* Forma y espacio. */
+    /* Espacios: múltiplos de 4 px. */
+    --e-1: 0.25rem;
+    --e-2: 0.5rem;
+    --e-3: 0.75rem;
+    --e-4: 1rem;
+    --e-5: 1.5rem;
+    --e-6: 2rem;
+    --e-7: 3rem;
+    --e-8: 4rem;
+
+    /* Formas */
+    --radio-s: 6px;
     --radio: 10px;
     --radio-grande: 16px;
-    --sombra: 0 1px 2px rgba(29, 42, 51, 0.06);
-    --fuente: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    --radio-pildora: 999px;
+    --sombra: 0 1px 2px rgba(18, 54, 83, 0.06), 0 1px 3px rgba(18, 54, 83, 0.04);
+    --sombra-2: 0 8px 24px rgba(11, 34, 57, 0.12);
+
+    /* Anchos: el contenido aprovecha pantallas de 1366 a 1920 px sin líneas de texto eternas. */
+    --ancho-contenido: 1440px;
+    --ancho-formulario: 720px;
+    --ancho-lectura: 72ch;
+
+    /* Movimiento: corto y discreto. */
+    --duracion: 180ms;
+    --curva: cubic-bezier(0.2, 0, 0, 1);
+
+    /* Foco visible del teclado. */
+    --foco: 0 0 0 3px rgba(13, 148, 136, 0.45);
 }
 
-/* Modo oscuro: se activa solo, según la configuración del sistema operativo.
-   Útil si la pantalla queda encendida de noche en la posta. */
+
+/* ===== 3. Tokens: tema oscuro =====
+   Se aplica solo si el sistema operativo está en oscuro y no se eligió "Claro",
+   o si se eligió "Oscuro" en el selector de tema (atributo data-theme en <html>).
+   Los dos bloques tienen los mismos valores: CSS no permite combinarlos en uno. */
+
 @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="claro"]) {
         color-scheme: dark;
-        --fondo: #11181d;
-        --superficie: #1a232a;
-        --superficie-2: #222d35;
-        --borde: #2e3a43;
-        --borde-fuerte: #42515c;
-        --texto: #e6edf2;
-        --texto-2: #a9b6c0;
-        --texto-3: #7f8c96;
-        --acento: #7fb3d8;
-        --acento-hover: #9cc6e3;
-        --acento-suave: #1d3344;
-        --sobre-acento: #0f1a22;
-        --ok: #6cc49a;
-        --ok-fondo: #173328;
-        --ok-texto: #a9e3c6;
-        --adv: #e3b25e;
-        --adv-fondo: #3a2c12;
-        --adv-texto: #f2d29a;
-        --rup: #e58a82;
-        --rup-fondo: #3d1d1b;
-        --rup-texto: #f4bdb7;
-        --sen: #9aa6b0;
-        --sen-fondo: #252f37;
-        --sen-texto: #c9d3da;
-        --zona-optima: #2c5b45;
-        --zona-adv: #6b5222;
-        --zona-rup: #6e3330;
+        --marca: #9CC3E6;
+        --marca-profunda: #07111C;
+        --primario: #2DD4BF;
+        --primario-hover: #5EEAD4;
+        --sobre-primario: #04201E;
+        --acento: #2DD4BF;
+        --acento-relleno: #14B8A6;
+        --acento-hover: #5EEAD4;
+        --acento-suave: #0F3A3A;
+        --sobre-acento: #04201E;
+        --fondo: #0B1622;
+        --superficie: #12202F;
+        --superficie-2: #182A3C;
+        --borde: #22364B;
+        --borde-fuerte: #33506B;
+        --texto: #E6EDF5;
+        --texto-2: #B4C2D3;
+        --texto-3: #8FA1B6;
+        --ok: #4ADE80;
+        --ok-fondo: #0F2E1C;
+        --ok-texto: #BBF7D0;
+        --adv: #FBBF24;
+        --adv-fondo: #33240A;
+        --adv-texto: #FDE68A;
+        --rup: #F87171;
+        --rup-fondo: #3A1414;
+        --rup-texto: #FECACA;
+        --sobre-rup: #2A0B0B;
+        --sen: #94A3B8;
+        --sen-fondo: #1C2A38;
+        --sen-texto: #CBD5E1;
+        --info-fondo: #12304A;
+        --info-texto: #BFDBF5;
+        --zona-optima: #1F4D35;
+        --zona-adv: #5C4415;
+        --zona-rup: #5E2424;
+        --barra-fondo: #07111C;
+        --barra-texto: #E6EDF5;
+        --barra-texto-2: #8FA6B8;
+        --barra-activo: #0F766E;
         --sombra: none;
-        --barra-fondo: #0c1b27;
-        --barra-texto: #e6edf2;
-        --barra-texto-2: #8fa6b8;
-        --barra-activo: #2b6ea8;
-        --info-fondo: #18303f;
-        --info-texto: #b9d7ee;
+        --sombra-2: 0 8px 24px rgba(0, 0, 0, 0.45);
+        --foco: 0 0 0 3px rgba(45, 212, 191, 0.5);
     }
 }
 
-/* Base */
+:root[data-theme="oscuro"] {
+    color-scheme: dark;
+    --marca: #9CC3E6;
+    --marca-profunda: #07111C;
+    --primario: #2DD4BF;
+    --primario-hover: #5EEAD4;
+    --sobre-primario: #04201E;
+    --acento: #2DD4BF;
+    --acento-relleno: #14B8A6;
+    --acento-hover: #5EEAD4;
+    --acento-suave: #0F3A3A;
+    --sobre-acento: #04201E;
+    --fondo: #0B1622;
+    --superficie: #12202F;
+    --superficie-2: #182A3C;
+    --borde: #22364B;
+    --borde-fuerte: #33506B;
+    --texto: #E6EDF5;
+    --texto-2: #B4C2D3;
+    --texto-3: #8FA1B6;
+    --ok: #4ADE80;
+    --ok-fondo: #0F2E1C;
+    --ok-texto: #BBF7D0;
+    --adv: #FBBF24;
+    --adv-fondo: #33240A;
+    --adv-texto: #FDE68A;
+    --rup: #F87171;
+    --rup-fondo: #3A1414;
+    --rup-texto: #FECACA;
+    --sobre-rup: #2A0B0B;
+    --sen: #94A3B8;
+    --sen-fondo: #1C2A38;
+    --sen-texto: #CBD5E1;
+    --info-fondo: #12304A;
+    --info-texto: #BFDBF5;
+    --zona-optima: #1F4D35;
+    --zona-adv: #5C4415;
+    --zona-rup: #5E2424;
+    --barra-fondo: #07111C;
+    --barra-texto: #E6EDF5;
+    --barra-texto-2: #8FA6B8;
+    --barra-activo: #0F766E;
+    --sombra: none;
+    --sombra-2: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --foco: 0 0 0 3px rgba(45, 212, 191, 0.5);
+}
+
+
+/* ===== 4. Base ===== */
+
 *,
 *::before,
 *::after {
@@ -145,14 +275,32 @@ h3 {
     margin: 0;
     line-height: 1.25;
     font-weight: 700;
+    letter-spacing: -0.01em;
 }
 
-h1 { font-size: 1.5rem; }
-h2 { font-size: 1.15rem; }
-h3 { font-size: 1rem; }
+h1 { font-size: var(--t-2xl); }
+h2 { font-size: var(--t-l); }
+h3 { font-size: var(--t-m); }
 
 p {
     margin: 0;
+}
+
+a {
+    color: var(--acento);
+    text-underline-offset: 2px;
+}
+
+a:hover {
+    color: var(--acento-hover);
+}
+
+code {
+    padding: 0.1em 0.35em;
+    border-radius: var(--radio-s);
+    background: var(--superficie-2);
+    color: var(--texto);
+    font-size: 0.9em;
 }
 
 /* Números con ancho fijo: las cifras no "bailan" cuando cambian. */
@@ -160,17 +308,39 @@ p {
     font-variant-numeric: tabular-nums;
 }
 
-/* Campos de formulario (incluye los que dibuja Blazor: InputText, InputNumber, etc.) */
+.icono {
+    flex-shrink: 0;
+}
+
+
+/* ===== 5. Formularios ===== */
+
+/* Campos (incluye los que dibuja Blazor: InputText, InputNumber, InputDate, etc.) */
 input,
 textarea,
 select {
     width: 100%;
-    padding: 0.6rem 0.75rem;
+    min-height: 2.5rem;
+    padding: 0.55rem 0.75rem;
     border: 1px solid var(--borde-fuerte);
     border-radius: var(--radio);
     background: var(--superficie);
     color: var(--texto);
     font: inherit;
+    transition: border-color var(--duracion) var(--curva), box-shadow var(--duracion) var(--curva);
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+    border-color: var(--texto-3);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    width: auto;
+    min-height: 0;
+    accent-color: var(--acento-relleno);
 }
 
 textarea {
@@ -179,34 +349,66 @@ textarea {
 
 input:focus-visible,
 textarea:focus-visible,
-select:focus-visible,
+select:focus-visible {
+    outline: none;
+    border-color: var(--acento-relleno);
+    box-shadow: var(--foco);
+}
+
 button:focus-visible,
-a:focus-visible {
-    outline: 2px solid var(--acento);
+a:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--acento-relleno);
     outline-offset: 2px;
+}
+
+/* Blazor enfoca el título al cambiar de página (FocusOnNavigate) para que el lector de
+   pantalla lo anuncie. No es un control: no se le dibuja el anillo de foco. */
+h1[tabindex="-1"]:focus {
+    outline: none;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+    background: var(--superficie-2);
+    color: var(--texto-3);
+    cursor: not-allowed;
 }
 
 /* Blazor marca con "invalid" los campos que no pasan la validación. */
 input.invalid,
-textarea.invalid {
+textarea.invalid,
+select.invalid {
     border-color: var(--rup);
 }
 
 .validation-message {
-    color: var(--rup);
-    font-size: 0.875rem;
+    color: var(--rup-texto);
+    font-size: var(--t-s);
+    font-weight: 400;
 }
 
 label {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    font-size: 0.9rem;
+    font-size: var(--t-s);
     font-weight: 700;
     color: var(--texto-2);
 }
 
-/* Botones */
+/* Texto de ayuda bajo un campo. */
+.ayuda-campo {
+    color: var(--texto-3);
+    font-size: var(--t-s);
+    font-weight: 400;
+}
+
+
+/* ===== 6. Botones ===== */
+
 button {
     font: inherit;
     cursor: pointer;
@@ -216,39 +418,90 @@ button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.4rem;
-    padding: 0.55rem 1rem;
+    gap: 0.45rem;
+    min-height: 2.5rem;
+    padding: 0.5rem 1rem;
     border: 1px solid var(--borde-fuerte);
     border-radius: var(--radio);
     background: var(--superficie);
     color: var(--texto);
     font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: background-color var(--duracion) var(--curva), border-color var(--duracion) var(--curva),
+                color var(--duracion) var(--curva);
 }
 
 .boton:hover {
     background: var(--superficie-2);
+    color: var(--texto);
 }
 
+/* Acción principal de la pantalla: una sola por vista. */
 .boton-primario {
-    border-color: var(--acento);
-    background: var(--acento);
-    color: var(--sobre-acento);
+    border-color: var(--primario);
+    background: var(--primario);
+    color: var(--sobre-primario);
 }
 
 .boton-primario:hover {
-    background: var(--acento-hover);
+    border-color: var(--primario-hover);
+    background: var(--primario-hover);
+    color: var(--sobre-primario);
 }
 
-.icono {
-    flex-shrink: 0;
+/* Acción secundaria discreta (Cancelar, Ver más). */
+.boton-fantasma {
+    border-color: transparent;
+    background: transparent;
+    color: var(--texto-2);
 }
 
-.boton:disabled {
-    opacity: 0.6;
-    cursor: default;
+.boton-fantasma:hover {
+    background: var(--superficie-2);
 }
 
-/* Tarjeta: superficie elevada estándar. */
+/* Acción sensible (Desactivar, Regenerar clave): siempre con confirmación. */
+.boton-peligro {
+    border-color: var(--rup);
+    background: var(--superficie);
+    color: var(--rup-texto);
+}
+
+.boton-peligro:hover {
+    background: var(--rup-fondo);
+    color: var(--rup-texto);
+}
+
+.boton-chico {
+    min-height: 2rem;
+    padding: 0.3rem 0.75rem;
+    font-size: var(--t-s);
+}
+
+/* Botón de solo ícono: siempre lleva aria-label. */
+.boton-icono {
+    width: 2.5rem;
+    padding: 0;
+}
+
+.boton:disabled,
+.boton[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* En pantallas táctiles, las áreas de toque crecen a 44 px (WCAG 2.2, 2.5.8). */
+@media (pointer: coarse) {
+    .boton {
+        min-height: 2.75rem;
+    }
+}
+
+
+/* ===== 7. Tarjetas, avisos e insignias ===== */
+
 .tarjeta {
     background: var(--superficie);
     border: 1px solid var(--borde);
@@ -256,15 +509,294 @@ button {
     box-shadow: var(--sombra);
 }
 
-/* Avisos */
+.tarjeta-relleno {
+    padding: var(--e-5);
+}
+
+/* Avisos dentro de la página. Con ícono al inicio: agregar "aviso-con-icono". */
 .aviso {
     padding: 0.7rem 0.9rem;
     border-radius: var(--radio);
     font-size: 0.95rem;
 }
 
+.aviso-con-icono {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--e-2);
+}
+
 .aviso-ok { background: var(--ok-fondo); color: var(--ok-texto); }
 .aviso-error { background: var(--rup-fondo); color: var(--rup-texto); }
+.aviso-adv { background: var(--adv-fondo); color: var(--adv-texto); }
+.aviso-info { background: var(--info-fondo); color: var(--info-texto); }
+
+/* Insignia de estado: siempre ícono + texto (la gravedad no depende solo del color). */
+.insignia {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.6rem;
+    border: 1px solid transparent;
+    border-radius: var(--radio-pildora);
+    font-size: var(--t-s);
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.insignia-ok { background: var(--ok-fondo); color: var(--ok-texto); }
+.insignia-adv { background: var(--adv-fondo); color: var(--adv-texto); }
+.insignia-rup { background: var(--rup-fondo); color: var(--rup-texto); border-color: var(--rup); }
+.insignia-sen { background: var(--sen-fondo); color: var(--sen-texto); }
+.insignia-info { background: var(--info-fondo); color: var(--info-texto); }
+.insignia-neutra { background: var(--superficie-2); color: var(--texto-2); }
+
+/* Estado de una lectura antigua: sin relleno y con borde discontinuo, para que no se
+   confunda con un estado medido ahora. Se combina con la insignia de su color. */
+.insignia-antigua {
+    background: transparent;
+    border-style: dashed;
+    border-color: currentColor;
+}
+
+.insignia-cuando {
+    font-weight: 400;
+}
+
+
+/* ===== 8. Tablas ===== */
+
+.tabla-contenedor {
+    overflow-x: auto;
+}
+
+.tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.925rem;
+}
+
+.tabla th,
+.tabla td {
+    padding: 0.7rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--borde);
+}
+
+.tabla th {
+    position: sticky;
+    top: 0;
+    background: var(--superficie);
+    color: var(--texto-3);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.tabla tbody tr:hover {
+    background: var(--superficie-2);
+}
+
+.tabla .numero {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ===== 9. Estados: vacío, carga y error ===== */
+
+.estado-vacio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--e-3);
+    max-width: var(--ancho-lectura);
+    margin: 0 auto;
+    padding: var(--e-7) var(--e-5);
+    color: var(--texto-2);
+    text-align: center;
+}
+
+.estado-vacio .icono {
+    color: var(--texto-3);
+}
+
+.estado-vacio h2 {
+    color: var(--texto);
+}
+
+/* Esqueleto: bloque gris que ocupa el lugar del contenido mientras carga. */
+.esqueleto {
+    display: block;
+    min-height: 1em;
+    border-radius: var(--radio-s);
+    background: linear-gradient(90deg, var(--superficie-2) 25%, var(--borde) 37%, var(--superficie-2) 63%);
+    background-size: 400% 100%;
+    animation: esqueleto 1.4s ease infinite;
+}
+
+@keyframes esqueleto {
+    from { background-position: 100% 50%; }
+    to { background-position: 0 50%; }
+}
+
+
+/* ===== 10. Diálogos y ayudas emergentes ===== */
+
+/* Diálogo modal (elemento <dialog>): para confirmar acciones sensibles. */
+.dialogo {
+    width: min(32rem, calc(100% - 2rem));
+    padding: 0;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-grande);
+    background: var(--superficie);
+    color: var(--texto);
+    box-shadow: var(--sombra-2);
+}
+
+.dialogo::backdrop {
+    background: rgba(11, 34, 57, 0.55);
+}
+
+/* Ayuda emergente: <span class="ayuda-emergente" data-ayuda="Texto">…</span>.
+   Se muestra con el mouse y con el foco del teclado. */
+.ayuda-emergente {
+    position: relative;
+}
+
+.ayuda-emergente::after {
+    content: attr(data-ayuda);
+    position: absolute;
+    bottom: calc(100% + 0.4rem);
+    left: 50%;
+    z-index: 30;
+    width: max-content;
+    max-width: 16rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radio-s);
+    background: var(--marca-profunda);
+    color: #FFFFFF;
+    font-size: var(--t-xs);
+    font-weight: 400;
+    line-height: 1.4;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 4px);
+    transition: opacity var(--duracion) var(--curva), transform var(--duracion) var(--curva);
+}
+
+.ayuda-emergente:hover::after,
+.ayuda-emergente:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+
+/* ===== 11. Estructura de página =====
+   Lo que comparten todas las pantallas: ancho, encabezado, formularios y acciones.
+   Una página puede ajustar algo en su propio .razor.css (tiene prioridad sobre esto). */
+
+.pagina {
+    max-width: var(--ancho-contenido);
+    margin: 0 auto;
+    padding: var(--e-5) var(--e-5) var(--e-7);
+}
+
+.encabezado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--e-4);
+    margin-bottom: var(--e-5);
+}
+
+.encabezado-icono {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--radio);
+    background: var(--primario);
+    color: var(--sobre-primario);
+}
+
+.encabezado-texto {
+    flex: 1;
+    min-width: 14rem;
+}
+
+.subtitulo {
+    margin-top: 0.15rem;
+    color: var(--texto-2);
+}
+
+.nota {
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+/* Formulario dentro de una tarjeta (registrar o editar). */
+.formulario {
+    max-width: var(--ancho-formulario);
+    margin-bottom: var(--e-5);
+    padding: var(--e-5);
+}
+
+.formulario h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--e-2);
+    margin-bottom: var(--e-4);
+}
+
+.campos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: var(--e-4);
+    margin-bottom: var(--e-4);
+}
+
+.campo-ancho {
+    grid-column: 1 / -1;
+}
+
+fieldset {
+    margin: 0 0 var(--e-4);
+    padding: var(--e-3) var(--e-4) var(--e-1);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+legend {
+    padding: 0 0.4rem;
+    color: var(--texto);
+    font-weight: 700;
+}
+
+.acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--e-2);
+}
+
+@media (max-width: 640px) {
+    .pagina {
+        padding: var(--e-4) var(--e-3) var(--e-6);
+    }
+
+    .formulario {
+        padding: var(--e-4);
+    }
+}
+
+
+/* ===== 12. Utilidades y accesibilidad ===== */
 
 /* Texto solo para lectores de pantalla. */
 .solo-lector {
@@ -276,8 +808,52 @@ button {
     white-space: nowrap;
 }
 
+/* ===== 13. Microinteracciones =====
+   Discretas y breves (180 ms): confirman una acción o una aparición, sin animaciones
+   constantes. Todas se apagan con "reducir movimiento" (regla de abajo). */
+
+/* Al presionar un botón, baja un píxel: confirma el clic. */
+.boton:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+/* Los avisos (guardado, error, información) aparecen con un leve desplazamiento. */
+.aviso {
+    animation: aparecer var(--duracion) var(--curva);
+}
+
+/* Las filas de tabla cambian de fondo suavemente al pasar el ratón. */
+.tabla tbody tr {
+    transition: background-color var(--duracion) var(--curva);
+}
+
+/* Los diálogos de confirmación aparecen con el fondo oscureciéndose. */
+.dialogo[open] {
+    animation: aparecer var(--duracion) var(--curva);
+}
+
+.dialogo[open]::backdrop {
+    animation: oscurecer var(--duracion) var(--curva);
+}
+
+@keyframes aparecer {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+}
+
+@keyframes oscurecer {
+    from {
+        opacity: 0;
+    }
+}
+
+/* Si el sistema pide reducir el movimiento, no hay animaciones ni transiciones. */
 @media (prefers-reduced-motion: reduce) {
-    * {
+    *,
+    *::before,
+    *::after {
         transition: none !important;
         animation: none !important;
     }

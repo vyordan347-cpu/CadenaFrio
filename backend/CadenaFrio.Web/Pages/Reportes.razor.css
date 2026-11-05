@@ -1,0 +1,285 @@
+/* Reportes: filtros, indicadores del periodo, estado actual y Excel.
+   Los indicadores "Del periodo" dependen de las fechas; "Estado actual" no. */
+
+.pagina {
+    max-width: var(--ancho-contenido);
+    margin: 0 auto;
+    padding: var(--e-5) var(--e-5) var(--e-7);
+}
+
+.encabezado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--e-4);
+    margin-bottom: var(--e-4);
+}
+
+.encabezado-icono {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--radio);
+    background: var(--primario);
+    color: var(--sobre-primario);
+}
+
+.encabezado-texto {
+    flex: 1;
+    min-width: 14rem;
+}
+
+.subtitulo {
+    margin-top: 0.15rem;
+    color: var(--texto-2);
+}
+
+/* Verde de Excel, para que se reconozca el botón (igual que en el Historial). */
+.boton-excel {
+    border-color: #1D6F42;
+    background: #1D6F42;
+    color: #FFFFFF;
+}
+
+.boton-excel:hover {
+    border-color: #185C37;
+    background: #185C37;
+    color: #FFFFFF;
+}
+
+.ayuda {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-basis: 100%;
+    margin-top: var(--e-2);
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+/* ===== Filtros (mismo diseño que el Historial) ===== */
+
+.filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--e-4) var(--e-5);
+    margin-bottom: var(--e-4);
+    padding: var(--e-4) var(--e-5);
+}
+
+.filtro-periodo {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.filtro-etiqueta {
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.periodos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+.periodo {
+    min-height: 2rem;
+    padding: 0.3rem 0.85rem;
+    border: none;
+    border-radius: var(--radio-s);
+    background: transparent;
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.periodo:hover {
+    color: var(--texto);
+}
+
+.periodo.activo {
+    background: var(--superficie);
+    color: var(--acento);
+    box-shadow: var(--sombra);
+}
+
+.filtro-equipo {
+    min-width: 15rem;
+}
+
+.personalizado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--e-3);
+    flex-basis: 100%;
+}
+
+/* ===== Cargando ===== */
+
+.esqueletos {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--e-3);
+}
+
+.esqueleto-cifra {
+    height: 9rem;
+}
+
+/* ===== Resumen ===== */
+
+.resumen-periodo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: var(--e-5);
+    color: var(--texto-2);
+}
+
+.resumen-periodo strong {
+    color: var(--texto);
+}
+
+/* ===== Grupos de indicadores ===== */
+
+.grupo {
+    margin-bottom: var(--e-6);
+}
+
+.grupo-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--e-1) var(--e-3);
+    margin-bottom: var(--e-3);
+}
+
+.grupo-cabecera h2 {
+    font-size: var(--t-l);
+}
+
+.grupo-ayuda {
+    color: var(--texto-3);
+    font-size: var(--t-s);
+}
+
+.indicadores {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--e-3);
+}
+
+.indicador {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: var(--e-4) var(--e-5);
+    border-top: 4px solid var(--borde-fuerte);
+}
+
+.indicador-etiqueta {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--texto-2);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.indicador-valor {
+    margin-top: 0.25rem;
+    color: var(--texto);
+    font-size: var(--t-3xl);
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+/* Jerarquía: cifra grande > etiqueta en mayúsculas > texto que la completa (sin negrita,
+   para no competir con la cifra). */
+.indicador-texto {
+    color: var(--texto-2);
+    font-weight: 400;
+}
+
+.indicador-explicacion {
+    margin-top: auto;
+    padding-top: var(--e-3);
+    color: var(--texto-3);
+    font-size: var(--t-s);
+}
+
+/* El cumplimiento térmico es el indicador principal. */
+.indicador.destacado {
+    border-top-color: var(--acento-relleno);
+}
+
+.indicador.destacado .indicador-valor {
+    color: var(--acento);
+}
+
+.indicador.con-problemas {
+    border-top-color: var(--rup);
+}
+
+.indicador.con-problemas .indicador-valor {
+    color: var(--rup-texto);
+}
+
+/* Estado actual: una tarjeta con su acción, en la misma rejilla que los indicadores del
+   periodo (ocupa dos columnas), así sus bordes coinciden con los de arriba. */
+.indicador-ancho {
+    grid-column: span 2;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e-4);
+}
+
+/* ===== Pantallas medianas y celular ===== */
+
+@media (max-width: 1100px) {
+    .indicadores,
+    .esqueletos {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .pagina {
+        padding: var(--e-4) var(--e-3) var(--e-6);
+    }
+
+    .filtros {
+        padding: var(--e-4);
+    }
+
+    .filtro-equipo,
+    .filtro-periodo {
+        width: 100%;
+    }
+
+    .indicadores {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .indicador-ancho {
+        grid-column: auto;
+    }
+
+    .indicador-valor {
+        font-size: var(--t-2xl);
+    }
+}

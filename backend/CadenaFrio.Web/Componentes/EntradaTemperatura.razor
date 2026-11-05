@@ -1,0 +1,77 @@
+@using System.Globalization
+@using System.Linq.Expressions
+@using CadenaFrio.Shared.Contracts
+
+@* Campo de temperatura que acepta °C o °F. El valor enlazado (Valor) siempre está en °C:
+   así las validaciones del formulario y lo que se guarda no cambian con la unidad. *@
+
+<input type="number" step="0.1" class="@ClaseValidacion" value="@Texto" @onchange="CambiarAsync" />
+
+@if (Fahrenheit && Valor is { } celsius)
+{
+    <span class="conversion">Se guardará como <strong>@celsius.ToString("0.0") °C</strong></span>
+
+    @* Los insertos suelen redondear: 46 °F son 7.8 °C, no 8 °C. *@
+    @if (ConversionTemperatura.EnteroSugerido(celsius) is { } entero)
+    {
+        <span class="sugerencia">
+            Los insertos suelen redondear. ¿Quiso decir @entero.ToString("0") °C?
+            <button type="button" class="boton boton-chico" @onclick="() => FijarAsync(entero)">Usar @entero.ToString("0") °C</button>
+        </span>
+    }
+}
+
+@code {
+    // Siempre en °C.
+    [Parameter]
+    public double? Valor { get; set; }
+
+    [Parameter]
+    public EventCallback<double?> ValorChanged { get; set; }
+
+    // Lo completa @bind-Valor: permite marcar el campo como inválido igual que InputNumber.
+    [Parameter]
+    public Expression<Func<double?>>? ValorExpression { get; set; }
+
+    [Parameter]
+    public bool Fahrenheit { get; set; }
+
+    [CascadingParameter]
+    private EditContext? Contexto { get; set; }
+
+    // El campo numérico del navegador siempre usa punto decimal.
+    private static readonly CultureInfo Invariante = CultureInfo.InvariantCulture;
+
+    private FieldIdentifier? Campo => ValorExpression is null ? null : FieldIdentifier.Create(ValorExpression);
+
+    private string ClaseValidacion =>
+        Contexto is not null && Campo is { } campo ? Contexto.FieldCssClass(campo) : "";
+
+    // Lo que se ve en el campo: el valor en °C, o convertido a °F con una décima.
+    private string Texto => Valor is { } c
+        ? (Fahrenheit ? ConversionTemperatura.RedondearDecima(ConversionTemperatura.AFahrenheit(c)) : c).ToString("0.##", Invariante)
+        : "";
+
+    private Task CambiarAsync(ChangeEventArgs e)
+    {
+        var texto = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(texto) || !double.TryParse(texto, NumberStyles.Float, Invariante, out var escrito))
+        {
+            return FijarAsync(null);
+        }
+
+        // En °F se convierte y se guarda con una décima: 46 °F → 7.8 °C.
+        return FijarAsync(Fahrenheit
+            ? ConversionTemperatura.RedondearDecima(ConversionTemperatura.ACelsius(escrito))
+            : escrito);
+    }
+
+    private async Task FijarAsync(double? celsius)
+    {
+        await ValorChanged.InvokeAsync(celsius);
+        if (Contexto is not null && Campo is { } campo)
+        {
+            Contexto.NotifyFieldChanged(campo);
+        }
+    }
+}

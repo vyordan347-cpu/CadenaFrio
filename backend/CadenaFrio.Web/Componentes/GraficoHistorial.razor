@@ -1,22 +1,52 @@
 @using System.Globalization
 @using CadenaFrio.Shared.Contracts
 @using CadenaFrio.Web.Utilidades
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 @* Gráfico de temperatura en el tiempo, dibujado en SVG desde C#.
-   Las franjas de fondo muestran las zonas; la línea, el promedio de cada tramo;
-   la banda clara, el mínimo y máximo del tramo (así no se pierden los picos). *@
+   Dos modos:
+   - Vista general: franja verde del óptimo, líneas discontinuas de los límites, las
+     temperaturas en turquesa y en rojo solo lo que salió del límite.
+   - Análisis: además, el mínimo y máximo de cada tramo, las alertas con su duración
+     y la opción de ajustar la vista a los datos.
+   Sin datos no se dibuja nada: la línea se corta y una barra gris fina bajo el eje
+   marca el periodo vacío (no se confunde con temperatura normal). *@
 
-<div class="grafico">
+<div class="grafico" @ref="contenedor">
+    <div class="grafico-barra">
+        <div class="selector-modo" role="group" aria-label="Modo del gráfico">
+            <button type="button" class="@(analisis ? "" : "activo")" aria-pressed="@(analisis ? "false" : "true")" @onclick="() => CambiarModo(false)">Vista general</button>
+            <button type="button" class="@(analisis ? "activo" : "")" aria-pressed="@(analisis ? "true" : "false")" @onclick="() => CambiarModo(true)">Análisis</button>
+        </div>
+
+        @* Solo en Análisis y si los datos ocupan poco del periodo: acercar la vista a donde
+           hay lecturas. El eje sigue siendo de tiempo real; solo cambia el tramo que se muestra. *@
+        @if (analisis && PuedeAjustar)
+        {
+            <div class="grafico-vista">
+                @if (ajustado)
+                {
+                    <span class="grafico-nota cifras">
+                        Vista: @FormatoFecha.HoraPeru(VistaDesde)[..16] a @FormatoFecha.HoraPeru(VistaHasta)[..16]
+                    </span>
+                }
+                <button type="button" class="boton boton-chico" aria-pressed="@(ajustado ? "true" : "false")" @onclick="AlternarVista">
+                    <Icono Nombre="@(ajustado ? "minimizar" : "maximizar")" Tamano="16" />
+                    @(ajustado ? "Ver el periodo completo" : "Ajustar a los datos")
+                </button>
+            </div>
+        }
+    </div>
+
     <svg viewBox="0 0 @F(Ancho) @F(Alto)" role="img" aria-label="Gráfico de temperatura del periodo"
          @onmouseleave="() => indice = null">
 
-        @* Zonas *@
-        @foreach (var zona in Zonas)
-        {
-            <rect x="@F(MargenIzq)" y="@F(Y(zona.Hasta))" width="@F(AnchoUtil)" height="@F(Y(zona.Desde) - Y(zona.Hasta))" class="zona @zona.Clase" />
-        }
+        @* Rango óptimo: una franja verde muy tenue. Es la única zona con color. *@
+        <rect x="@F(MargenIzq)" y="@F(Y(OptimoMaximo))" width="@F(AnchoUtil)"
+              height="@F(Math.Max(Y(OptimoMinimo) - Y(OptimoMaximo), 0))" class="franja-optimo" />
 
-        @* Líneas de la escala vertical *@
+        @* Escala vertical: líneas horizontales muy suaves. *@
         @foreach (var valor in MarcasY)
         {
             <g>
@@ -25,62 +55,115 @@
             </g>
         }
 
-        @* Marcas de tiempo *@
+        @* Límites permitidos: dos líneas discontinuas discretas, con su valor a la derecha. *@
+        @foreach (var limite in new[] { LimiteMaximo, LimiteMinimo })
+        {
+            <g>
+                <line x1="@F(MargenIzq)" x2="@F(Ancho - MargenDer)" y1="@F(Y(limite))" y2="@F(Y(limite))" class="linea-limite" />
+                <text x="@F(Ancho - MargenDer + 6)" y="@F(Y(limite) + 4)" class="limite-texto">@limite.ToString("0.#", CultureInfo.InvariantCulture) °C</text>
+            </g>
+        }
+
+        @* Eje de tiempo: una rayita y su hora o fecha. *@
+        <line x1="@F(MargenIzq)" x2="@F(Ancho - MargenDer)" y1="@F(MargenSup + AltoUtil)" y2="@F(MargenSup + AltoUtil)" class="eje" />
         @foreach (var (x, texto) in MarcasX)
         {
             <g>
+                <line x1="@F(x)" x2="@F(x)" y1="@F(MargenSup + AltoUtil)" y2="@F(MargenSup + AltoUtil + 5)" class="marca-eje" />
                 <text x="@F(x)" y="@F(Alto - 10)" class="eje-x">@texto</text>
             </g>
         }
 
-        @* Cada tramo continuo de datos se dibuja por separado: los huecos sin lecturas
-           quedan vacíos, en lugar de unir puntos lejanos con datos que no existieron. *@
-        @foreach (var segmento in Segmentos)
+        @* Periodos sin datos: una barra gris fina justo sobre el eje, nada más. *@
+        @foreach (var (inicio, fin) in Huecos)
         {
-            if (segmento.Count >= 2)
+            var x1 = X(inicio);
+            var x2 = X(fin);
+            <rect x="@F(x1)" y="@F(MargenSup + AltoUtil - 4)" width="@F(Math.Max(x2 - x1, 2))" height="4" rx="2" class="hueco">
+                <title>Sin datos de @FormatoFecha.HoraPeru(inicio)[..16] a @FormatoFecha.HoraPeru(fin)[..16]</title>
+            </rect>
+        }
+
+        @* Análisis: el mínimo y máximo de cada tramo, como banda clara. *@
+        @if (analisis)
+        {
+            @foreach (var segmento in Segmentos.Where(s => s.Count >= 2))
             {
                 <path d="@TrazoBanda(segmento)" class="banda-minmax" />
+            }
+        }
+
+        @* Temperaturas: línea si hay al menos 3 tramos seguidos; si no, puntos sueltos.
+           Nunca se une a través de un periodo sin datos. *@
+        @foreach (var segmento in Segmentos)
+        {
+            if (segmento.Count >= MinimoParaLinea)
+            {
                 <path d="@TrazoLinea(segmento)" class="linea" />
             }
             else
             {
-                @* Un punto aislado (sin vecinos cercanos) se muestra como un círculo. *@
-                <circle cx="@F(X(segmento[0].Fecha))" cy="@F(Y(segmento[0].Promedio))" r="4" class="punto-aislado" />
+                foreach (var p in segmento)
+                {
+                    @* Si el valor ya está fuera del límite, el punto mismo va en rojo. *@
+                    <circle cx="@F(X(Centro(p)))" cy="@F(Y(p.Promedio))" r="@(FueraDe(p.Promedio) ? "4" : "3.5")" class="@(FueraDe(p.Promedio) ? "punto-fuera" : "punto")">
+                        <title>@TituloDetalle(p) · @TextoDetalle(p)</title>
+                    </circle>
+                }
             }
         }
 
-        @* Alertas: marcas en la parte superior, en la hora en que empezaron *@
-        @foreach (var alerta in Alertas)
+        @* Fuera del límite: un punto rojo en el valor extremo real del tramo (aunque el promedio
+           esté dentro del rango), para que ningún pico quede escondido. *@
+        @foreach (var (p, valor) in FueraDelLimite)
         {
-            <g>
-                <circle cx="@F(X(alerta.Inicio))" cy="@F(MargenSup + 7)" r="5"
-                        class="@(alerta.Tipo is TipoAlertaDto.SinSenal or TipoAlertaDto.SensorSinVariacion ? "marca-sen" : alerta.Nivel == NivelAlertaDto.Ruptura ? "marca-rup" : "marca-adv")">
-                    <title>@NombreAlerta(alerta) desde @FormatoFecha.HoraPeru(alerta.Inicio)</title>
-                </circle>
+            <circle cx="@F(X(Centro(p)))" cy="@F(Y(valor))" r="4" class="punto-fuera">
+                <title>Fuera del límite: @C(valor) °C · @Momento(p)</title>
+            </circle>
+        }
+
+        @* Análisis: las alertas como barras finas en una fila sobre el gráfico, de su inicio a su
+           fin (o hasta ahora). Una ruptura: amarillo mientras fue advertencia y rojo desde la
+           ruptura; sin señal y sensor: contorno gris rayado. *@
+        @foreach (var barra in BarrasAlertas)
+        {
+            <g class="alerta-barra">
+                <title>@barra.Texto</title>
+                @if (barra.Clase == "barra-sen")
+                {
+                    <rect x="@F(barra.X1)" y="@F(YCarril)" width="@F(barra.X2 - barra.X1)" height="@F(AltoBarra)" rx="2" class="barra-sen" />
+                }
+                else
+                {
+                    <rect x="@F(barra.X1)" y="@F(YCarril)" width="@F(barra.XRuptura - barra.X1)" height="@F(AltoBarra)" rx="2" class="barra-adv" />
+                    <rect x="@F(barra.XRuptura)" y="@F(YCarril)" width="@F(barra.X2 - barra.XRuptura)" height="@F(AltoBarra)" rx="2" class="barra-rup" />
+                }
             </g>
         }
 
-        @* Zonas sensibles al mouse: una por punto, para mostrar el detalle al pasar encima *@
+        @* Zonas sensibles: una por punto, para mostrar el detalle al pasar el ratón
+           o al tocar con el dedo en el celular. *@
         @for (var i = 0; i < Puntos.Count; i++)
         {
             var n = i;
-            <rect x="@F(X(Puntos[n].Fecha) - AnchoSensible / 2)" y="@F(MargenSup)" width="@F(AnchoSensible)" height="@F(AltoUtil)"
-                  class="sensible" @onmouseover="() => indice = n" />
+            <rect x="@F(X(Centro(Puntos[n])) - AnchoSensible / 2)" y="@F(MargenSup)" width="@F(AnchoSensible)" height="@F(AltoUtil)"
+                  class="sensible" @onmouseover="() => indice = n" @onclick="() => indice = n" />
         }
 
-        @* Detalle del punto señalado *@
+        @* Detalle del punto señalado: temperatura y cuándo (el intervalo del tramo si dura más de un minuto). *@
         @if (indice is { } k && k < Puntos.Count)
         {
             var p = Puntos[k];
-            var px = X(p.Fecha);
+            var px = X(Centro(p));
             var py = Y(p.Promedio);
-            var cajaX = Math.Clamp(px - 95, MargenIzq, Ancho - MargenDer - 190);
+            var anchoCaja = Math.Min(AnchoCaja, Ancho - 8);
+            var cajaX = Math.Clamp(px - anchoCaja / 2, 4, Ancho - anchoCaja - 4);
             <g class="detalle">
                 <line x1="@F(px)" x2="@F(px)" y1="@F(MargenSup)" y2="@F(MargenSup + AltoUtil)" class="cursor" />
                 <circle cx="@F(px)" cy="@F(py)" r="5" class="cursor-punto" />
-                <rect x="@F(cajaX)" y="@F(MargenSup + 18)" width="190" height="46" rx="8" class="caja" />
-                <text x="@F(cajaX + 12)" y="@F(MargenSup + 37)" class="caja-titulo">@p.Promedio.ToString("0.0", CultureInfo.InvariantCulture) °C · @(FormatoFecha.HoraPeru(p.Fecha)[..16])</text>
-                <text x="@F(cajaX + 12)" y="@F(MargenSup + 55)" class="caja-texto">mín @p.Minimo.ToString("0.0", CultureInfo.InvariantCulture) · máx @p.Maximo.ToString("0.0", CultureInfo.InvariantCulture) · @p.Cantidad lecturas</text>
+                <rect x="@F(cajaX)" y="@F(MargenSup + 18)" width="@F(anchoCaja)" height="46" rx="8" class="caja" />
+                <text x="@F(cajaX + 12)" y="@F(MargenSup + 37)" class="caja-titulo">@TituloDetalle(p)</text>
+                <text x="@F(cajaX + 12)" y="@F(MargenSup + 55)" class="caja-texto">@TextoDetalle(p)</text>
             </g>
         }
 
@@ -91,6 +174,29 @@
             </g>
         }
     </svg>
+
+    @* Leyenda: solo lo que aparece en el gráfico, según el modo. *@
+    <ul class="grafico-leyenda" aria-label="Leyenda del gráfico">
+        <li><span class="muestra muestra-linea"></span> Temperatura</li>
+        @if (Puntos.Any(p => FueraDe(p.Maximo) || FueraDe(p.Minimo)))
+        {
+            <li><span class="muestra muestra-fuera"></span> Fuera del límite</li>
+        }
+        <li><span class="muestra muestra-optimo"></span> Óptimo @OptimoMinimo.ToString("0.#", CultureInfo.InvariantCulture)–@OptimoMaximo.ToString("0.#", CultureInfo.InvariantCulture) °C</li>
+        <li><span class="muestra muestra-limite"></span> Límites @LimiteMinimo.ToString("0.#", CultureInfo.InvariantCulture) y @LimiteMaximo.ToString("0.#", CultureInfo.InvariantCulture) °C</li>
+        @if (Huecos.Count > 0)
+        {
+            <li><span class="muestra muestra-hueco"></span> Sin datos</li>
+        }
+        @if (analisis)
+        {
+            <li><span class="muestra muestra-banda"></span> Mínimo y máximo del tramo</li>
+            @if (BarrasAlertas.Count > 0)
+            {
+                <li><span class="muestra muestra-alerta"><span class="adv"></span><span class="rup"></span></span> Alerta, de inicio a fin</li>
+            }
+        }
+    </ul>
 </div>
 
 @code {
@@ -103,13 +209,152 @@
     [Parameter] public double LimiteMinimo { get; set; }
     [Parameter] public double LimiteMaximo { get; set; }
 
-    private const double Ancho = 800, Alto = 320;
-    private const double MargenIzq = 46, MargenDer = 14, MargenSup = 12, MargenInf = 34;
-    private const double AnchoUtil = Ancho - MargenIzq - MargenDer;
-    private const double AltoUtil = Alto - MargenSup - MargenInf;
+    // Tamaño de dibujo = tamaño real en pantalla (lo mide interfaz.js), así el texto se ve
+    // a 11–12 px también en el celular. 800 es solo el valor hasta la primera medición.
+    private double Ancho = 800;
+    private double Alto => Math.Clamp(Math.Round(Ancho * 0.42), 240, 340);
+
+    // El margen derecho lleva solo el valor de los dos límites ("8 °C").
+    // Arriba, en Análisis, queda el carril de las alertas.
+    private const double MargenIzq = 46, MargenDer = 44, MargenInf = 34;
+    private double MargenSup => 12 + (BarrasAlertas.Count > 0 ? AltoFila : 0);
+    private double AnchoUtil => Ancho - MargenIzq - MargenDer;
+    private double AltoUtil => Alto - MargenSup - MargenInf;
+
+    private ElementReference contenedor;
+    private IJSObjectReference? interfaz;
+    private IJSObjectReference? observador;
+    private DotNetObjectReference<GraficoHistorial>? referencia;
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        if (!primeraVez)
+        {
+            return;
+        }
+        try
+        {
+            interfaz = await JS.InvokeAsync<IJSObjectReference>("import", "./js/interfaz.js?v=1");
+            referencia = DotNetObjectReference.Create(this);
+            observador = await interfaz.InvokeAsync<IJSObjectReference>("observarAncho", contenedor, referencia);
+        }
+        catch (JSException)
+        {
+            // Sin JS (o sin ResizeObserver) el gráfico se queda en 800 de ancho, escalado como antes.
+        }
+    }
+
+    // La llama interfaz.js con el ancho real del contenedor.
+    [JSInvokable]
+    public void CambiarAncho(double ancho)
+    {
+        Ancho = Math.Max(ancho, 280);
+        barras = null;
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (observador is not null)
+            {
+                await observador.InvokeVoidAsync("dejar");
+                await observador.DisposeAsync();
+            }
+            if (interfaz is not null)
+            {
+                await interfaz.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        referencia?.Dispose();
+    }
+
+    // ---------- Modo: Vista general o Análisis ----------
+
+    private bool analisis;
+
+    private void CambiarModo(bool enAnalisis)
+    {
+        analisis = enAnalisis;
+        if (!analisis)
+        {
+            ajustado = false;   // la vista general siempre muestra el periodo completo
+        }
+        indice = null;
+        barras = null;
+    }
+
+    // Con menos tramos seguidos que esto, se dibujan puntos sueltos en vez de una línea.
+    private const int MinimoParaLinea = 3;
+
+    private bool FueraDe(double valor) => valor > LimiteMaximo || valor < LimiteMinimo;
+
+    // Tramos con alguna lectura fuera del límite y el valor extremo que lo superó
+    // (el máximo si pasó el límite superior, el mínimo si bajó del inferior).
+    // Se omite si coincide con un punto suelto que ya se dibuja en rojo (no se duplica).
+    private List<(PuntoHistorialDto Punto, double Valor)> FueraDelLimite
+    {
+        get
+        {
+            var sueltos = Segmentos.Where(s => s.Count < MinimoParaLinea).SelectMany(s => s).ToHashSet();
+            var fuera = new List<(PuntoHistorialDto, double)>();
+            foreach (var p in Puntos)
+            {
+                foreach (var valor in new[] { p.Maximo, p.Minimo }.Distinct())
+                {
+                    var yaDibujado = sueltos.Contains(p) && Math.Abs(valor - p.Promedio) < 0.05;
+                    if (FueraDe(valor) && !yaDibujado)
+                    {
+                        fuera.Add((p, valor));
+                    }
+                }
+            }
+            return fuera;
+        }
+    }
+
+    // ---------- Vista: periodo completo o ajustada a los datos (solo en Análisis) ----------
+
+    private bool ajustado;
+
+    // Primera y última hora con datos (inicio del primer tramo y fin del último).
+    private DateTime PrimerDato => Puntos[0].Fecha;
+    private DateTime UltimoDato => Puntos[^1].Fecha + Tramo;
+
+    // Se ofrece ajustar solo si los datos ocupan menos del 60 % del periodo.
+    private bool PuedeAjustar =>
+        Puntos.Count > 0 && (UltimoDato - PrimerDato).Ticks < (Hasta - Desde).Ticks * 0.6;
+
+    // Margen a cada lado de los datos: 5 % de su duración, al menos un tramo.
+    private TimeSpan MargenVista =>
+        TimeSpan.FromTicks(Math.Max(Tramo.Ticks, (UltimoDato - PrimerDato).Ticks / 20));
+
+    private DateTime VistaDesde => ajustado && PuedeAjustar
+        ? (PrimerDato - MargenVista < Desde ? Desde : PrimerDato - MargenVista)
+        : Desde;
+
+    private DateTime VistaHasta => ajustado && PuedeAjustar
+        ? (UltimoDato + MargenVista > Hasta ? Hasta : UltimoDato + MargenVista)
+        : Hasta;
+
+    private void AlternarVista()
+    {
+        ajustado = !ajustado;
+        indice = null;
+        barras = null;   // las barras de alertas dependen de la vista
+    }
+
+    // ¿Algo de [inicio, fin] se ve en la vista actual?
+    private bool Visible(DateTime inicio, DateTime fin) => fin >= VistaDesde && inicio <= VistaHasta;
     private static readonly TimeSpan DesfasePeru = TimeSpan.FromHours(-5);
 
     private int? indice;
+
+    private const double AnchoCaja = 260;
 
     // ---------- Escalas ----------
 
@@ -117,10 +362,11 @@
     private double Minimo => Math.Floor(Math.Min(LimiteMinimo - 1, Puntos.Count > 0 ? Puntos.Min(p => p.Minimo) - 0.5 : double.MaxValue));
     private double Maximo => Math.Ceiling(Math.Max(LimiteMaximo + 1, Puntos.Count > 0 ? Puntos.Max(p => p.Maximo) + 0.5 : double.MinValue));
 
+    // Escala de tiempo real sobre la vista (el periodo completo, o el tramo con datos si se ajustó).
     private double X(DateTime fecha)
     {
-        var total = (Hasta - Desde).TotalSeconds;
-        var proporcion = total <= 0 ? 0 : (fecha - Desde).TotalSeconds / total;
+        var total = (VistaHasta - VistaDesde).TotalSeconds;
+        var proporcion = total <= 0 ? 0 : (fecha - VistaDesde).TotalSeconds / total;
         return MargenIzq + Math.Clamp(proporcion, 0, 1) * AnchoUtil;
     }
 
@@ -128,17 +374,6 @@
         MargenSup + (Maximo - Math.Clamp(valor, Minimo, Maximo)) / (Maximo - Minimo) * AltoUtil;
 
     private double AnchoSensible => Puntos.Count == 0 ? 0 : Math.Max(AnchoUtil / Puntos.Count, 2);
-
-    private record ZonaGrafico(double Desde, double Hasta, string Clase);
-
-    private IEnumerable<ZonaGrafico> Zonas => new[]
-    {
-        new ZonaGrafico(Minimo, LimiteMinimo, "zona-rup"),
-        new ZonaGrafico(LimiteMinimo, OptimoMinimo, "zona-adv"),
-        new ZonaGrafico(OptimoMinimo, OptimoMaximo, "zona-ok"),
-        new ZonaGrafico(OptimoMaximo, LimiteMaximo, "zona-adv"),
-        new ZonaGrafico(LimiteMaximo, Maximo, "zona-rup")
-    }.Where(z => z.Hasta > z.Desde);
 
     // Unas seis marcas en el eje vertical, con un paso "redondo" (1, 2 o 5 grados).
     private IEnumerable<double> MarcasY
@@ -153,28 +388,76 @@
         }
     }
 
-    // Seis marcas de tiempo: horas si el periodo es corto, días si es largo.
+    // Pasos posibles entre marcas de tiempo, de menor a mayor.
+    private static readonly TimeSpan[] PasosTiempo =
+    {
+        TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(15), TimeSpan.FromMinutes(30),
+        TimeSpan.FromHours(1), TimeSpan.FromHours(2), TimeSpan.FromHours(3), TimeSpan.FromHours(4),
+        TimeSpan.FromHours(6), TimeSpan.FromHours(12), TimeSpan.FromDays(1), TimeSpan.FromDays(2),
+        TimeSpan.FromDays(3), TimeSpan.FromDays(7), TimeSpan.FromDays(14)
+    };
+
+    // Cuántas marcas caben: una cada 70 px más o menos (de 2 a 7).
+    private int MaximoMarcas => (int)Math.Clamp(Math.Floor(AnchoUtil / 70), 2, 7);
+
+    // Marcas de tiempo en minutos, horas o días redondos de Perú (no en fracciones del periodo):
+    // el paso más chico que deja las marcas que caben. Las horas se escriben "HH:mm" y,
+    // a medianoche o con pasos de días, la fecha "dd/MM".
     private IEnumerable<(double X, string Texto)> MarcasX
     {
         get
         {
-            var corto = Hasta - Desde <= TimeSpan.FromDays(1.5);
-            for (var i = 0; i <= 5; i++)
+            var paso = PasosTiempo.FirstOrDefault(p => (VistaHasta - VistaDesde) / p <= MaximoMarcas, PasosTiempo[^1]);
+            var porDias = paso >= TimeSpan.FromDays(1);
+
+            // Primera marca: el primer múltiplo del paso desde la medianoche de Perú del día de inicio.
+            var desdeLocal = VistaDesde + DesfasePeru;
+            var marca = desdeLocal.Date;
+            while (marca < desdeLocal)
             {
-                var fecha = Desde + (Hasta - Desde) * (i / 5.0);
-                var local = fecha + DesfasePeru;
-                yield return (X(fecha), local.ToString(corto ? "HH:mm" : "dd/MM", CultureInfo.InvariantCulture));
+                marca += paso;
+            }
+
+            for (; marca - DesfasePeru <= VistaHasta; marca += paso)
+            {
+                var texto = porDias || marca.TimeOfDay == TimeSpan.Zero
+                    ? marca.ToString("dd/MM", CultureInfo.InvariantCulture)
+                    : marca.ToString("HH:mm", CultureInfo.InvariantCulture);
+                yield return (X(marca - DesfasePeru), texto);
             }
         }
     }
 
+    // ---------- Tramos de tiempo ----------
+
+    // La API agrupa las lecturas en unos 300 tramos iguales del periodo (mínimo 1 minuto) y
+    // da la hora de INICIO de cada tramo. Es la misma cuenta que HistorialController.Resumir;
+    // si allí cambia, hay que cambiarla aquí.
+    private const int PuntosObjetivo = 300;
+
+    private TimeSpan Tramo =>
+        TimeSpan.FromTicks(Math.Max(TimeSpan.FromMinutes(1).Ticks, (Hasta - Desde).Ticks / PuntosObjetivo));
+
+    // Cada punto se dibuja en el centro de su tramo: es lo más cerca que se puede estar
+    // de la hora real de sus lecturas sin inventarla.
+    private DateTime Centro(PuntoHistorialDto p) => p.Fecha + Tramo / 2;
+
+    // Más de 5 minutos sin datos es "sin señal" (valor por defecto de la configuración).
+    private static readonly TimeSpan SinSenal = TimeSpan.FromMinutes(5);
+
+    // ¿Hay un hueco sin datos entre dos tramos? Sí, si en medio quedó al menos un tramo vacío
+    // y además el hueco supera los 5 minutos (con tramos de 1 minuto, una lectura que llega
+    // unos segundos tarde no es un hueco).
+    private bool HayHueco(DateTime inicioAnterior, DateTime inicioSiguiente)
+    {
+        var distancia = inicioSiguiente - inicioAnterior;
+        return distancia >= Tramo * 2 && distancia > Tramo + SinSenal;
+    }
+
     // ---------- Trazos ----------
 
-    // Si entre dos puntos hay un hueco grande (sin datos), la línea se corta en lugar de unirlos.
-    private TimeSpan HuecoMaximo =>
-        TimeSpan.FromTicks(Math.Max(TimeSpan.FromMinutes(3).Ticks, (Hasta - Desde).Ticks / 300 * 3));
-
-    // Divide los puntos en tramos continuos, cortando donde hay un hueco sin datos.
+    // Divide los puntos en tramos continuos, cortando en cada hueco: la línea nunca une
+    // lecturas entre las que faltan datos.
     private List<List<PuntoHistorialDto>> Segmentos
     {
         get
@@ -182,7 +465,7 @@
             var segmentos = new List<List<PuntoHistorialDto>>();
             for (var i = 0; i < Puntos.Count; i++)
             {
-                if (i == 0 || Puntos[i].Fecha - Puntos[i - 1].Fecha > HuecoMaximo)
+                if (i == 0 || HayHueco(Puntos[i - 1].Fecha, Puntos[i].Fecha))
                 {
                     segmentos.Add(new List<PuntoHistorialDto>());
                 }
@@ -192,15 +475,118 @@
         }
     }
 
+    // Periodos sin datos: antes de la primera lectura, entre tramos y después de la última
+    // (hasta el fin del periodo, o hasta ahora si el periodo termina en el futuro).
+    private List<(DateTime Desde, DateTime Hasta)> Huecos
+    {
+        get
+        {
+            var huecos = new List<(DateTime, DateTime)>();
+            if (Puntos.Count == 0)
+            {
+                return huecos;
+            }
+
+            var fin = Hasta < DateTime.UtcNow ? Hasta : DateTime.UtcNow;
+            if (HayHueco(Desde - Tramo, Puntos[0].Fecha))
+            {
+                huecos.Add((Desde, Puntos[0].Fecha));
+            }
+            for (var i = 1; i < Puntos.Count; i++)
+            {
+                if (HayHueco(Puntos[i - 1].Fecha, Puntos[i].Fecha))
+                {
+                    huecos.Add((Puntos[i - 1].Fecha + Tramo, Puntos[i].Fecha));
+                }
+            }
+            if (HayHueco(Puntos[^1].Fecha, fin))
+            {
+                huecos.Add((Puntos[^1].Fecha + Tramo, fin));
+            }
+            return huecos;
+        }
+    }
+
     private string TrazoLinea(List<PuntoHistorialDto> puntos) =>
-        "M" + string.Join(" L", puntos.Select(p => $"{F(X(p.Fecha))} {F(Y(p.Promedio))}"));
+        "M" + string.Join(" L", puntos.Select(p => $"{F(X(Centro(p)))} {F(Y(p.Promedio))}"));
 
     // Banda entre el mínimo y el máximo de cada tramo.
     private string TrazoBanda(List<PuntoHistorialDto> puntos)
     {
-        var ida = puntos.Select(p => $"{F(X(p.Fecha))} {F(Y(p.Maximo))}");
-        var vuelta = puntos.AsEnumerable().Reverse().Select(p => $"{F(X(p.Fecha))} {F(Y(p.Minimo))}");
+        var ida = puntos.Select(p => $"{F(X(Centro(p)))} {F(Y(p.Maximo))}");
+        var vuelta = puntos.AsEnumerable().Reverse().Select(p => $"{F(X(Centro(p)))} {F(Y(p.Minimo))}");
         return "M" + string.Join(" L", ida.Concat(vuelta)) + " Z";
+    }
+
+    // ---------- Detalle ----------
+
+    // Cuándo se tomaron las lecturas del punto. Con tramos de más de 1 minuto no se sabe el
+    // minuto exacto, así que se dice el intervalo: "entre 04/11 08:00 y 10:24".
+    private string Momento(PuntoHistorialDto p)
+    {
+        var inicio = FormatoFecha.HoraPeru(p.Fecha);
+        if (Tramo <= TimeSpan.FromMinutes(1))
+        {
+            return inicio[..16];
+        }
+        var fin = FormatoFecha.HoraPeru(p.Fecha + Tramo);
+        var mismoDia = inicio[..10] == fin[..10];
+        return $"entre {inicio[..5]} {inicio[11..16]} y {(mismoDia ? fin[11..16] : fin[..5] + " " + fin[11..16])}";
+    }
+
+    private static string Lecturas(int cantidad) => cantidad == 1 ? "1 lectura" : $"{cantidad} lecturas";
+
+    private string TituloDetalle(PuntoHistorialDto p) => p.Cantidad == 1
+        ? $"{C(p.Promedio)} °C · 1 lectura"
+        : $"Promedio {C(p.Promedio)} °C · mín {C(p.Minimo)} · máx {C(p.Maximo)}";
+
+    private string TextoDetalle(PuntoHistorialDto p) => p.Cantidad == 1
+        ? Momento(p)
+        : Tramo <= TimeSpan.FromMinutes(1) ? $"{Lecturas(p.Cantidad)} · {Momento(p)}" : $"{Lecturas(p.Cantidad)} {Momento(p)}";
+
+    private static string C(double valor) => valor.ToString("0.0", CultureInfo.InvariantCulture);
+
+    // ---------- Carril de alertas ----------
+
+    // Una sola fila fina sobre el gráfico (solo en Análisis).
+    private const double AltoBarra = 5, AltoFila = 10, YCarril = 5;
+
+    private record BarraAlerta(double X1, double XRuptura, double X2, string Clase, string Texto);
+
+    // Se calculan una vez por cada cambio de datos, de modo o de vista (el margen superior depende de ellas).
+    private List<BarraAlerta>? barras;
+
+    protected override void OnParametersSet() => barras = null;
+
+    private List<BarraAlerta> BarrasAlertas => barras ??= analisis ? CalcularBarras() : new();
+
+    // Cada alerta recortada a la vista. Las muy cortas se dibujan de al menos 4 unidades para que se vean.
+    private List<BarraAlerta> CalcularBarras()
+    {
+        var resultado = new List<BarraAlerta>();
+        var ahora = DateTime.UtcNow;
+        foreach (var a in Alertas.OrderBy(a => a.Inicio))
+        {
+            var fin = a.Fin ?? (ahora < Hasta ? ahora : Hasta);
+            // Con la vista ajustada, las alertas que quedan fuera no se dibujan (no se apilan en el borde).
+            if (!Visible(a.Inicio, fin))
+            {
+                continue;
+            }
+            var x1 = X(a.Inicio);
+            var x2 = Math.Max(X(fin), x1 + 4);
+            var sinSenal = a.Tipo is TipoAlertaDto.SinSenal or TipoAlertaDto.SensorSinVariacion;
+            // Donde empieza lo rojo: la hora de la ruptura; una advertencia queda toda en amarillo.
+            var xRuptura = !sinSenal && a.Nivel == NivelAlertaDto.Ruptura
+                ? Math.Clamp(X(a.FechaRuptura ?? a.Inicio), x1, x2)
+                : x2;
+
+            var duracion = FormatoFecha.Duracion(fin - a.Inicio);
+            var texto = $"{NombreAlerta(a)} · desde {FormatoFecha.HoraPeru(a.Inicio)[..16]} · " +
+                        (a.Fin is null ? $"en curso ({duracion})" : $"duró {duracion}");
+            resultado.Add(new BarraAlerta(x1, xRuptura, x2, sinSenal ? "barra-sen" : "", texto));
+        }
+        return resultado;
     }
 
     private static string NombreAlerta(AlertaHistorialDto a) => a.Tipo switch

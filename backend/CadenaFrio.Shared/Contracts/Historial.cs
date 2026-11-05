@@ -50,6 +50,12 @@ public class AlertaHistorialDto
     public string? AtendidaPor { get; set; }
     public DateTime? FechaAtencion { get; set; }
     public string? ObservacionAtencion { get; set; }
+
+    // Ruptura revisada con el formato del Anexo N° 13: se puede descargar el Excel.
+    public bool TieneAnexo13 { get; set; }
+
+    // Texto de la causa elegida, por ejemplo "Apagón". Nulo si no tiene Anexo 13.
+    public string? CausaRuptura { get; set; }
 }
 
 public class EstadisticasHistorialDto

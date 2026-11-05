@@ -9,6 +9,9 @@ public class AlertaPendienteDto
     public int EquipoId { get; set; }
     public string NombreEquipo { get; set; } = string.Empty;
 
+    // Define qué lista de causas del Anexo 13 corresponde.
+    public TipoEquipoDto TipoEquipo { get; set; }
+
     public TipoAlertaDto Tipo { get; set; }
 
     // Inicio del episodio y momento en que llegó a ruptura (UTC).
@@ -27,4 +30,11 @@ public class AlertaPendienteDto
     // Rango límite que se superó.
     public double LimiteMinimo { get; set; }
     public double LimiteMaximo { get; set; }
+
+    // Si es una ruptura de temperatura: se revisa con el formato del Anexo N° 13.
+    public bool RequiereAnexo13 { get; set; }
+
+    // Hasta cuándo se puede notificar la ruptura: 24 h desde que se detectó (UTC).
+    // Nulo si no requiere Anexo 13.
+    public DateTime? FechaLimiteNotificacion { get; set; }
 }

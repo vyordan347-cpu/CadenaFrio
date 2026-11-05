@@ -1,0 +1,26 @@
+/* Administración → Respaldos. Estructura de página y tabla (.tabla) en sistema.css. */
+
+.aviso {
+    margin-bottom: var(--e-4);
+}
+
+.tarjeta {
+    max-width: 60rem;
+    padding: var(--e-2) var(--e-4);
+}
+
+td {
+    vertical-align: middle;
+}
+
+td.cifras {
+    white-space: nowrap;
+}
+
+td.accion {
+    text-align: right;
+}
+
+.pie {
+    margin-top: var(--e-4);
+}
