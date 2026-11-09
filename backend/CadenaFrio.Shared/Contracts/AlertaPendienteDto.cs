@@ -34,6 +34,10 @@ public class AlertaPendienteDto
     // Si es una ruptura de temperatura: se revisa con el formato del Anexo N° 13.
     public bool RequiereAnexo13 { get; set; }
 
+    // Cuándo se detectó la ruptura (UTC): cuando llegó al servidor la lectura que la provocó.
+    // En vivo es casi igual a FechaRuptura; si se conoció al reconectarse, es más tarde.
+    public DateTime? FechaDeteccion { get; set; }
+
     // Hasta cuándo se puede notificar la ruptura: 24 h desde que se detectó (UTC).
     // Nulo si no requiere Anexo 13.
     public DateTime? FechaLimiteNotificacion { get; set; }

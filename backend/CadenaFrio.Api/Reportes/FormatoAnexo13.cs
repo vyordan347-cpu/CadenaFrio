@@ -10,6 +10,8 @@ namespace CadenaFrio.Api.Reportes;
 // Las temperaturas son las de las lecturas en esos momentos; nulas si no hay lectura.
 public record DatosAnexo13(
     Alerta Alerta,
+    // Cuándo se detectó la ruptura (llegó la lectura que la provocó); de ahí corre el plazo.
+    DateTime? FechaDeteccion,
     IReadOnlyList<string> Vacunas,
     double? TemperaturaDeteccion,
     DateTime? FechaUltimoRegistroNormal,
@@ -81,7 +83,8 @@ public static class FormatoAnexo13
         h.Campo("Tiene data logger en el refrigerador y/o caja transportadora", "Sí (dispositivo de monitoreo del sistema)");
 
         h.Tabla(new[] { "", "Fecha", "Hora", "Temperatura (°C)" });
-        h.FilaMomento("Fecha en que detectó la ruptura de la cadena de frío", a.FechaRuptura, datos.TemperaturaDeteccion ?? a.ValorExtremo);
+        // La temperatura es la de la lectura que provocó la ruptura (medida en FechaRuptura).
+        h.FilaMomento("Fecha en que detectó la ruptura de la cadena de frío", datos.FechaDeteccion ?? a.FechaRuptura, datos.TemperaturaDeteccion ?? a.ValorExtremo);
         h.FilaMomento("Fecha del último registro en la hoja de temperatura (último registro normal)",
             datos.FechaUltimoRegistroNormal, datos.TemperaturaUltimoRegistroNormal);
         h.FilaMomento("Fecha en que se restablece la cadena de frío", a.Fin, datos.TemperaturaRestablecimiento);
@@ -143,7 +146,12 @@ public static class FormatoAnexo13
         h.Seccion("Comentarios");
         var comentarios = new List<string>();
         if (!string.IsNullOrWhiteSpace(a.ObservacionAtencion)) comentarios.Add(a.ObservacionAtencion);
-        if (a.DetectadaTarde) comentarios.Add("La ruptura se conoció al sincronizar lecturas guardadas sin conexión.");
+        if (a.DetectadaTarde || (datos.FechaDeteccion is { } det && a.FechaRuptura is { } rup && det - rup > TimeSpan.FromMinutes(5)))
+        {
+            comentarios.Add(a.FechaRuptura is { } ocurrio
+                ? $"La ruptura se conoció al sincronizar lecturas guardadas sin conexión. Ocurrió el {Local(ocurrio):dd/MM/yyyy HH:mm}."
+                : "La ruptura se conoció al sincronizar lecturas guardadas sin conexión.");
+        }
         comentarios.Add($"Rango límite vigente: {a.LimiteMinimo:0.0} a {a.LimiteMaximo:0.0} °C. Rango óptimo: {a.OptimoMinimo:0.0} a {a.OptimoMaximo:0.0} °C.");
         h.Parrafo(string.Join(Environment.NewLine, comentarios));
 
@@ -153,7 +161,8 @@ public static class FormatoAnexo13
 
         // ---- Pie ----
         h.Fila++;
-        var limite = a.RevisionRequeridaDesde + CatalogoAnexo13.PlazoNotificacion;
+        // 24 h desde que se detectó la ruptura.
+        var limite = (datos.FechaDeteccion ?? a.RevisionRequeridaDesde) + CatalogoAnexo13.PlazoNotificacion;
         var pie = $"Generado por el sistema CadenaFrio el {Local(DateTime.UtcNow):dd/MM/yyyy HH:mm}. "
                   + (limite is { } l ? $"Plazo de notificación: hasta el {Local(l):dd/MM/yyyy HH:mm} (24 h, NTS 242 numeral 6.10.2.1). " : "")
                   + "Las celdas amarillas se completan a mano.";

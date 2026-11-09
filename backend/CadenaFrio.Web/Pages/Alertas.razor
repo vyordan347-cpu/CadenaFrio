@@ -195,6 +195,13 @@
                                         <Icono Nombre="reloj" Tamano="14" />
                                         @(restante > TimeSpan.Zero ? $"Notificar (Anexo 13) en {FormatoFecha.Duracion(restante)}" : $"Plazo del Anexo 13 vencido hace {FormatoFecha.Duracion(-restante)}")
                                     </p>
+                                    @* Si se conoció tarde (al reconectarse), el plazo corre desde que se conoció. *@
+                                    @if (p.FechaDeteccion is { } det && p.FechaRuptura is { } rup && det - rup > TimeSpan.FromMinutes(5))
+                                    {
+                                        <p class="alerta-linea cifras">
+                                            Ocurrió el @FormatoFecha.HoraPeru(rup)[..16]; se conoció el @FormatoFecha.HoraPeru(det)[..16]. El plazo corre desde que se conoció.
+                                        </p>
+                                    }
                                 }
                             </div>
                             @* La revisión se registra en el detalle del equipo, donde está el formulario. *@

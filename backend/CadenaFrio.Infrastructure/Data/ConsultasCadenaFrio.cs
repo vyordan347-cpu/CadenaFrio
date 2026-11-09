@@ -9,6 +9,28 @@ namespace CadenaFrio.Infrastructure.Data;
 // Escribirlas una sola vez evita que la misma regla quede repetida y luego se desincronice.
 public static class ConsultasCadenaFrio
 {
+    // Cuándo se detectó una ruptura: la hora en que llegó al servidor la lectura que la provocó
+    // (la medida en FechaRuptura). En vivo es casi la misma hora de la ruptura; si el equipo estuvo
+    // sin conexión y la envió al reconectarse, es la hora de la reconexión. De ahí corren las 24 h
+    // para notificar (NTS 242: 6.10.1 "en cuanto se detecta" y "Fecha en que detectó" del Anexo 13).
+    // Si no encuentra la lectura, devuelve la hora de la ruptura (el criterio de antes).
+    public static async Task<DateTime?> ObtenerDeteccionRupturaAsync(this CadenaFrioDbContext db, int equipoId, DateTime? fechaRuptura)
+    {
+        if (fechaRuptura is not { } ruptura)
+        {
+            return null;
+        }
+
+        var recepcion = await db.Lecturas
+            .AsNoTracking()
+            .Where(l => l.EquipoId == equipoId && l.FechaMedicion == ruptura)
+            .OrderBy(l => l.FechaRecepcion)
+            .Select(l => (DateTime?)l.FechaRecepcion)
+            .FirstOrDefaultAsync();
+
+        return recepcion is { } r && r > ruptura ? r : ruptura;
+    }
+
     // El rango vigente es el más reciente. El Id desempata si dos cambios
     // tuvieran exactamente la misma fecha. Nulo si nunca se configuró.
     public static Task<RangoTemperatura?> ObtenerRangoVigenteAsync(this CadenaFrioDbContext db, int equipoId) =>

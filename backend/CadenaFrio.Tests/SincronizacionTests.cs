@@ -1,4 +1,6 @@
 using CadenaFrio.Domain.Enums;
+using CadenaFrio.Domain.Valores;
+using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Infrastructure.Servicios;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,6 +54,43 @@ public class SincronizacionTests : IDisposable
         Assert.Empty(segundo.Guardadas);
         Assert.Equal(3, segundo.Duplicadas);
         Assert.Equal(3, await _base.Db.Lecturas.CountAsync());
+    }
+
+    // Plazo del Anexo 13: 24 h desde que se DETECTA la ruptura (NTS 242, 6.10.1 y Anexo 13).
+
+    [Fact]
+    public async Task Una_ruptura_en_vivo_se_detecta_a_la_hora_de_la_lectura()
+    {
+        await _registro.RegistrarAsync(1, new[] { new LecturaEntrante(9.5, _ahora) }, _ahora);
+
+        var alerta = Assert.Single(await _base.Db.Alertas.AsNoTracking().ToListAsync());
+        var deteccion = await _base.Db.ObtenerDeteccionRupturaAsync(alerta.EquipoId, alerta.FechaRuptura);
+
+        Assert.Equal(_ahora, alerta.FechaRuptura);
+        Assert.Equal(_ahora, deteccion);
+    }
+
+    [Fact]
+    public async Task Una_ruptura_que_llega_tarde_se_detecta_al_reconectarse()
+    {
+        // La ruptura ocurrió hace 30 h, pero las lecturas llegaron recién ahora (al reconectarse).
+        await _registro.RegistrarAsync(1, new[] { Hace(30 * 60 + 10, 5.0), Hace(30 * 60, 9.5), Hace(29 * 60, 5.0) }, _ahora);
+
+        var alerta = Assert.Single(await _base.Db.Alertas.AsNoTracking().ToListAsync());
+        var deteccion = await _base.Db.ObtenerDeteccionRupturaAsync(alerta.EquipoId, alerta.FechaRuptura);
+
+        Assert.True(alerta.DetectadaTarde);
+        Assert.Equal(_ahora.AddHours(-30), alerta.FechaRuptura);
+        Assert.Equal(_ahora, deteccion);
+        // Con el criterio de antes (desde la ruptura) el plazo ya estaría vencido; desde la detección, no.
+        Assert.True(alerta.FechaRuptura + CatalogoAnexo13.PlazoNotificacion < _ahora);
+        Assert.True(deteccion + CatalogoAnexo13.PlazoNotificacion > _ahora);
+    }
+
+    [Fact]
+    public async Task Sin_ruptura_no_hay_hora_de_deteccion()
+    {
+        Assert.Null(await _base.Db.ObtenerDeteccionRupturaAsync(1, null));
     }
 
     public void Dispose() => _base.Dispose();

@@ -90,13 +90,18 @@ public class AlertasController : ControllerBase
                 ValorExtremo = a.ValorExtremo,
                 LimiteMinimo = a.LimiteMinimo,
                 LimiteMaximo = a.LimiteMaximo,
-                // EF Core calcula estas dos en memoria, después de leer la fila.
-                RequiereAnexo13 = CatalogoAnexo13.Aplica(a.Tipo, a.Nivel),
-                FechaLimiteNotificacion = CatalogoAnexo13.Aplica(a.Tipo, a.Nivel)
-                    ? a.RevisionRequeridaDesde + CatalogoAnexo13.PlazoNotificacion
-                    : null
+                // EF Core calcula esta en memoria, después de leer la fila.
+                RequiereAnexo13 = CatalogoAnexo13.Aplica(a.Tipo, a.Nivel)
             })
             .ToListAsync();
+
+        // El plazo de 24 h corre desde que se detectó la ruptura, no desde la hora de la lectura:
+        // si el equipo estuvo sin conexión, la ruptura se conoce al reconectarse.
+        foreach (var p in pendientes.Where(p => p.RequiereAnexo13))
+        {
+            p.FechaDeteccion = await _db.ObtenerDeteccionRupturaAsync(p.EquipoId, p.FechaRuptura);
+            p.FechaLimiteNotificacion = p.FechaDeteccion + CatalogoAnexo13.PlazoNotificacion;
+        }
 
         return Ok(pendientes);
     }
@@ -145,6 +150,7 @@ public class AlertasController : ControllerBase
 
         var datos = new DatosAnexo13(
             alerta,
+            await _db.ObtenerDeteccionRupturaAsync(alerta.EquipoId, alerta.FechaRuptura),
             alerta.Equipo.Vacunas.Select(ev => ev.Vacuna.Nombre).OrderBy(n => n).ToList(),
             await TemperaturaEnAsync(alerta.FechaRuptura),
             ultimoNormal?.FechaMedicion,

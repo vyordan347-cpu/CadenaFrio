@@ -207,7 +207,14 @@
                                     : $"Plazo de notificación vencido hace {FormatoFecha.Duracion(-restante)}.")
                             </p>
                         }
-                        @if (pendiente.DetectadaTarde)
+                        @if (pendiente.FechaDeteccion is { } det && pendiente.FechaRuptura is { } rup && det - rup > TimeSpan.FromMinutes(5))
+                        {
+                            @* Se conoció tarde (al reconectarse): el plazo de 24 h corre desde que se conoció. *@
+                            <p class="etiqueta-tarde">
+                                Ocurrió el @FormatoFecha.HoraPeru(rup)[..16]; se conoció el @FormatoFecha.HoraPeru(det)[..16] al sincronizar. El plazo corre desde que se conoció.
+                            </p>
+                        }
+                        else if (pendiente.DetectadaTarde)
                         {
                             <p class="etiqueta-tarde">Detectada al sincronizar</p>
                         }
