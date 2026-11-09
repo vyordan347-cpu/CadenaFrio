@@ -44,8 +44,10 @@
     {
         var calculo = Calculo;
 
-        @* 1. Vacunas que guarda el equipo (izquierda) y rango calculado (derecha) *@
+        @* Izquierda: vacunas que guarda el equipo y, debajo, el ajuste manual.
+           Derecha: el rango vigente frente al que resulta de las vacunas marcadas. *@
         <div class="configuracion">
+        <div class="columna">
         <section class="tarjeta" aria-labelledby="titulo-vacunas">
             <header class="tarjeta-cabecera">
                 <h2 id="titulo-vacunas"><Icono Nombre="vacuna" /> Vacunas que guarda</h2>
@@ -75,112 +77,7 @@
                 </div>
         </section>
 
-        @* Rango calculado: se recalcula al instante con cada casilla (reactividad de Blazor). *@
-        <aside class="tarjeta resultado" aria-labelledby="titulo-resultado" aria-live="polite">
-            <header class="tarjeta-cabecera">
-                <h2 id="titulo-resultado"><Icono Nombre="temperatura" /> Rango calculado</h2>
-                @* Compatibilidad: con ícono y palabra, no solo color. *@
-                @if (seleccion.Count == 0)
-                {
-                    <span class="insignia insignia-neutra"><Icono Nombre="info" Tamano="14" /> Sin vacunas</span>
-                }
-                else if (calculo is null)
-                {
-                    <span class="insignia insignia-rup"><Icono Nombre="ruptura" Tamano="14" /> Incompatibles</span>
-                }
-                else
-                {
-                    <span class="insignia insignia-ok"><Icono Nombre="ok" Tamano="14" /> Compatibles</span>
-                }
-            </header>
-
-            @if (seleccion.Count == 0)
-            {
-                <p class="nota">Marque las vacunas que guarda este equipo para calcular su rango. Sin vacunas, el equipo conserva su rango vigente.</p>
-            }
-            else if (calculo is null)
-            {
-                <div class="aviso aviso-error aviso-con-icono incompatible">
-                    <Icono Nombre="ruptura" />
-                    <span>Estas vacunas <strong>no pueden almacenarse juntas</strong>: no existe una temperatura segura para todas. Quite alguna para continuar.</span>
-                </div>
-            }
-            else
-            {
-                var (estado, texto) = EstadoVista(calculo.Value);
-                <div class="vista-previa">
-                    <IndicadorTemperatura Compacto="true" Temperatura="temperaturaActual"
-                                          OptimoMinimo="calculo.Value.OptimoMin" OptimoMaximo="calculo.Value.OptimoMax"
-                                          LimiteMinimo="calculo.Value.LimiteMin" LimiteMaximo="calculo.Value.LimiteMax"
-                                          Estado="@estado" TextoEstado="@texto" />
-                    <dl class="rango-calculado cifras">
-                        <div><dt>Óptimo</dt><dd>@calculo.Value.OptimoMin.ToString("0.0") – @calculo.Value.OptimoMax.ToString("0.0") °C</dd></div>
-                        <div><dt>Límite</dt><dd>@calculo.Value.LimiteMin.ToString("0.0") – @calculo.Value.LimiteMax.ToString("0.0") °C</dd></div>
-                        @* Para comparar con lo calculado: qué rango rige ahora, dicho con palabras. *@
-                        <div class="actual"><dt>Vigente hoy</dt><dd>óptimo @vigente.OptimoMinimo.ToString("0.0") – @vigente.OptimoMaximo.ToString("0.0") °C, límite @vigente.LimiteMinimo.ToString("0.0") – @vigente.LimiteMaximo.ToString("0.0") °C</dd></div>
-                    </dl>
-                </div>
-                @if (temperaturaActual is not null)
-                {
-                    @if (antiguedadLectura is { } hace)
-                    {
-                        <p class="nota nota-antigua">
-                            <Icono Nombre="reloj" Tamano="14" />
-                            La aguja muestra la última temperatura conocida (@hace), no una lectura actual.
-                        </p>
-                    }
-                    else
-                    {
-                        <p class="nota">La aguja muestra la temperatura actual del equipo con este rango.</p>
-                    }
-                }
-            }
-
-            @if (mensajeVacunas is not null)
-            {
-                <p class="aviso @(errorVacunas ? "aviso-error" : "aviso-ok")">@mensajeVacunas</p>
-            }
-
-            <div class="acciones">
-                @if (HayCambiosEnVacunas)
-                {
-                    <span class="cambios-pendientes"><Icono Nombre="editar" Tamano="14" /> Cambios sin guardar</span>
-                }
-                <button class="boton boton-primario" disabled="@(guardandoVacunas || !HayCambiosEnVacunas || (seleccion.Count > 0 && calculo is null))"
-                        @onclick="GuardarVacunasAsync">
-                    @(guardandoVacunas ? "Guardando…" : "Guardar vacunas y aplicar rango")
-                </button>
-            </div>
-        </aside>
-        </div>
-
-        @* 2. Rangos vigentes y 3. ajuste manual, lado a lado en pantallas anchas *@
-        <div class="secundarias">
-        <section class="tarjeta">
-            <h2><Icono Nombre="temperatura" /> Rangos vigentes</h2>
-            <div class="rangos">
-                <div>
-                    <p class="etiqueta">Óptimo</p>
-                    <p class="rango cifras">@vigente.OptimoMinimo.ToString("0.0") – @vigente.OptimoMaximo.ToString("0.0") °C</p>
-                </div>
-                <div>
-                    <p class="etiqueta">Límite</p>
-                    <p class="rango cifras">@vigente.LimiteMinimo.ToString("0.0") – @vigente.LimiteMaximo.ToString("0.0") °C</p>
-                </div>
-            </div>
-            @if (vigente.EsPorDefecto)
-            {
-                <p class="detalle">Rangos por defecto: nadie los ha configurado todavía.</p>
-            }
-            else
-            {
-                <p class="detalle">
-                    @(vigente.Detalle ?? "Configurado") por @vigente.ModificadoPor, el @FormatoFecha.HoraPeru(vigente.FechaCambio!.Value).
-                </p>
-            }
-        </section>
-
-        @* 3. Ajuste manual, para casos especiales *@
+        @* Ajuste manual, para casos especiales *@
         <details class="tarjeta ajuste">
             <summary><Icono Nombre="editar" /> Ajuste manual</summary>
             <p class="nota">Solo para casos especiales. Queda registrado como "Ajuste manual" en el historial.
@@ -228,6 +125,114 @@
                 </button>
             </EditForm>
         </details>
+        </div>
+
+        @* Rango del equipo: el vigente frente al de las vacunas marcadas, que se recalcula al
+           instante con cada casilla (reactividad de Blazor). *@
+        <aside class="tarjeta resultado" aria-labelledby="titulo-resultado" aria-live="polite">
+            <header class="tarjeta-cabecera">
+                <h2 id="titulo-resultado"><Icono Nombre="temperatura" /> Rango del equipo</h2>
+                @* Compatibilidad: con ícono y palabra, no solo color. *@
+                @if (seleccion.Count == 0)
+                {
+                    <span class="insignia insignia-neutra"><Icono Nombre="info" Tamano="14" /> Sin vacunas</span>
+                }
+                else if (calculo is null)
+                {
+                    <span class="insignia insignia-rup"><Icono Nombre="ruptura" Tamano="14" /> Incompatibles</span>
+                }
+                else
+                {
+                    <span class="insignia insignia-ok"><Icono Nombre="ok" Tamano="14" /> Compatibles</span>
+                }
+            </header>
+
+            <div class="comparacion cifras">
+                <div class="lado">
+                    <p class="etiqueta">Vigente ahora</p>
+                    <dl>
+                        <div><dt>Óptimo</dt><dd>@vigente.OptimoMinimo.ToString("0.0") – @vigente.OptimoMaximo.ToString("0.0") °C</dd></div>
+                        <div><dt>Límite</dt><dd>@vigente.LimiteMinimo.ToString("0.0") – @vigente.LimiteMaximo.ToString("0.0") °C</dd></div>
+                    </dl>
+                </div>
+                <div class="lado propuesto">
+                    <p class="etiqueta">Con las vacunas marcadas</p>
+                    @if (seleccion.Count == 0)
+                    {
+                        <p class="detalle">Marque las vacunas que guarda este equipo para calcular su rango. Sin vacunas, el equipo conserva su rango vigente.</p>
+                    }
+                    else if (calculo is null)
+                    {
+                        <p class="detalle">No existe una temperatura segura para todas.</p>
+                    }
+                    else
+                    {
+                        <dl>
+                            <div><dt>Óptimo</dt><dd>@calculo.Value.OptimoMin.ToString("0.0") – @calculo.Value.OptimoMax.ToString("0.0") °C</dd></div>
+                            <div><dt>Límite</dt><dd>@calculo.Value.LimiteMin.ToString("0.0") – @calculo.Value.LimiteMax.ToString("0.0") °C</dd></div>
+                        </dl>
+                    }
+                </div>
+            </div>
+
+            @* Origen del rango vigente, a lo ancho para que no alargue la comparación. *@
+            <p class="detalle origen-vigente">
+                @if (vigente.EsPorDefecto)
+                {
+                    @:Vigente por defecto: nadie lo ha configurado todavía.
+                }
+                else
+                {
+                    @($"Vigente — {vigente.Detalle ?? "Configurado"}, por {vigente.ModificadoPor}, el {FormatoFecha.HoraPeru(vigente.FechaCambio!.Value)}.")
+                }
+            </p>
+
+            @if (seleccion.Count > 0 && calculo is null)
+            {
+                <div class="aviso aviso-error aviso-con-icono incompatible">
+                    <Icono Nombre="ruptura" />
+                    <span>Estas vacunas <strong>no pueden almacenarse juntas</strong>: no existe una temperatura segura para todas. Quite alguna para continuar.</span>
+                </div>
+            }
+            else if (calculo is not null && temperaturaActual is not null)
+            {
+                @* La aguja muestra la temperatura del equipo juzgada con el rango calculado. *@
+                var (estado, texto) = EstadoVista(calculo.Value);
+                <div class="vista-previa">
+                    <IndicadorTemperatura Compacto="true" Temperatura="temperaturaActual"
+                                          OptimoMinimo="calculo.Value.OptimoMin" OptimoMaximo="calculo.Value.OptimoMax"
+                                          LimiteMinimo="calculo.Value.LimiteMin" LimiteMaximo="calculo.Value.LimiteMax"
+                                          Estado="@estado" TextoEstado="@texto" />
+                    @if (antiguedadLectura is { } hace)
+                    {
+                        <p class="nota nota-antigua">
+                            <Icono Nombre="reloj" Tamano="14" />
+                            La aguja muestra la última temperatura conocida (@hace), no una lectura actual.
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="nota">La aguja muestra la temperatura actual del equipo con el rango calculado.</p>
+                    }
+                </div>
+            }
+
+            @if (mensajeVacunas is not null)
+            {
+                <p class="aviso @(errorVacunas ? "aviso-error" : "aviso-ok")">@mensajeVacunas</p>
+            }
+
+            <div class="acciones">
+                @if (HayCambiosEnVacunas)
+                {
+                    <span class="cambios-pendientes"><Icono Nombre="editar" Tamano="14" /> Cambios sin guardar</span>
+                }
+                <button class="boton boton-primario" disabled="@(guardandoVacunas || !HayCambiosEnVacunas || (seleccion.Count > 0 && calculo is null))"
+                        @onclick="GuardarVacunasAsync">
+                    @(guardandoVacunas ? "Guardando…" : "Guardar vacunas y aplicar rango")
+                </button>
+            </div>
+        </aside>
         </div>
 
         @* 4. Historial *@

@@ -1,5 +1,5 @@
-/* Configuración de rangos: vacunas que guarda el equipo, rango calculado, rangos vigentes,
-   ajuste manual e historial de cambios. */
+/* Configuración de rangos. Izquierda: vacunas que guarda el equipo y ajuste manual.
+   Derecha: rango vigente frente al calculado. Abajo: historial de cambios. */
 
 .pagina {
     max-width: var(--ancho-contenido);
@@ -90,7 +90,12 @@ h2 ::deep .icono {
     font-size: var(--t-s);
 }
 
-/* ===== Vacunas + rango calculado ===== */
+/* ===== Dos columnas: vacunas y ajuste | rango del equipo ===== */
+
+/* Las tarjetas de la columna izquierda van una debajo de otra, sin huecos. */
+.columna {
+    min-width: 0;
+}
 
 .configuracion {
     display: grid;
@@ -101,7 +106,7 @@ h2 ::deep .icono {
 
 @media (min-width: 1200px) {
     .configuracion {
-        grid-template-columns: minmax(0, 1.3fr) minmax(20rem, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     /* El resultado queda a la vista mientras se marcan vacunas. */
@@ -162,21 +167,36 @@ h2 ::deep .icono {
     font-weight: 400;
 }
 
-.vista-previa {
+/* Vigente ahora | Con las vacunas marcadas: lado a lado para compararlos de un vistazo. */
+.comparacion {
     display: grid;
-    grid-template-columns: 9rem minmax(0, 1fr);
-    align-items: center;
-    gap: var(--e-4);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--e-3);
     margin-bottom: var(--e-3);
 }
 
-.rango-calculado {
+.lado {
+    display: flex;
+    flex-direction: column;
+    gap: var(--e-2);
+    padding: var(--e-3) var(--e-4);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+/* El propuesto lleva borde de acento: es lo que se aplicará al guardar. */
+.lado.propuesto {
+    border-color: var(--acento-relleno);
+}
+
+.lado dl {
     display: grid;
     gap: var(--e-2);
     margin: 0;
 }
 
-.rango-calculado dt {
+.lado dt {
     color: var(--texto-3);
     font-size: var(--t-xs);
     font-weight: 700;
@@ -184,16 +204,27 @@ h2 ::deep .icono {
     text-transform: uppercase;
 }
 
-.rango-calculado dd {
+.lado dd {
     margin: 0;
-    color: var(--acento);
+    color: var(--texto);
     font-size: var(--t-l);
     font-weight: 700;
 }
 
-.rango-calculado .actual dd {
-    color: var(--texto-2);
-    font-size: var(--t-s);
+.lado.propuesto dd {
+    color: var(--acento);
+}
+
+.origen-vigente {
+    margin-bottom: var(--e-3);
+}
+
+/* Aguja con la temperatura del equipo y, al lado, qué muestra. */
+.vista-previa {
+    display: grid;
+    grid-template-columns: 9rem minmax(0, 1fr);
+    align-items: center;
+    gap: var(--e-4);
 }
 
 .incompatible {
@@ -225,49 +256,13 @@ h2 ::deep .icono {
     margin-top: var(--e-3);
 }
 
-/* ===== Rangos vigentes + ajuste manual ===== */
-
-.secundarias {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0 var(--e-4);
-    align-items: start;
-}
-
-/* Mismas columnas que la fila de arriba: los bordes de las tarjetas quedan alineados. */
-@media (min-width: 1200px) {
-    .secundarias {
-        grid-template-columns: minmax(0, 1.3fr) minmax(20rem, 1fr);
-    }
-}
-
-.rangos {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--e-3);
-    margin-bottom: var(--e-3);
-}
-
-.rangos > div {
-    padding: var(--e-3) var(--e-4);
-    border-radius: var(--radio);
-    background: var(--superficie-2);
-}
-
 .etiqueta {
-    color: var(--texto-3);
-    font-size: var(--t-xs);
+    color: var(--texto-2);
+    font-size: var(--t-s);
     font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
 }
 
-.rango {
-    color: var(--acento);
-    font-size: var(--t-xl);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-}
+/* ===== Ajuste manual ===== */
 
 fieldset {
     margin: 0 0 var(--e-4);
@@ -355,7 +350,7 @@ legend {
         grid-template-columns: 7.5rem minmax(0, 1fr);
     }
 
-    .rangos {
+    .comparacion {
         grid-template-columns: minmax(0, 1fr);
     }
 }
