@@ -64,6 +64,11 @@ builder.Services.AddScoped<ReconocimientoAlertas>();
 builder.Services.AddScoped<EscaladorAlertas>();
 builder.Services.AddHostedService<BotTelegram>();
 
+// Resumen del día anterior por Telegram, cada mañana (sección "ResumenDiario").
+builder.Services.Configure<OpcionesResumenDiario>(builder.Configuration.GetSection("ResumenDiario"));
+builder.Services.AddScoped<ResumenDiario>();
+builder.Services.AddHostedService<EnvioResumenDiario>();
+
 // Cifrado de contraseñas (RNF05).
 builder.Services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 

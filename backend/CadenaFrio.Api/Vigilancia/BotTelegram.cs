@@ -7,6 +7,7 @@ namespace CadenaFrio.Api.Vigilancia;
 
 // Escucha lo que llega al bot de Telegram (long polling) y responde:
 // - "/start CÓDIGO": vincula el chat con un usuario del sistema.
+// - "/resumen" o "/resumen hoy": envía el resumen del día (solo a chats vinculados).
 // - Botón "Lo estoy atendiendo": registra quién atiende la alerta.
 public class BotTelegram : BackgroundService
 {
@@ -87,7 +88,29 @@ public class BotTelegram : BackgroundService
             return;
         }
 
-        // 2. Botón "Lo estoy atendiendo".
+        // 2. "/resumen" (ayer) o "/resumen hoy" (hoy hasta ahora): el mismo resumen de cada mañana.
+        // Es una consulta: no se registra en la bitácora.
+        if (actualizacion.Mensaje is { Texto: { } pedido } mensajeResumen && pedido.StartsWith("/resumen"))
+        {
+            var vinculado = await db.Usuarios.AsNoTracking()
+                .AnyAsync(u => u.TelegramChatId == mensajeResumen.Chat.Id && u.Activo, cancelacion);
+            if (!vinculado)
+            {
+                await telegram.EnviarAsync(mensajeResumen.Chat.Id,
+                    "Este chat no está vinculado a un usuario activo. Vincúlelo en el sistema: menú de su cuenta → <b>Notificaciones</b>.",
+                    cancelacion: cancelacion);
+                return;
+            }
+
+            var ahora = DateTime.UtcNow;
+            var hoy = ResumenDiario.DiaPeru(ahora);
+            var dia = pedido.Contains("hoy", StringComparison.OrdinalIgnoreCase) ? hoy : hoy.AddDays(-1);
+            var resumen = servicios.GetRequiredService<ResumenDiario>();
+            await telegram.EnviarAsync(mensajeResumen.Chat.Id, await resumen.PrepararAsync(dia, ahora), cancelacion: cancelacion);
+            return;
+        }
+
+        // 3. Botón "Lo estoy atendiendo".
         if (actualizacion.Boton is { Dato: { } dato } boton && dato.StartsWith(NotificadorTelegram.PrefijoBoton)
             && int.TryParse(dato[NotificadorTelegram.PrefijoBoton.Length..], out var alertaId) && boton.Mensaje is { } original)
         {
