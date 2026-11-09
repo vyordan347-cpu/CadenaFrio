@@ -508,3 +508,32 @@ h2 {
     color: var(--acento);
     font-weight: 700;
 }
+
+/* ===== Descargas del encabezado: Excel del periodo y hoja del Anexo 10 del mes ===== */
+
+.descargas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--e-3);
+}
+
+.anexo10 {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.anexo10 label {
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.anexo10-fila {
+    display: flex;
+    gap: var(--e-2);
+}
+
+.anexo10-fila input {
+    width: auto;
+}

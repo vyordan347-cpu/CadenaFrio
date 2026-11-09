@@ -20,9 +20,23 @@
         @if (historial is not null)
         {
             @* El Excel trae el mismo equipo y periodo que se ven en pantalla. *@
-            <a class="boton boton-primario boton-excel" href="@UrlExcel" download>
-                <Icono Nombre="descargar" Tamano="18" /> Exportar a Excel
-            </a>
+            <div class="descargas">
+                <a class="boton boton-primario boton-excel" href="@UrlExcel" download>
+                    <Icono Nombre="descargar" Tamano="18" /> Exportar a Excel
+                </a>
+
+                @* Hoja oficial de control diario (Anexo 10 de la NTS 242) del mes elegido, llenada
+                   con las lecturas del sensor: mañana y tarde de cada día. *@
+                <div class="anexo10">
+                    <label for="mes-anexo10">Hoja del Anexo 10</label>
+                    <div class="anexo10-fila">
+                        <input id="mes-anexo10" type="month" @bind="mesAnexo10" max="@MesActual" />
+                        <a class="boton" href="@UrlAnexo10" download title="Hoja de control y registro diario de la temperatura, llenada con las lecturas del sensor">
+                            <Icono Nombre="descargar" Tamano="18" /> Descargar
+                        </a>
+                    </div>
+                </div>
+            </div>
         }
     </header>
 
@@ -494,6 +508,13 @@
     // Un solo archivo de Excel con tres hojas: Resumen, Lecturas y Alertas.
     // La descarga usa la misma sesión (cookie) del navegador: no necesita nada especial.
     private string UrlExcel => $"api/historial/excel?equipoId={equipoId}&{Rango}";
+
+    // Mes de la hoja del Anexo 10. Empieza en el mes actual de Perú.
+    private static DateOnly HoyPeru => DateOnly.FromDateTime(DateTime.UtcNow + DesfasePeru);
+    private static string MesActual => HoyPeru.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+    private DateOnly mesAnexo10 = new(HoyPeru.Year, HoyPeru.Month, 1);
+
+    private string UrlAnexo10 => $"api/historial/anexo10?equipoId={equipoId}&mes={mesAnexo10.ToString("yyyy-MM", CultureInfo.InvariantCulture)}";
 
     // Con espacio que no se corta ( ): la cifra y "°C" nunca quedan en líneas distintas.
     private static string Grados(double? valor) => valor is { } v ? $"{v:0.0} °C" : "—";

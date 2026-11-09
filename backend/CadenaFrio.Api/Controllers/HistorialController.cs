@@ -1,14 +1,18 @@
+using System.Globalization;
 using ClosedXML.Excel;
+using CadenaFrio.Api.Reportes;
 using static CadenaFrio.Api.Reportes.EstiloExcel;
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Enums;
 using CadenaFrio.Domain.Valores;
+using CadenaFrio.Infrastructure.Configuracion;
 using CadenaFrio.Infrastructure.Data;
 using CadenaFrio.Infrastructure.Servicios;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace CadenaFrio.Api.Controllers;
 
@@ -258,6 +262,46 @@ public class HistorialController : ControllerBase
 
         var nombre = $"cadena-frio-{Archivo(historial.NombreEquipo)}-{Local(historial.Hasta):yyyy-MM-dd}.xlsx";
         return File(memoria.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
+    }
+
+    // GET /api/historial/anexo10?equipoId=1&mes=2026-11
+    // Hoja de control y registro diario de la temperatura (Anexo N° 10 de la NTS 242) de un mes,
+    // llenada con las lecturas del sensor. Es una consulta: no se registra en la bitácora.
+    [HttpGet("anexo10")]
+    public async Task<IActionResult> DescargarAnexo10([FromQuery] int equipoId, [FromQuery] string mes,
+        [FromServices] IOptions<OpcionesEstablecimiento> establecimiento)
+    {
+        if (!DateTime.TryParseExact(mes, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var primerDia))
+        {
+            return BadRequest(new { mensaje = "Mes no válido. Use el formato AAAA-MM, por ejemplo 2026-11." });
+        }
+
+        var equipo = await _db.Equipos.AsNoTracking().FirstOrDefaultAsync(e => e.Id == equipoId);
+        if (equipo is null)
+        {
+            return NotFound(new { mensaje = "Equipo no encontrado." });
+        }
+
+        var (desde, hasta) = HojaControlTemperatura.PeriodoUtc(primerDia.Year, primerDia.Month);
+        var lecturas = await _db.Lecturas
+            .AsNoTracking()
+            .Where(l => l.EquipoId == equipoId && l.FechaMedicion >= desde && l.FechaMedicion < hasta)
+            .Select(l => new { l.FechaMedicion, l.Temperatura })
+            .ToListAsync();
+        var historia = await HistoriaRangos.CargarAsync(_db, equipoId);
+
+        var datos = new DatosAnexo10(
+            equipo.Nombre,
+            equipo.Ubicacion,
+            equipo.Tipo,
+            primerDia.Year,
+            primerDia.Month,
+            HojaControlTemperatura.Armar(primerDia.Year, primerDia.Month, lecturas.Select(l => (l.FechaMedicion, l.Temperatura)), historia),
+            historia.Tramos(desde, hasta),
+            establecimiento.Value);
+
+        var nombre = $"anexo10-{Archivo(equipo.Nombre)}-{primerDia:yyyy-MM}.xlsx";
+        return File(FormatoAnexo10.Generar(datos), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
     }
 
     // ---------- Formato del Excel ----------
