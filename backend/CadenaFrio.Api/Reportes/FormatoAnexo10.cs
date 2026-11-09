@@ -107,7 +107,7 @@ public static class FormatoAnexo10
         fila++;
         var notas = new List<string>
         {
-            "Turnos de control: mañana de 8:00 a 14:00 y tarde de 14:00 a 20:00 (hora de Perú). En cada turno se anota la primera lectura del sensor.",
+            "Turnos de control: mañana de 8:00 a 14:00 y tarde de 14:00 a 20:00. En cada turno se anota la primera lectura del sensor.",
             "\"Salió del límite en el turno\": en algún momento del turno hubo una lectura fuera del límite, aunque la anotada esté dentro.",
             "\"Sin datos\": en ese turno no llegó ninguna lectura del sensor; no se sabe qué temperatura hubo."
         };
