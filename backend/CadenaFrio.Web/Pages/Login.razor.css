@@ -1,70 +1,168 @@
+/* Inicio de sesión: foto de una refrigeradora de vacunas con una capa oscura y, encima,
+   una tarjeta oscura translúcida. Los colores son fijos (no dependen del tema claro u
+   oscuro) porque la tarjeta siempre va sobre la foto. */
+
 .contenedor {
     min-height: 100vh;
     display: grid;
     place-items: center;
     padding: 1.5rem 1rem;
+    /* La capa azul oscura asegura que el texto se lea sobre cualquier parte de la foto. */
+    background:
+        linear-gradient(rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.7)),
+        url("img/fondo-login.webp") center / cover no-repeat,
+        #1E293B;
 }
 
 .acceso {
     width: 100%;
-    max-width: 400px;
-    padding: 2rem 1.75rem 1.5rem;
+    max-width: 25.5rem;
+    padding: 2.5rem 2.25rem 1.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 1.25rem;
+    background: rgba(17, 20, 32, 0.92);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    color: #F1F5F9;
+    text-align: center;
 }
 
+/* Con soporte de desenfoque, la tarjeta deja ver un poco la foto detrás. */
+@supports (backdrop-filter: blur(1px)) {
+    .acceso {
+        background: rgba(17, 20, 32, 0.78);
+        backdrop-filter: blur(14px);
+    }
+}
+
+/* Escudo de la USMP en un círculo blanco. */
 .logo {
     display: grid;
     place-items: center;
-    width: 3.75rem;
-    height: 3.75rem;
-    margin-bottom: 1rem;
+    width: 5.5rem;
+    height: 5.5rem;
+    margin: 0 auto 1.25rem;
     border-radius: 50%;
-    background: var(--barra-fondo);
-    color: #8cc8f5;
+    background: #FFFFFF;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+.logo img {
+    width: 3.6rem;
+    height: auto;
 }
 
 h1 {
-    color: var(--texto);
+    color: #FFFFFF;
+    font-size: var(--t-2xl);
 }
 
 .subtitulo {
-    margin: 0.25rem 0 1.5rem;
-    color: var(--texto-2);
+    margin: 0.5rem 0 1.75rem;
+    color: #CBD5E1;
+    line-height: 1.5;
 }
 
-label {
-    margin-bottom: 1rem;
+/* Campos y etiquetas los dibuja EditForm (un componente): por eso ::deep. */
+.acceso ::deep label {
+    margin-bottom: 1.1rem;
+    color: #F1F5F9;
+    font-weight: 600;
+    text-align: left;
 }
 
-.boton {
+.acceso ::deep input {
+    min-height: 3rem;
+    margin-top: 0.4rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 0.6rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: #FFFFFF;
+}
+
+.acceso ::deep input::placeholder {
+    color: #A7B0BE;
+}
+
+.acceso ::deep input:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.acceso ::deep input:focus-visible {
+    border-color: #B48ACB;
+    box-shadow: 0 0 0 3px rgba(180, 138, 203, 0.4);
+}
+
+.acceso ::deep input.invalid {
+    border-color: #FCA5A5;
+}
+
+.acceso ::deep .validation-message {
+    margin-top: 0.3rem;
+    color: #FCA5A5;
+}
+
+/* Botón morado, como en la referencia. Blanco sobre #6B2D8C: contraste 9:1. */
+.boton-ingresar {
     width: 100%;
-    padding: 0.75rem;
-    margin-top: 0.25rem;
+    min-height: 3rem;
+    margin-top: 0.35rem;
+    border: none;
     border-radius: 999px;
+    background: #6B2D8C;
+    color: #FFFFFF;
+    font: inherit;
+    font-size: var(--t-m);
     font-weight: 700;
+    cursor: pointer;
+    transition: background-color var(--duracion) var(--curva), transform var(--duracion) var(--curva);
+}
+
+.boton-ingresar:hover:not(:disabled) {
+    background: #7E3AA3;
+}
+
+.boton-ingresar:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.boton-ingresar:focus-visible {
+    outline: 2px solid #E9D5F5;
+    outline-offset: 3px;
+}
+
+.boton-ingresar:disabled {
+    opacity: 0.7;
+    cursor: progress;
 }
 
 .aviso {
     margin-top: 1rem;
+    text-align: left;
 }
 
 /* Identificación académica al pie de la tarjeta. */
 .academico {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
     margin-top: 1.75rem;
     padding-top: 1.25rem;
-    border-top: 1px solid var(--borde);
-    color: var(--texto-2);
-    font-size: 0.85rem;
-    line-height: 1.35;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    color: #CBD5E1;
+    font-size: var(--t-s);
+    line-height: 1.6;
 }
 
 .academico strong {
-    color: var(--texto);
+    color: #FFFFFF;
 }
 
-.academico img {
-    flex-shrink: 0;
-    height: auto;
+@media (max-width: 480px) {
+    .acceso {
+        padding: 2rem 1.25rem 1.5rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .boton-ingresar {
+        transition: none;
+    }
 }

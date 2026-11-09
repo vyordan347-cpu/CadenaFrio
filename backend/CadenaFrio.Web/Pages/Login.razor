@@ -7,28 +7,31 @@
 
 <PageTitle>Iniciar sesión · Cadena de Frío</PageTitle>
 
+@* Fondo: foto de una refrigeradora de vacunas con una capa oscura; encima, la tarjeta translúcida. *@
 <div class="contenedor">
-    <div class="tarjeta acceso">
-        <span class="logo"><Icono Nombre="copo" Tamano="34" /></span>
+    <div class="acceso">
+        <span class="logo">
+            <img src="img/usmp-escudo.png" alt="Escudo de la Universidad de San Martín de Porres" width="217" height="240" />
+        </span>
         <h1>Cadena de Frío</h1>
-        <p class="subtitulo">Monitoreo de vacunas. Ingrese con su usuario.</p>
+        <p class="subtitulo">Monitoreo de vacunas.<br />Ingrese con su usuario</p>
 
         <EditForm Model="solicitud" OnValidSubmit="IngresarAsync">
             <DataAnnotationsValidator />
 
             <label>
                 Usuario
-                <InputText @bind-Value="solicitud.NombreUsuario" autocomplete="username" />
+                <InputText @bind-Value="solicitud.NombreUsuario" autocomplete="username" placeholder="Ingrese su usuario" />
                 <ValidationMessage For="() => solicitud.NombreUsuario" />
             </label>
 
             <label>
                 Contraseña
-                <InputText type="password" @bind-Value="solicitud.Contrasena" autocomplete="current-password" />
+                <InputText type="password" @bind-Value="solicitud.Contrasena" autocomplete="current-password" placeholder="Ingrese su contraseña" />
                 <ValidationMessage For="() => solicitud.Contrasena" />
             </label>
 
-            <button type="submit" class="boton boton-primario" disabled="@ingresando">
+            <button type="submit" class="boton-ingresar" disabled="@ingresando">
                 @(ingresando ? "Ingresando…" : "Ingresar")
             </button>
         </EditForm>
@@ -40,7 +43,6 @@
 
         @* Proyecto académico: identificación de la universidad. *@
         <footer class="academico">
-            <img src="img/usmp-escudo.png" alt="Escudo de la Universidad de San Martín de Porres" width="44" height="49" />
             <p>Proyecto académico<br /><strong>Universidad de San Martín de Porres</strong></p>
         </footer>
     </div>
