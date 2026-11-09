@@ -159,18 +159,36 @@
     padding: var(--e-4);
 }
 
+/* Etiqueta en palabras cotidianas, con ícono (sin mayúsculas: se lee mejor). */
 .estadistica-etiqueta {
-    color: var(--texto-3);
-    font-size: var(--t-xs);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--texto-2);
+    font-size: var(--t-s);
     font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
 }
 
+.estadistica-accion {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    margin-top: 0.15rem;
+    color: var(--acento);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.estadistica-accion ::deep .flecha {
+    transform: rotate(-90deg);
+}
+
+
+/* Un tamaño menos que antes: las cifras ahora son frases cortas ("unas 1,291 de 1,320"). */
 .estadistica-valor {
     margin-top: 0.2rem;
     color: var(--texto);
-    font-size: var(--t-2xl);
+    font-size: var(--t-xl);
     font-weight: 700;
     line-height: 1.15;
 }
@@ -180,15 +198,7 @@
     font-size: var(--t-s);
 }
 
-/* Cumplimiento térmico: el indicador principal, con borde de acento. */
-.estadistica.destacada {
-    border-top: 4px solid var(--acento-relleno);
-}
-
-.estadistica.destacada .estadistica-valor {
-    color: var(--acento);
-}
-
+/* Tarjeta con algo que atender (rupturas o alertas sin revisar): borde rojo arriba. */
 .estadistica.alerta {
     border-top: 4px solid var(--rup);
 }
@@ -300,6 +310,15 @@ h2 {
         width: 100%;
     }
 
+    /* Dos tarjetas por fila: la cifra un tamaño menor para que entre en el ancho. */
+    .estadistica {
+        padding: var(--e-3);
+    }
+
+    .estadistica-valor {
+        font-size: var(--t-l);
+    }
+
     .seccion {
         padding: var(--e-3);
     }
@@ -356,4 +375,132 @@ h2 {
     flex-wrap: wrap;
     justify-content: center;
     gap: var(--e-2);
+}
+
+/* ===== Resumen del periodo: frases simples y estado de la información ===== */
+
+.resumen-historial {
+    margin-bottom: var(--e-4);
+    padding: var(--e-4) var(--e-5);
+}
+
+.resumen-historial h2 {
+    margin-bottom: var(--e-3);
+}
+
+.frases {
+    display: grid;
+    gap: var(--e-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* Cada frase: ícono + texto, con borde a la izquierda cuyo estilo también cambia
+   (sólido, rayado, punteado), para no depender solo del color. */
+.frase {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--e-3);
+    padding: var(--e-3) var(--e-4);
+    border-left: 4px solid var(--borde-fuerte);
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+.frase-icono {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radio-s);
+}
+
+.frase-titulo {
+    color: var(--texto);
+    font-weight: 700;
+}
+
+.frase-detalle {
+    margin-top: 0.15rem;
+    color: var(--texto-2);
+}
+
+.frase-rup { border-left-color: var(--rup); background: var(--rup-fondo); }
+.frase-rup .frase-icono { color: var(--rup-texto); }
+.frase-rup .frase-titulo { color: var(--rup-texto); }
+
+.frase-sen { border-left-color: var(--sen); border-left-style: dashed; }
+.frase-sen .frase-icono { color: var(--sen-texto); }
+
+.frase-adv { border-left-color: var(--adv); border-left-style: dotted; }
+.frase-adv .frase-icono { color: var(--adv-texto); }
+
+.frase-ok { border-left-color: var(--ok); }
+.frase-ok .frase-icono { color: var(--ok-texto); }
+
+.estado-informacion {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--e-2);
+    margin-top: var(--e-3);
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+.estado-informacion.desactualizada {
+    color: var(--adv-texto);
+}
+
+/* ===== Qué hacer: una acción por fila, con su ícono y, si corresponde, su botón ===== */
+
+.que-hacer {
+    margin-bottom: var(--e-4);
+    padding: var(--e-4) var(--e-5);
+}
+
+.que-hacer h2 {
+    margin-bottom: var(--e-3);
+}
+
+.acciones-lista {
+    display: grid;
+    gap: var(--e-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.acciones-lista li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--e-3);
+}
+
+.acciones-lista p {
+    color: var(--texto);
+}
+
+.acciones-lista .boton {
+    margin-top: var(--e-2);
+}
+
+.accion-icono {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radio-s);
+    background: var(--superficie-2);
+    color: var(--texto-2);
+}
+
+/* "Revisar" junto a "Falta revisar" en la tabla de alertas. */
+.revision .revisar {
+    display: inline-block;
+    margin-left: var(--e-2);
+    color: var(--acento);
+    font-weight: 700;
 }

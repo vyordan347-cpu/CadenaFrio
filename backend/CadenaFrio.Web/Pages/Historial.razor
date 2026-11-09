@@ -89,31 +89,108 @@
             <span class="dato-secundario">· óptimo @historial.OptimoMinimo.ToString("0.#")–@historial.OptimoMaximo.ToString("0.#") °C, límite @historial.LimiteMinimo.ToString("0.#")–@historial.LimiteMaximo.ToString("0.#") °C</span>
         </p>
 
-        @* Estadísticas del periodo *@
-        <section class="estadisticas" aria-label="Estadísticas del periodo">
-            <div class="tarjeta estadistica destacada">
-                <p class="estadistica-etiqueta">Cumplimiento térmico</p>
-                <p class="estadistica-valor cifras">@(e.PorcentajeOptimo is { } p ? $"{p:0.#} %" : "—")</p>
-                @* Se calcula sobre las lecturas recibidas, no sobre el tiempo: si faltan datos,
-                   no equivale al tiempo del periodo. *@
-                <p class="estadistica-texto">de las lecturas en rango óptimo</p>
-            </div>
-            <div class="tarjeta estadistica">
-                <p class="estadistica-etiqueta">Mínima / máxima</p>
-                <p class="estadistica-valor cifras">@Grados(e.Minima) / @Grados(e.Maxima)</p>
-                <p class="estadistica-texto">temperaturas extremas</p>
-            </div>
-            <div class="tarjeta estadistica">
-                <p class="estadistica-etiqueta">Promedio</p>
-                <p class="estadistica-valor cifras">@Grados(e.Promedio)</p>
-                <p class="estadistica-texto">@e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture) @(e.CantidadLecturas == 1 ? "lectura" : "lecturas")</p>
-            </div>
-            <div class="tarjeta estadistica @(e.CantidadRupturas > 0 ? "alerta" : "")">
-                <p class="estadistica-etiqueta">Rupturas</p>
-                <p class="estadistica-valor cifras">@e.CantidadRupturas</p>
-                <p class="estadistica-texto">@(e.MinutosEnRuptura > 0 ? $"{FormatoFecha.Duracion(TimeSpan.FromMinutes(e.MinutosEnRuptura))} fuera del límite" : "sin tiempo fuera del límite")</p>
-            </div>
-        </section>
+        @* Resumen en palabras simples y estado de la información: lo primero que se lee.
+           Las frases salen de ResumenHistorial (solo hechos, sin conclusiones clínicas). *@
+        @if (e.CantidadLecturas > 0)
+        {
+            var esperadas = ResumenHistorial.LecturasEsperadas(historial);
+            var huecos = TramosHistorial.Huecos(historial.Puntos, historial.Desde, historial.Hasta);
+            <section class="tarjeta resumen-historial" aria-labelledby="titulo-resumen">
+                <h2 id="titulo-resumen">Resumen del periodo</h2>
+                <ul class="frases">
+                    @foreach (var frase in ResumenHistorial.Frases(historial, huecos))
+                    {
+                        <li class="frase frase-@frase.Clase">
+                            <span class="frase-icono"><Icono Nombre="@frase.Icono" Tamano="20" /></span>
+                            <div>
+                                <p class="frase-titulo">@frase.Titulo</p>
+                                <p class="frase-detalle">@frase.Detalle</p>
+                            </div>
+                        </li>
+                    }
+                </ul>
+
+                @* Cuántos datos hay y si están al día. Es un conteo, no un porcentaje de tiempo. *@
+                <p class="estado-informacion cifras @(ultimaLecturaAntigua ? "desactualizada" : "")">
+                    <Icono Nombre="@(ultimaLecturaAntigua ? "advertencia" : "reloj")" Tamano="16" />
+                    <span>
+                        Se recibieron @e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture) de unas @esperadas.ToString("N0", CultureInfo.InvariantCulture) lecturas esperadas (una por minuto).
+                        @if (ultimaLectura is { } u)
+                        {
+                            @if (ultimaLecturaAntigua)
+                            {
+                                <strong>Esta información no está al día: la última lectura del equipo es de @FormatoFecha.Antiguedad(u) (@FormatoFecha.HoraPeru(u)[..16]).</strong>
+                            }
+                            else
+                            {
+                                <span>Última lectura del equipo: @FormatoFecha.Antiguedad(u).</span>
+                            }
+                        }
+                    </span>
+                </p>
+            </section>
+        }
+
+        @* Qué hacer, justo después de lo que pasó. Se muestra también sin lecturas: es cuando
+           más importa revisar el equipo y las alertas pendientes. Los textos están en
+           AccionesRecomendadas (para que los valide la persona responsable de inmunizaciones). *@
+        var cantidadHuecos = TramosHistorial.Huecos(historial.Puntos, historial.Desde, historial.Hasta).Count;
+        var sinDatosAlDia = ultimaLecturaAntigua || e.CantidadLecturas == 0;
+            <section class="tarjeta que-hacer" aria-labelledby="titulo-que-hacer">
+                <h2 id="titulo-que-hacer">Qué hacer</h2>
+                <ol class="acciones-lista">
+                    @foreach (var accion in AccionesRecomendadas.Para(historial, cantidadHuecos, sinDatosAlDia))
+                    {
+                        <li>
+                            <span class="accion-icono"><Icono Nombre="@accion.Icono" Tamano="18" /></span>
+                            <div>
+                                <p>@accion.Texto</p>
+                                @if (accion.Enlace is not null)
+                                {
+                                    <a class="boton boton-chico boton-primario" href="@accion.Enlace">@accion.TextoEnlace</a>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ol>
+            </section>
+
+        @* Cifras clave en palabras cotidianas. Los términos técnicos (cumplimiento térmico,
+           promedio) van en la línea de abajo y, más adelante, en la vista detallada. *@
+        @if (e.CantidadLecturas > 0)
+        {
+            var sinRevisar = historial.Alertas.Count(a => a.RequiereRevision && a.AtendidaPor is null);
+            <section class="estadisticas" aria-label="Cifras del periodo">
+                <div class="tarjeta estadistica">
+                    <p class="estadistica-etiqueta"><Icono Nombre="temperatura" Tamano="16" /> Temperatura más baja y más alta</p>
+                    <p class="estadistica-valor cifras">@Grados(e.Minima) y @Grados(e.Maxima)</p>
+                    <p class="estadistica-texto">El límite permitido es de @historial.LimiteMinimo.ToString("0.#") a @historial.LimiteMaximo.ToString("0.#") °C.</p>
+                </div>
+                <div class="tarjeta estadistica">
+                    <p class="estadistica-etiqueta"><Icono Nombre="ok" Tamano="16" /> Lecturas en el rango recomendado</p>
+                    <p class="estadistica-valor cifras">@LecturasEnRango(e)</p>
+                    <p class="estadistica-texto">Rango recomendado: @historial.OptimoMinimo.ToString("0.#") a @historial.OptimoMaximo.ToString("0.#") °C.</p>
+                </div>
+                <div class="tarjeta estadistica @(e.CantidadRupturas > 0 ? "alerta" : "")">
+                    <p class="estadistica-etiqueta"><Icono Nombre="ruptura" Tamano="16" /> Rupturas de temperatura</p>
+                    <p class="estadistica-valor cifras">@(e.CantidadRupturas switch { 0 => "Ninguna", 1 => "1 episodio", var n => $"{n} episodios" })</p>
+                    <p class="estadistica-texto">Veces que la temperatura salió del límite permitido.</p>
+                </div>
+                <div class="tarjeta estadistica @(sinRevisar > 0 ? "alerta" : "")">
+                    <p class="estadistica-etiqueta"><Icono Nombre="campana" Tamano="16" /> Alertas sin revisar</p>
+                    <p class="estadistica-valor cifras">@(sinRevisar == 0 ? "Ninguna" : sinRevisar.ToString())</p>
+                    @if (sinRevisar > 0)
+                    {
+                        @* La revisión se registra en el detalle del equipo, donde está el formulario. *@
+                        <a class="estadistica-accion" href="equipos/@historial.EquipoId">Revisar ahora <Icono Nombre="abajo" Tamano="16" Clase="flecha" /></a>
+                    }
+                    else
+                    {
+                        <p class="estadistica-texto">Todas las que lo necesitaban ya se revisaron.</p>
+                    }
+                </div>
+            </section>
+        }
 
         @* Gráfico *@
         <section class="tarjeta seccion" aria-labelledby="titulo-grafico">
@@ -158,7 +235,16 @@
                 <GraficoHistorial Puntos="historial.Puntos" Alertas="historial.Alertas"
                                   Desde="historial.Desde" Hasta="historial.Hasta"
                                   OptimoMinimo="historial.OptimoMinimo" OptimoMaximo="historial.OptimoMaximo"
-                                  LimiteMinimo="historial.LimiteMinimo" LimiteMaximo="historial.LimiteMaximo" />
+                                  LimiteMinimo="historial.LimiteMinimo" LimiteMaximo="historial.LimiteMaximo">
+                    @* Lo técnico solo aparece en la vista detallada del gráfico. *@
+                    <DatosTecnicos>
+                        <div><dt>Lecturas recibidas</dt><dd class="cifras">@e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture)</dd></div>
+                        <div><dt>Promedio</dt><dd class="cifras">@Grados(e.Promedio)</dd></div>
+                        <div><dt>Cumplimiento térmico</dt><dd class="cifras">@(e.PorcentajeOptimo is { } p ? $"{p:0.#} %" : "—") de las lecturas en rango óptimo</dd></div>
+                        <div><dt>Tiempo con alertas de ruptura abiertas</dt><dd class="cifras">@(e.MinutosEnRuptura > 0 ? FormatoFecha.Duracion(TimeSpan.FromMinutes(e.MinutosEnRuptura)) : "—")</dd></div>
+                        <div><dt>Periodo</dt><dd class="cifras">@FormatoFecha.HoraPeru(historial.Desde)[..16] a @FormatoFecha.HoraPeru(historial.Hasta)[..16]</dd></div>
+                    </DatosTecnicos>
+                </GraficoHistorial>
                 @* La leyenda la dibuja el propio gráfico, según el modo (general o análisis). *@
             }
         </section>
@@ -183,10 +269,10 @@
                     <table class="tabla tabla-alertas">
                         <thead>
                             <tr>
-                                <th scope="col">Alerta</th>
-                                <th scope="col">Inicio</th>
-                                <th scope="col">Duración</th>
-                                <th scope="col">Extremo</th>
+                                <th scope="col">Qué pasó</th>
+                                <th scope="col">Empezó</th>
+                                <th scope="col">Duró</th>
+                                <th scope="col">Temperatura</th>
                                 <th scope="col">Revisión</th>
                             </tr>
                         </thead>
@@ -194,22 +280,22 @@
                             @foreach (var a in historial.Alertas)
                             {
                                 <tr>
-                                    <td data-titulo="Alerta">
+                                    <td data-titulo="Qué pasó">
                                         <span class="insignia insignia-@ClaseAlerta(a)">
                                             <Icono Nombre="@IconoAlerta(a)" Tamano="14" /> @NombreAlerta(a)
                                         </span>
                                         @if (a.DetectadaTarde)
                                         {
-                                            <span class="tarde">al sincronizar</span>
+                                            <span class="tarde">se supo al reconectarse</span>
                                         }
                                     </td>
-                                    <td data-titulo="Inicio" class="cifras">@FormatoFecha.HoraPeru(a.Inicio)[..16]</td>
-                                    <td data-titulo="Duración">@(a.Fin is { } fin ? FormatoFecha.Duracion(fin - a.Inicio) : "en curso")</td>
-                                    <td data-titulo="Extremo" class="cifras">@(a.Tipo == TipoAlertaDto.SinSenal ? $"última {a.ValorExtremo:0.0} °C" : $"{a.ValorExtremo:0.0} °C")</td>
+                                    <td data-titulo="Empezó" class="cifras">@FormatoFecha.HoraPeru(a.Inicio)[..16]</td>
+                                    <td data-titulo="Duró">@(a.Fin is { } fin ? FormatoFecha.Duracion(fin - a.Inicio) : "sigue ocurriendo")</td>
+                                    <td data-titulo="Temperatura" class="cifras">@(a.Tipo == TipoAlertaDto.SinSenal ? $"última conocida: {a.ValorExtremo:0.0} °C" : $"llegó a {a.ValorExtremo:0.0} °C")</td>
                                     <td data-titulo="Revisión" class="revision">
                                         @if (a.AtendidaPor is not null)
                                         {
-                                            <strong><Icono Nombre="check" Tamano="14" /> @a.AtendidaPor</strong>
+                                            <strong><Icono Nombre="check" Tamano="14" /> Revisada por @a.AtendidaPor</strong>
                                             @if (a.CausaRuptura is not null)
                                             {
                                                 <span class="causa">Causa: @a.CausaRuptura</span>
@@ -225,11 +311,13 @@
                                         }
                                         else if (a.RequiereRevision)
                                         {
-                                            <span class="pendiente"><Icono Nombre="advertencia" Tamano="14" /> Pendiente de revisión</span>
+                                            <span class="pendiente"><Icono Nombre="advertencia" Tamano="14" /> Falta revisar</span>
+                                            @* La revisión se registra en el detalle del equipo, donde está el formulario. *@
+                                            <a class="revisar" href="equipos/@historial.EquipoId">Revisar</a>
                                         }
                                         else
                                         {
-                                            <span class="no-aplica">No requiere</span>
+                                            <span class="no-aplica">No necesita revisión</span>
                                         }
                                     </td>
                                 </tr>
@@ -333,10 +421,9 @@
             ultimaLecturaConsultada = false;
             historial = await Http.GetFromJsonAsync<HistorialDto>($"api/historial?equipoId={equipoId}&{Rango}");
 
-            if (historial?.Estadisticas.CantidadLecturas == 0)
-            {
-                await BuscarUltimaLecturaAsync();
-            }
+            // La última lectura del equipo sirve en los dos casos: en el estado vacío (para ir a
+            // esas fechas) y en el resumen (para decir si la información está al día).
+            await BuscarUltimaLecturaAsync();
         }
         catch (Exception)
         {
@@ -344,10 +431,11 @@
         }
     }
 
-    // Para el estado vacío: la fecha de la última lectura del equipo (la misma consulta que
-    // usan el panel y Configuración). Si falla, se muestra el mensaje de siempre.
+    // La última lectura del equipo (la misma consulta que usan el panel y Configuración).
+    // Si falla, el estado vacío muestra su mensaje de siempre y el resumen no dice nada de ella.
     private DateTime? ultimaLectura;
     private bool ultimaLecturaConsultada;
+    private bool ultimaLecturaAntigua;
 
     private async Task BuscarUltimaLecturaAsync()
     {
@@ -355,11 +443,13 @@
         {
             var actual = await Http.GetFromJsonAsync<TemperaturaActualDto>($"api/equipos/{equipoId}/temperatura-actual");
             ultimaLectura = actual?.FechaMedicion;
+            ultimaLecturaAntigua = actual is not null && EstadoEquipo.LecturaAntigua(actual);
             ultimaLecturaConsultada = true;
         }
         catch (Exception)
         {
             ultimaLectura = null;
+            ultimaLecturaAntigua = false;
         }
     }
 
@@ -382,14 +472,32 @@
     // La descarga usa la misma sesión (cookie) del navegador: no necesita nada especial.
     private string UrlExcel => $"api/historial/excel?equipoId={equipoId}&{Rango}";
 
-    private static string Grados(double? valor) => valor is { } v ? $"{v:0.0} °C" : "—";
+    // Con espacio que no se corta ( ): la cifra y "°C" nunca quedan en líneas distintas.
+    private static string Grados(double? valor) => valor is { } v ? $"{v:0.0} °C" : "—";
 
+    // "1,291 de 1,320": lecturas dentro del rango recomendado. Sale del porcentaje que da la API
+    // (redondeado a una décima); con 1,000 lecturas o más el redondeo puede correr la cifra,
+    // así que se dice "unas".
+    private static string LecturasEnRango(EstadisticasHistorialDto e)
+    {
+        if (e.PorcentajeOptimo is not { } porcentaje || e.CantidadLecturas == 0)
+        {
+            return "—";
+        }
+        var dentro = (int)Math.Round(porcentaje * e.CantidadLecturas / 100);
+        var total = e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture);
+        var exacta = e.CantidadLecturas < 1000 || porcentaje is 0 or 100;
+        // "1,291 de 1,320" no se corta en el medio; si no cabe, solo "unas" queda arriba.
+        return $"{(exacta ? "" : "unas ")}{dentro.ToString("N0", CultureInfo.InvariantCulture)} de {total}";
+    }
+
+    // Qué pasó, en palabras simples. "Ruptura" se conserva: es el término de la norma que usa el personal.
     private static string NombreAlerta(AlertaHistorialDto a) => a.Tipo switch
     {
-        TipoAlertaDto.SinSenal => "Sin señal",
-        TipoAlertaDto.SensorSinVariacion => "Sensor sin variación",
-        TipoAlertaDto.TemperaturaAlta => a.Nivel == NivelAlertaDto.Ruptura ? "Ruptura (alta)" : "Advertencia (alta)",
-        _ => a.Nivel == NivelAlertaDto.Ruptura ? "Ruptura (baja)" : "Advertencia (baja)"
+        TipoAlertaDto.SinSenal => "Sin señal del equipo",
+        TipoAlertaDto.SensorSinVariacion => "El sensor marca siempre lo mismo",
+        TipoAlertaDto.TemperaturaAlta => a.Nivel == NivelAlertaDto.Ruptura ? "Temperatura muy alta (ruptura)" : "Temperatura algo alta",
+        _ => a.Nivel == NivelAlertaDto.Ruptura ? "Temperatura muy baja (ruptura)" : "Temperatura algo baja"
     };
 
     private static string ClaseAlerta(AlertaHistorialDto a) =>

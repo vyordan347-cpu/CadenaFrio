@@ -16,8 +16,8 @@
 <div class="grafico" @ref="contenedor">
     <div class="grafico-barra">
         <div class="selector-modo" role="group" aria-label="Modo del gráfico">
-            <button type="button" class="@(analisis ? "" : "activo")" aria-pressed="@(analisis ? "false" : "true")" @onclick="() => CambiarModo(false)">Vista general</button>
-            <button type="button" class="@(analisis ? "activo" : "")" aria-pressed="@(analisis ? "true" : "false")" @onclick="() => CambiarModo(true)">Análisis</button>
+            <button type="button" class="@(analisis ? "" : "activo")" aria-pressed="@(analisis ? "false" : "true")" @onclick="() => CambiarModo(false)">Vista sencilla</button>
+            <button type="button" class="@(analisis ? "activo" : "")" aria-pressed="@(analisis ? "true" : "false")" @onclick="() => CambiarModo(true)">Vista detallada</button>
         </div>
 
         @* Solo en Análisis y si los datos ocupan poco del periodo: acercar la vista a donde
@@ -177,13 +177,13 @@
 
     @* Leyenda: solo lo que aparece en el gráfico, según el modo. *@
     <ul class="grafico-leyenda" aria-label="Leyenda del gráfico">
-        <li><span class="muestra muestra-linea"></span> Temperatura</li>
+        <li><span class="muestra muestra-linea"></span> Temperatura registrada</li>
         @if (Puntos.Any(p => FueraDe(p.Maximo) || FueraDe(p.Minimo)))
         {
             <li><span class="muestra muestra-fuera"></span> Fuera del límite</li>
         }
-        <li><span class="muestra muestra-optimo"></span> Óptimo @OptimoMinimo.ToString("0.#", CultureInfo.InvariantCulture)–@OptimoMaximo.ToString("0.#", CultureInfo.InvariantCulture) °C</li>
-        <li><span class="muestra muestra-limite"></span> Límites @LimiteMinimo.ToString("0.#", CultureInfo.InvariantCulture) y @LimiteMaximo.ToString("0.#", CultureInfo.InvariantCulture) °C</li>
+        <li><span class="muestra muestra-optimo"></span> Rango recomendado @OptimoMinimo.ToString("0.#", CultureInfo.InvariantCulture)–@OptimoMaximo.ToString("0.#", CultureInfo.InvariantCulture) °C</li>
+        <li><span class="muestra muestra-limite"></span> Límites permitidos @LimiteMinimo.ToString("0.#", CultureInfo.InvariantCulture) y @LimiteMaximo.ToString("0.#", CultureInfo.InvariantCulture) °C</li>
         @if (Huecos.Count > 0)
         {
             <li><span class="muestra muestra-hueco"></span> Sin datos</li>
@@ -197,6 +197,51 @@
             }
         }
     </ul>
+
+    @* Vista detallada: datos técnicos, periodos sin datos con fechas exactas y, si cada
+       punto es una sola lectura, la lista de mediciones. Todo sale de los mismos datos. *@
+    @if (analisis && Puntos.Count > 0)
+    {
+        <div class="detalles">
+            <section aria-labelledby="titulo-datos-tecnicos-@id">
+                <h3 id="titulo-datos-tecnicos-@id">Datos técnicos</h3>
+                <dl class="datos-tecnicos">
+                    @DatosTecnicos
+                    <div>
+                        <dt>Puntos del gráfico</dt>
+                        <dd class="cifras">
+                            @Puntos.Count.ToString("N0", CultureInfo.InvariantCulture)
+                            (cada uno agrupa las lecturas de @FormatoFecha.Duracion(Tramo))
+                        </dd>
+                    </div>
+                </dl>
+                @* El periodo más corto del Historial es de 24 h: los puntos siempre agrupan varias
+                   lecturas. Cada lectura, con su hora exacta, está en el Excel. *@
+                <p class="nota-detalle">
+                    Cada lectura por separado, con su fecha y hora exactas, está en el Excel
+                    ("Exportar a Excel", arriba), para periodos de hasta 7 días.
+                </p>
+            </section>
+
+            <section aria-labelledby="titulo-sin-datos-@id">
+                <h3 id="titulo-sin-datos-@id">Periodos sin datos</h3>
+                @if (Huecos.Count == 0)
+                {
+                    <p class="nota-detalle">No hubo periodos de más de 5 minutos sin lecturas.</p>
+                }
+                else
+                {
+                    <ul class="lista-huecos cifras">
+                        @foreach (var (inicio, fin) in Huecos)
+                        {
+                            <li>@FormatoFecha.HoraPeru(inicio)[..16] a @FormatoFecha.HoraPeru(fin)[..16] <span class="dato-secundario">(@FormatoFecha.Duracion(fin - inicio))</span></li>
+                        }
+                    </ul>
+                }
+            </section>
+
+        </div>
+    }
 </div>
 
 @code {
@@ -208,6 +253,13 @@
     [Parameter] public double OptimoMaximo { get; set; }
     [Parameter] public double LimiteMinimo { get; set; }
     [Parameter] public double LimiteMaximo { get; set; }
+
+    // Filas extra para "Datos técnicos" de la vista detallada (por ejemplo, promedio y
+    // cumplimiento, que vienen de las estadísticas de la página). Cada fila: <div><dt/><dd/></div>.
+    [Parameter] public RenderFragment? DatosTecnicos { get; set; }
+
+    // Identificador para los títulos de la vista detallada (aria-labelledby únicos).
+    private readonly string id = Guid.NewGuid().ToString("N")[..8];
 
     // Tamaño de dibujo = tamaño real en pantalla (lo mide interfaz.js), así el texto se ve
     // a 11–12 px también en el celular. 800 es solo el valor hasta la primera medición.
@@ -383,7 +435,8 @@
             var paso = new[] { 1.0, 2.0, 5.0, 10.0 }.First(p => (Maximo - Minimo) / p <= 8);
             for (var v = Math.Ceiling(Minimo / paso) * paso; v <= Maximo; v += paso)
             {
-                yield return v;
+                // Un -0 (sale de redondear negativos hacia arriba) se escribiría "-0": se cambia por 0.
+                yield return v == 0 ? 0 : v;
             }
         }
     }
@@ -430,29 +483,15 @@
 
     // ---------- Tramos de tiempo ----------
 
-    // La API agrupa las lecturas en unos 300 tramos iguales del periodo (mínimo 1 minuto) y
-    // da la hora de INICIO de cada tramo. Es la misma cuenta que HistorialController.Resumir;
-    // si allí cambia, hay que cambiarla aquí.
-    private const int PuntosObjetivo = 300;
-
-    private TimeSpan Tramo =>
-        TimeSpan.FromTicks(Math.Max(TimeSpan.FromMinutes(1).Ticks, (Hasta - Desde).Ticks / PuntosObjetivo));
+    // Duración de cada tramo y huecos: misma cuenta que el resumen de la página (TramosHistorial).
+    private TimeSpan Tramo => TramosHistorial.Tramo(Desde, Hasta);
 
     // Cada punto se dibuja en el centro de su tramo: es lo más cerca que se puede estar
     // de la hora real de sus lecturas sin inventarla.
     private DateTime Centro(PuntoHistorialDto p) => p.Fecha + Tramo / 2;
 
-    // Más de 5 minutos sin datos es "sin señal" (valor por defecto de la configuración).
-    private static readonly TimeSpan SinSenal = TimeSpan.FromMinutes(5);
-
-    // ¿Hay un hueco sin datos entre dos tramos? Sí, si en medio quedó al menos un tramo vacío
-    // y además el hueco supera los 5 minutos (con tramos de 1 minuto, una lectura que llega
-    // unos segundos tarde no es un hueco).
-    private bool HayHueco(DateTime inicioAnterior, DateTime inicioSiguiente)
-    {
-        var distancia = inicioSiguiente - inicioAnterior;
-        return distancia >= Tramo * 2 && distancia > Tramo + SinSenal;
-    }
+    private bool HayHueco(DateTime inicioAnterior, DateTime inicioSiguiente) =>
+        TramosHistorial.HayHueco(inicioAnterior, inicioSiguiente, Tramo);
 
     // ---------- Trazos ----------
 
@@ -475,37 +514,8 @@
         }
     }
 
-    // Periodos sin datos: antes de la primera lectura, entre tramos y después de la última
-    // (hasta el fin del periodo, o hasta ahora si el periodo termina en el futuro).
-    private List<(DateTime Desde, DateTime Hasta)> Huecos
-    {
-        get
-        {
-            var huecos = new List<(DateTime, DateTime)>();
-            if (Puntos.Count == 0)
-            {
-                return huecos;
-            }
-
-            var fin = Hasta < DateTime.UtcNow ? Hasta : DateTime.UtcNow;
-            if (HayHueco(Desde - Tramo, Puntos[0].Fecha))
-            {
-                huecos.Add((Desde, Puntos[0].Fecha));
-            }
-            for (var i = 1; i < Puntos.Count; i++)
-            {
-                if (HayHueco(Puntos[i - 1].Fecha, Puntos[i].Fecha))
-                {
-                    huecos.Add((Puntos[i - 1].Fecha + Tramo, Puntos[i].Fecha));
-                }
-            }
-            if (HayHueco(Puntos[^1].Fecha, fin))
-            {
-                huecos.Add((Puntos[^1].Fecha + Tramo, fin));
-            }
-            return huecos;
-        }
-    }
+    // Periodos sin datos (ver TramosHistorial.Huecos).
+    private List<(DateTime Desde, DateTime Hasta)> Huecos => TramosHistorial.Huecos(Puntos, Desde, Hasta);
 
     private string TrazoLinea(List<PuntoHistorialDto> puntos) =>
         "M" + string.Join(" L", puntos.Select(p => $"{F(X(Centro(p)))} {F(Y(p.Promedio))}"));
