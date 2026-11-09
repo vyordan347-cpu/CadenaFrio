@@ -21,7 +21,7 @@ Proyecto del curso Ingeniería de Software II (USMP). Jordan Viza Huanca hace el
 - `CadenaFrio.Shared`: DTOs y contratos compartidos con la web (la web no referencia Domain: el catálogo del Anexo 13 llega por `GET /api/alertas/catalogo-anexo13`), `ConversionTemperatura` (°C/°F y sugerencia de redondeo).
 - `CadenaFrio.Api`: controladores (incluye `AdminBitacoraController`, solo lectura, y `AdminRespaldosController`), `SesionUsuario` (cookie + sello de seguridad), `VigilanteSenal`, `RespaldoDiario`, `BotTelegram` (long polling), `ReportesController` y `Reportes/` (`FormatoAnexo13`, `ReporteExcel`, `EstiloExcel` con el formato común de los Excel).
 - `CadenaFrio.Web`: páginas Blazor (incluye `Reportes` y `Alertas`), componentes (`Icono`, `IndicadorTemperatura`, `GraficoHistorial`, `MiniGrafico`, `SelectorUnidad`, `EntradaTemperatura`, `SelectorTema`, `IndicadorAlertas`, `DialogoConfirmacion`), `Utilidades/EstadoEquipo.cs`, `wwwroot/css/sistema.css`, `wwwroot/js/` (`tema.js`, `interfaz.js`).
-- `CadenaFrio.Tests`: 120 pruebas, todas correctas.
+- `CadenaFrio.Tests`: 128 pruebas, todas correctas.
 - `docs/`: `protocolo-prueba-de-campo.md` y `restaurar-respaldo.md`.
 
 ## Interfaz (rediseño)
@@ -31,6 +31,7 @@ Proyecto del curso Ingeniería de Software II (USMP). Jordan Viza Huanca hace el
 - `/alertas`: activas (desde `api/equipos/estado`) y por revisar (`api/alertas/pendientes`); las atendidas siguen en Historial. Sin rutas nuevas en la API. Filtros por tipo y por equipo, y "Mostrar 10 más" en el navegador (la API no pagina).
 - Panel: muestra las 5 alertas más urgentes (plazo del Anexo 13 más próximo primero) y enlaza a `/alertas`.
 - `EstadoEquipo` separa el estado térmico del de comunicación; una lectura antigua (más allá de `MinutosSinSenal`) se muestra atenuada como "Última conocida", con la insignia de borde discontinuo ("Ruptura · hace 18 días") y un aviso de "último estado conocido" en vez de "active el plan de contingencia".
+- Código QR por equipo: Administración → Equipos → "Código QR" (`/admin/equipos/{id}/etiqueta`). Etiqueta para imprimir con el QR que abre `/equipos/{id}`. El QR se genera en el navegador con QRCoder (MIT) en `Shared/Utilidades/EtiquetaEquipo.cs`. La dirección para el celular se elige de las detectadas por `GET /api/admin/equipos/direcciones` (red local primero, sin 169.254.x) y se recuerda en el navegador; con localhost se avisa que no sirve en el celular. Para imprimir, la sección 14 de `sistema.css` oculta el menú y lo marcado con `no-imprimir`.
 - Administración → Equipos: tres columnas separadas (Habilitación, Conexión, Temperatura); un equipo habilitado no implica que se esté comunicando.
 - Acciones delicadas (retirar, desactivar, restablecer, nueva clave) se confirman con `DialogoConfirmacion.PreguntarAsync(...)` (`<dialog>` nativo), no con `confirm()`.
 - Nunca solo color: icono + palabra + estilo de borde. Contraste WCAG AA comprobado en ambos temas.

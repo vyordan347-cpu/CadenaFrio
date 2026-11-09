@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Security.Claims;
 using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Enums;
@@ -32,6 +35,39 @@ public class AdminEquiposController : ControllerBase
         _bitacora.Registrar(CategoriaAuditoria.Administracion, accion,
             User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity!.Name!,
             equipo.Nombre + (extra is null ? "" : $": {extra}"));
+
+    // GET /api/admin/equipos/direcciones
+    // Direcciones con las que un celular de la misma red llega a este servidor, por ejemplo
+    // "http://192.168.1.20:5067". Las usa la etiqueta QR de cada equipo: "localhost" solo
+    // funciona en la propia PC. Es una consulta: no se registra en la bitácora.
+    [HttpGet("direcciones")]
+    public ActionResult<List<string>> Direcciones()
+    {
+        var puerto = HttpContext.Connection.LocalPort > 0 ? HttpContext.Connection.LocalPort : Request.Host.Port ?? 80;
+        var direcciones = NetworkInterface.GetAllNetworkInterfaces()
+            .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+            .SelectMany(n => n.GetIPProperties().UnicastAddresses)
+            .Select(u => u.Address)
+            .Where(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip) && !EsAutoasignada(ip))
+            .Distinct()
+            // Primero las de una red local (el wifi de la posta); al final las de VPN u otras.
+            .OrderBy(PrioridadRedLocal)
+            .Select(ip => $"{Request.Scheme}://{ip}:{puerto}")
+            .ToList();
+        return Ok(direcciones);
+    }
+
+    // 169.254.x.x: dirección que Windows se pone sola cuando no hay red. No sirve para el celular.
+    private static bool EsAutoasignada(IPAddress ip) => ip.GetAddressBytes() is [169, 254, ..];
+
+    // 0 = 192.168.x.x (lo más común en un wifi), 1 = 10.x.x.x, 2 = 172.16–31.x.x, 3 = otras.
+    private static int PrioridadRedLocal(IPAddress ip) => ip.GetAddressBytes() switch
+    {
+        [192, 168, ..] => 0,
+        [10, ..] => 1,
+        [172, >= 16 and <= 31, ..] => 2,
+        _ => 3
+    };
 
     // GET /api/admin/equipos
     [HttpGet]

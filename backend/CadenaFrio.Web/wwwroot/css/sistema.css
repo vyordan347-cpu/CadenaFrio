@@ -849,6 +849,32 @@ legend {
     }
 }
 
+/* ===== 14. Impresión =====
+   Al imprimir (por ejemplo, la etiqueta QR de un equipo) no salen el menú, la barra superior
+   ni los controles marcados con "no-imprimir"; el contenido ocupa toda la hoja en blanco.
+   "!important" porque las reglas del diseño (CSS aislado) pesan más que estas. */
+@media print {
+    .lateral,
+    .cabecera,
+    .saltar,
+    .velo,
+    .no-imprimir {
+        display: none !important;
+    }
+
+    .app {
+        display: block !important;
+    }
+
+    html,
+    body,
+    .principal,
+    .pagina {
+        padding: 0 !important;
+        background: #FFFFFF !important;
+    }
+}
+
 /* Si el sistema pide reducir el movimiento, no hay animaciones ni transiciones. */
 @media (prefers-reduced-motion: reduce) {
     *,

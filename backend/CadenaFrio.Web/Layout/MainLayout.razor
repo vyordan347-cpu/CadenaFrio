@@ -255,6 +255,7 @@
             "mis-avisos" => new("Mi cuenta", "Mis avisos"),
             "cambiar-contrasena" => new("Mi cuenta", "Cambiar contraseña"),
             _ when ruta.StartsWith("equipos/") => new("Monitoreo", "Detalle del equipo", ("", "Panel")),
+            _ when ruta.StartsWith("admin/equipos/") && ruta.EndsWith("/etiqueta") => new("Administración", "Código QR", ("admin/equipos", "Equipos")),
             _ => new("Cadena de Frío", "Página")
         };
     }

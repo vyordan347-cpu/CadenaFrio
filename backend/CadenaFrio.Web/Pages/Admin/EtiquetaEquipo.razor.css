@@ -1,0 +1,90 @@
+/* Administración → Equipos → Código QR. Estructura de página en sistema.css. */
+
+.direccion {
+    max-width: var(--ancho-formulario);
+    margin-bottom: var(--e-4);
+    padding: var(--e-4) var(--e-5);
+}
+
+.direccion h2 {
+    margin-bottom: var(--e-2);
+}
+
+.direccion label {
+    display: block;
+    margin-bottom: var(--e-2);
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+.direccion-fila input {
+    width: 100%;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+.direccion .nota {
+    margin-top: var(--e-2);
+}
+
+.direccion .aviso {
+    margin-top: var(--e-3);
+}
+
+/* La etiqueta: fondo blanco y texto oscuro también en el tema oscuro (es lo que se imprime). */
+.etiqueta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--e-1);
+    width: min(100%, 22rem);
+    margin: 0 auto var(--e-4);
+    padding: var(--e-5);
+    border: 2px solid #172B4D;
+    border-radius: var(--radio-grande);
+    background: #FFFFFF;
+    color: #172B4D;
+    text-align: center;
+}
+
+.etiqueta-qr {
+    width: 100%;
+    max-width: 16rem;
+}
+
+.etiqueta-qr ::deep svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.etiqueta-nombre {
+    margin-top: var(--e-2);
+    font-size: var(--t-l);
+    font-weight: 700;
+}
+
+.etiqueta-lugar {
+    color: #4A5B73;
+}
+
+.etiqueta-instruccion {
+    margin-top: var(--e-2);
+    font-weight: 700;
+}
+
+.etiqueta-enlace {
+    color: #4A5B73;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: var(--t-xs);
+    overflow-wrap: anywhere;
+}
+
+.etiqueta-marca {
+    margin-top: var(--e-2);
+    color: #4A5B73;
+    font-size: var(--t-xs);
+}
+
+.acciones {
+    justify-content: center;
+}

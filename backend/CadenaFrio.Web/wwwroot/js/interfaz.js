@@ -63,3 +63,26 @@ export function observarAncho(elemento, componente) {
     avisar();
     return { dejar: () => observador.disconnect() };
 }
+
+// Preferencias sueltas de este navegador (por ejemplo, la dirección que lleva el QR de los
+// equipos). Si el almacenamiento no está disponible (modo privado), no se recuerda y listo.
+export function leerPreferencia(clave) {
+    try {
+        return localStorage.getItem(clave);
+    } catch {
+        return null;
+    }
+}
+
+export function guardarPreferencia(clave, valor) {
+    try {
+        localStorage.setItem(clave, valor);
+    } catch {
+        // Sin almacenamiento: se usa solo hasta recargar.
+    }
+}
+
+// Abre el cuadro de impresión del navegador (la etiqueta QR se imprime sin el menú).
+export function imprimir() {
+    window.print();
+}

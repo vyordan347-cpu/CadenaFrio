@@ -216,12 +216,16 @@
                                     </div>
                                 </td>
                                 <td class="celda-acciones">
-                                    @* Editar es la acción habitual; las otras dos cambian el funcionamiento
-                                       del dispositivo y piden confirmación. *@
+                                    @* Editar y Código QR son acciones habituales; Nueva clave y Desactivar
+                                       cambian el funcionamiento del dispositivo y piden confirmación. *@
                                     <div class="equipo-acciones">
                                         <button class="boton boton-chico" @onclick="() => EditarEquipo(equipo)">
                                             <Icono Nombre="editar" Tamano="16" /> Editar
                                         </button>
+                                        <a class="boton boton-chico" href="admin/equipos/@equipo.Id/etiqueta"
+                                           title="Etiqueta para pegar en el equipo: al escanearla se ve su temperatura">
+                                            <Icono Nombre="ojo" Tamano="16" /> Código QR
+                                        </a>
                                         <button class="boton boton-chico boton-peligro" @onclick="() => RegenerarClaveAsync(equipo)"
                                                 title="La clave actual deja de funcionar al instante">
                                             <Icono Nombre="regenerar" Tamano="16" /> Nueva clave

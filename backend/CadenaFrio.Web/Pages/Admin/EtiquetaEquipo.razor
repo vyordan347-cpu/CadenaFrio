@@ -1,0 +1,155 @@
+@page "/admin/equipos/{Id:int}/etiqueta"
+@using System.Net.Http.Json
+@using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Web.Componentes
+@using Microsoft.AspNetCore.Authorization
+@using Etiqueta = CadenaFrio.Shared.Utilidades.EtiquetaEquipo
+@attribute [Authorize(Policy = Politicas.EsAdministrador)]
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navegacion
+
+@* Etiqueta con el código QR de un equipo, para pegarla en la refrigeradora o el termo:
+   al escanearla con el celular se abre el detalle del equipo (temperatura en vivo). *@
+
+<PageTitle>Código QR · Equipos · Cadena de Frío</PageTitle>
+
+<main class="pagina">
+    <header class="encabezado no-imprimir">
+        <span class="encabezado-icono"><Icono Nombre="refrigeradora" Tamano="24" /></span>
+        <div class="encabezado-texto">
+            <h1>Código QR del equipo</h1>
+            <p class="subtitulo">Imprímalo y péguelo en el equipo: al escanearlo con el celular se ve su temperatura.</p>
+        </div>
+        <a class="boton" href="admin/equipos">Volver a Equipos</a>
+    </header>
+
+    @if (error is not null)
+    {
+        <p class="aviso aviso-error aviso-con-icono"><Icono Nombre="advertencia" Tamano="18" /> @error</p>
+    }
+    else if (equipo is null)
+    {
+        <span class="esqueleto" style="height: 20rem" aria-hidden="true"></span>
+        <p class="solo-lector" role="status">Cargando…</p>
+    }
+    else
+    {
+        @* Dirección con la que el CELULAR llega a esta PC: se elige una vez y se recuerda. *@
+        <section class="tarjeta direccion no-imprimir" aria-labelledby="titulo-direccion">
+            <h2 id="titulo-direccion">Dirección para el celular</h2>
+            <label for="direccion">El celular debe estar en la misma red (wifi) que esta PC.</label>
+            <div class="direccion-fila">
+                <input id="direccion" list="direcciones-detectadas" @bind="direccion" @bind:after="GuardarDireccionAsync" />
+                <datalist id="direcciones-detectadas">
+                    @foreach (var d in detectadas)
+                    {
+                        <option value="@d"></option>
+                    }
+                </datalist>
+            </div>
+            @if (detectadas.Count > 0)
+            {
+                <p class="nota">Direcciones de esta PC: @string.Join(" · ", detectadas)</p>
+            }
+            @if (Etiqueta.EsLocal(direccion))
+            {
+                <p class="aviso aviso-adv aviso-con-icono">
+                    <Icono Nombre="advertencia" Tamano="18" />
+                    <span>Con "localhost" el QR solo funciona en esta misma PC, no en el celular. Elija una dirección de la lista.</span>
+                </p>
+            }
+        </section>
+
+        @* La etiqueta: lo único que se imprime. *@
+        <section class="etiqueta" aria-label="Etiqueta para imprimir">
+            <div class="etiqueta-qr" role="img" aria-label="Código QR que abre el detalle de @equipo.Nombre">
+                @((MarkupString)Etiqueta.Svg(Enlace))
+            </div>
+            <p class="etiqueta-nombre">@equipo.Nombre</p>
+            @if (!string.IsNullOrWhiteSpace(equipo.Ubicacion))
+            {
+                <p class="etiqueta-lugar">@equipo.Ubicacion</p>
+            }
+            <p class="etiqueta-instruccion">Escanee con el celular para ver la temperatura de este equipo.</p>
+            <p class="etiqueta-enlace">@Enlace</p>
+            <p class="etiqueta-marca">Cadena de Frío · Monitoreo de vacunas</p>
+        </section>
+
+        <div class="acciones no-imprimir">
+            <button type="button" class="boton boton-primario" @onclick="ImprimirAsync">
+                <Icono Nombre="descargar" Tamano="18" /> Imprimir etiqueta
+            </button>
+        </div>
+    }
+</main>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private const string ClaveDireccion = "cadenafrio-direccion-qr";
+
+    private EquipoAdminDto? equipo;
+    private List<string> detectadas = new();
+    private string direccion = "";
+    private string? error;
+    private IJSObjectReference? interfaz;
+
+    private string Enlace => Etiqueta.Enlace(direccion, Id);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var equipos = await Http.GetFromJsonAsync<List<EquipoAdminDto>>("api/admin/equipos") ?? new();
+            equipo = equipos.FirstOrDefault(e => e.Id == Id);
+            if (equipo is null)
+            {
+                error = "No se encontró el equipo.";
+                return;
+            }
+            detectadas = await Http.GetFromJsonAsync<List<string>>("api/admin/equipos/direcciones") ?? new();
+        }
+        catch (Exception)
+        {
+            error = "No se pudo cargar el equipo. Revise que el servidor esté encendido.";
+        }
+
+        // Dirección inicial: la de esta página si sirve en el celular; si no, la primera detectada.
+        var actual = Navegacion.BaseUri.TrimEnd('/');
+        direccion = !Etiqueta.EsLocal(actual) ? actual : detectadas.FirstOrDefault() ?? actual;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        if (!primeraVez)
+        {
+            return;
+        }
+        interfaz = await JS.InvokeAsync<IJSObjectReference>("import", "./js/interfaz.js?v=1");
+
+        // Si ya se eligió una dirección en este navegador, se usa esa.
+        var guardada = await interfaz.InvokeAsync<string?>("leerPreferencia", ClaveDireccion);
+        if (!string.IsNullOrWhiteSpace(guardada) && guardada != direccion)
+        {
+            direccion = guardada;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GuardarDireccionAsync()
+    {
+        if (interfaz is not null && !string.IsNullOrWhiteSpace(direccion))
+        {
+            await interfaz.InvokeVoidAsync("guardarPreferencia", ClaveDireccion, direccion.Trim());
+        }
+    }
+
+    private async Task ImprimirAsync()
+    {
+        if (interfaz is not null)
+        {
+            await interfaz.InvokeVoidAsync("imprimir");
+        }
+    }
+}
