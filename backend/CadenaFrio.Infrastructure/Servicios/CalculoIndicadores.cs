@@ -49,11 +49,10 @@ public class CalculoIndicadores
         double esperadas = 0;
         foreach (var equipo in equipos)
         {
-            var limites = await _db.ObtenerLimitesAsync(equipo.Id);
             var lecturas = _db.Lecturas.Where(l => l.EquipoId == equipo.Id && l.FechaMedicion >= desde && l.FechaMedicion < hasta);
 
             recibidas += await lecturas.CountAsync();
-            enOptimo += await lecturas.CountAsync(l => l.Temperatura >= limites.OptimoMinimo && l.Temperatura <= limites.OptimoMaximo);
+            enOptimo += await ContarEnOptimoAsync(equipo.Id, desde, hasta);
 
             // Se espera una lectura por minuto desde que el equipo existe (o desde el inicio del
             // periodo) hasta el final del periodo, o hasta ahora si el periodo no terminó.
@@ -96,7 +95,6 @@ public class CalculoIndicadores
         var resumen = new List<ResumenEquipo>();
         foreach (var equipo in (await EquiposAsync(equipoId)).OrderBy(e => e.Nombre))
         {
-            var limites = await _db.ObtenerLimitesAsync(equipo.Id);
             var lecturas = _db.Lecturas.Where(l => l.EquipoId == equipo.Id && l.FechaMedicion >= desde && l.FechaMedicion < hasta);
 
             // Mínimo, máximo y promedio en una sola consulta. (double?) evita un error cuando no hay lecturas.
@@ -105,7 +103,6 @@ public class CalculoIndicadores
                 .Select(g => new
                 {
                     Cantidad = g.Count(),
-                    EnOptimo = g.Count(l => l.Temperatura >= limites.OptimoMinimo && l.Temperatura <= limites.OptimoMaximo),
                     Minima = g.Min(l => (double?)l.Temperatura),
                     Maxima = g.Max(l => (double?)l.Temperatura),
                     Promedio = g.Average(l => (double?)l.Temperatura)
@@ -116,16 +113,35 @@ public class CalculoIndicadores
                 a.EquipoId == equipo.Id && a.Nivel == NivelAlerta.Ruptura && a.Tipo != TipoAlerta.SinSenal
                 && a.Inicio >= desde && a.Inicio < hasta);
 
+            var enOptimo = cifras is { Cantidad: > 0 } ? await ContarEnOptimoAsync(equipo.Id, desde, hasta) : 0;
+
             resumen.Add(new ResumenEquipo(
                 equipo.Id, equipo.Nombre, equipo.Ubicacion,
                 cifras?.Cantidad ?? 0,
-                cifras is { Cantidad: > 0 } ? Math.Round(100.0 * cifras.EnOptimo / cifras.Cantidad, 1) : null,
+                cifras is { Cantidad: > 0 } ? Math.Round(100.0 * enOptimo / cifras.Cantidad, 1) : null,
                 cifras?.Minima, cifras?.Maxima,
                 cifras?.Promedio is { } p ? Math.Round(p, 2) : null,
                 rupturas));
         }
 
         return resumen;
+    }
+
+    // Lecturas en el óptimo, cada una con el rango que regía cuando se tomó: se cuenta en la base
+    // por cada tramo de rango del periodo (sin traer las lecturas). Mismos bordes que antes: dentro
+    // del óptimo incluye sus extremos.
+    private async Task<long> ContarEnOptimoAsync(int equipoId, DateTime desde, DateTime hasta)
+    {
+        var historia = await HistoriaRangos.CargarAsync(_db, equipoId);
+        long enOptimo = 0;
+        foreach (var tramo in historia.Tramos(desde, hasta))
+        {
+            var (minimo, maximo) = (tramo.Limites.OptimoMinimo, tramo.Limites.OptimoMaximo);
+            enOptimo += await _db.Lecturas.CountAsync(l =>
+                l.EquipoId == equipoId && l.FechaMedicion >= tramo.Desde && l.FechaMedicion < tramo.Hasta
+                && l.Temperatura >= minimo && l.Temperatura <= maximo);
+        }
+        return enOptimo;
     }
 
     // Sin equipoId: todos los activos. Con equipoId: solo ese, aunque esté inactivo.

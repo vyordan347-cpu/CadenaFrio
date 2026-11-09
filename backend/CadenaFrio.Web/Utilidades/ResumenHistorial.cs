@@ -18,20 +18,32 @@ public static class ResumenHistorial
         var e = h.Estadisticas;
         var frases = new List<FraseResumen>();
 
-        var sobreLimite = e.Maxima is { } max && max > h.LimiteMaximo;
-        var bajoLimite = e.Minima is { } min && min < h.LimiteMinimo;
+        // ¿Cambió el rango en el periodo? Entonces cada lectura se juzgó con el de su momento
+        // (lo hace la API) y no tiene sentido comparar la máxima con un solo límite.
+        var rangoCambio = h.Rangos.Count > 1;
+        var fueraDelLimite = e.CantidadFueraDelLimite;
 
         // 1. Rupturas (o lecturas fuera del límite sin alerta en el periodo).
-        if (e.CantidadRupturas > 0 || sobreLimite || bajoLimite)
+        if (e.CantidadRupturas > 0 || fueraDelLimite > 0)
         {
             var partes = new List<string>();
-            if (sobreLimite)
+            if (fueraDelLimite > 0)
             {
-                partes.Add($"La temperatura subió hasta {G(e.Maxima!.Value)} (el límite es {G(h.LimiteMaximo)}).");
+                partes.Add(fueraDelLimite == 1
+                    ? "1 lectura quedó fuera del límite permitido."
+                    : $"{fueraDelLimite.ToString("N0", CultureInfo.InvariantCulture)} lecturas quedaron fuera del límite permitido.");
             }
-            if (bajoLimite)
+            if (!rangoCambio && e.Maxima is { } max && max > h.LimiteMaximo)
             {
-                partes.Add($"La temperatura bajó hasta {G(e.Minima!.Value)} (el límite es {G(h.LimiteMinimo)}).");
+                partes.Add($"La temperatura subió hasta {G(max)} (el límite es {G(h.LimiteMaximo)}).");
+            }
+            if (!rangoCambio && e.Minima is { } min && min < h.LimiteMinimo)
+            {
+                partes.Add($"La temperatura bajó hasta {G(min)} (el límite es {G(h.LimiteMinimo)}).");
+            }
+            if (rangoCambio && fueraDelLimite > 0 && e.Minima is { } mn && e.Maxima is { } mx)
+            {
+                partes.Add($"La temperatura más baja fue {G(mn)} y la más alta {G(mx)}.");
             }
             // El tiempo sale de cuánto estuvieron abiertas las alertas, no de lecturas continuas:
             // si hubo huecos, se aclara que no se sabe qué pasó en parte de ese tiempo.
@@ -70,19 +82,33 @@ public static class ResumenHistorial
             frases.Add(new("sen", "sin-senal", titulo, detalle));
         }
 
+        // Cambio de rango: se avisa para que nadie compare las lecturas viejas con el rango de hoy.
+        if (rangoCambio)
+        {
+            var cambios = h.Rangos.Count - 1;
+            frases.Add(new("info", "info",
+                cambios == 1 ? "El rango del equipo cambió en este periodo." : $"El rango del equipo cambió {cambios} veces en este periodo.",
+                "Cada lectura se juzga con el rango que regía cuando se tomó. Los cambios se ven en el gráfico y en el Excel."));
+        }
+
         // 3. Fuera del rango recomendado, pero sin pasar el límite.
         var fueraDelOptimo = e.PorcentajeOptimo is { } po && po < 100;
         if (fueraDelOptimo && frases.All(f => f.Clase != "rup"))
         {
             frases.Add(new("adv", "advertencia", "Algunas lecturas salieron del rango recomendado.",
-                $"Estuvieron fuera de {G(h.OptimoMinimo)} a {G(h.OptimoMaximo)}, pero sin pasar el límite permitido."));
+                rangoCambio
+                    ? "Estuvieron fuera del rango recomendado de su momento, pero sin pasar el límite permitido."
+                    : $"Estuvieron fuera de {G(h.OptimoMinimo)} a {G(h.OptimoMaximo)}, pero sin pasar el límite permitido."));
         }
 
         // 4. Sin problemas registrados: se dice qué significa y qué no.
         if (frases.All(f => f.Clase != "rup") && e.CantidadLecturas > 0)
         {
+            var donde = rangoCambio
+                ? "Dentro del límite que regía en cada momento."
+                : $"Entre {G(h.LimiteMinimo)} y {G(h.LimiteMaximo)}.";
             frases.Add(new("ok", "ok", "Todas las lecturas registradas estuvieron dentro del límite permitido.",
-                $"Entre {G(h.LimiteMinimo)} y {G(h.LimiteMaximo)}. Esto describe solo los momentos con datos; por sí solo no confirma el estado de las vacunas."));
+                $"{donde} Esto describe solo los momentos con datos; por sí solo no confirma el estado de las vacunas."));
         }
 
         return frases;

@@ -9,11 +9,16 @@ public class HistorialDto
     public DateTime Desde { get; set; }
     public DateTime Hasta { get; set; }
 
-    // Rangos vigentes del equipo, para dibujar las zonas del gráfico.
+    // Rango que regía al final del periodo (el último tramo de Rangos). Si el periodo llega
+    // hasta hoy, es el rango vigente del equipo.
     public double OptimoMinimo { get; set; }
     public double OptimoMaximo { get; set; }
     public double LimiteMinimo { get; set; }
     public double LimiteMaximo { get; set; }
+
+    // Rangos que rigieron en el periodo, en orden y sin huecos: uno solo si no cambió.
+    // Cada lectura se juzga con el rango de su tramo.
+    public List<TramoRangoDto> Rangos { get; set; } = new();
 
     // Lecturas resumidas por tramos: con periodos largos hay miles de lecturas,
     // y cada tramo conserva el mínimo y el máximo para no perder los picos.
@@ -22,6 +27,17 @@ public class HistorialDto
     public List<AlertaHistorialDto> Alertas { get; set; } = new();
 
     public EstadisticasHistorialDto Estadisticas { get; set; } = new();
+}
+
+// Un tramo [Desde, Hasta) en el que rigió un mismo rango (UTC).
+public class TramoRangoDto
+{
+    public DateTime Desde { get; set; }
+    public DateTime Hasta { get; set; }
+    public double OptimoMinimo { get; set; }
+    public double OptimoMaximo { get; set; }
+    public double LimiteMinimo { get; set; }
+    public double LimiteMaximo { get; set; }
 }
 
 public class PuntoHistorialDto
@@ -66,7 +82,11 @@ public class EstadisticasHistorialDto
     public double? Promedio { get; set; }
 
     // Porcentaje de lecturas dentro del rango óptimo: el indicador de calidad de la cadena de frío.
+    // Cada lectura se compara con el rango que regía cuando se tomó.
     public double? PorcentajeOptimo { get; set; }
+
+    // Lecturas fuera del rango límite (cada una con el rango de su momento).
+    public int CantidadFueraDelLimite { get; set; }
 
     public int CantidadAlertas { get; set; }
     public int CantidadRupturas { get; set; }

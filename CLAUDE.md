@@ -17,11 +17,11 @@ Proyecto del curso Ingeniería de Software II (USMP). Jordan Viza Huanca hace el
 
 ## Estructura (`backend/`)
 - `CadenaFrio.Domain`: entidades (incluye `RegistroAuditoria`), enums (incluye `CategoriaAuditoria`), `LimitesTemperatura` (Clasificar, Interseccion, PorDefecto), `CatalogoAnexo13` (listas oficiales, Aplica, Validar, plazo de 24 h), `ClavesDispositivo`, `ContrasenasTemporales`, `INotificadorAlertas`.
-- `CadenaFrio.Infrastructure`: DbContext y migraciones, `MotorAlertas`, `RegistroLecturas`, `DetectorSilencio`, `GestionRangos`, `EscaladorAlertas`, `ReconocimientoAlertas`, `Bitacora` (registra acciones) y `ConsultaBitacora` (filtros, páginas de 50), `RespaldoBaseDatos` (API de respaldo de SQLite, depura, valida nombres), `CalculoIndicadores` (indicadores y resumen por equipo en cualquier periodo), notificadores (Registro, Telegram, Correo, Compuesto), opciones (`OpcionesMonitoreo`, `OpcionesEstablecimiento`, `OpcionesRespaldo`).
+- `CadenaFrio.Infrastructure`: DbContext y migraciones, `MotorAlertas`, `RegistroLecturas`, `DetectorSilencio`, `GestionRangos`, `EscaladorAlertas`, `ReconocimientoAlertas`, `Bitacora` (registra acciones) y `ConsultaBitacora` (filtros, páginas de 50), `RespaldoBaseDatos` (API de respaldo de SQLite, depura, valida nombres), `CalculoIndicadores` (indicadores y resumen por equipo en cualquier periodo), `HistoriaRangos` (qué rango regía en cada momento: `En(fecha)`, `Tramos(desde, hasta)`, `Contar(lecturas)`), notificadores (Registro, Telegram, Correo, Compuesto), opciones (`OpcionesMonitoreo`, `OpcionesEstablecimiento`, `OpcionesRespaldo`).
 - `CadenaFrio.Shared`: DTOs y contratos compartidos con la web (la web no referencia Domain: el catálogo del Anexo 13 llega por `GET /api/alertas/catalogo-anexo13`), `ConversionTemperatura` (°C/°F y sugerencia de redondeo).
 - `CadenaFrio.Api`: controladores (incluye `AdminBitacoraController`, solo lectura, y `AdminRespaldosController`), `SesionUsuario` (cookie + sello de seguridad), `VigilanteSenal`, `RespaldoDiario`, `BotTelegram` (long polling), `ReportesController` y `Reportes/` (`FormatoAnexo13`, `ReporteExcel`, `EstiloExcel` con el formato común de los Excel).
 - `CadenaFrio.Web`: páginas Blazor (incluye `Reportes` y `Alertas`), componentes (`Icono`, `IndicadorTemperatura`, `GraficoHistorial`, `MiniGrafico`, `SelectorUnidad`, `EntradaTemperatura`, `SelectorTema`, `IndicadorAlertas`, `DialogoConfirmacion`), `Utilidades/EstadoEquipo.cs`, `wwwroot/css/sistema.css`, `wwwroot/js/` (`tema.js`, `interfaz.js`).
-- `CadenaFrio.Tests`: 98 pruebas, todas correctas.
+- `CadenaFrio.Tests`: 111 pruebas, todas correctas.
 - `docs/`: `protocolo-prueba-de-campo.md` y `restaurar-respaldo.md`.
 
 ## Interfaz (rediseño)
@@ -54,6 +54,7 @@ Credenciales (token de Telegram, correo) en **User Secrets**, sección `Notifica
 - Rupturas y silencios de más de 30 min exigen revisión (RF08). Las advertencias no.
 - Sin señal: más de 5 min sin datos. Sensor sin variación: desactivado (`MinutosSensorSinVariacion: 0`) porque el DHT11 mide en pasos de 1 °C.
 - El rango de cada equipo se calcula por intersección de las vacunas que guarda.
+- Cada lectura se juzga con el rango que regía cuando se tomó (`HistoriaRangos`, a partir de `RangoTemperatura.FechaCambio`; antes del primer rango guardado rige el de la norma). Lo usan Historial (API, Excel y web), Reportes (`CalculoIndicadores` y su Excel). Si el rango cambió en el periodo, el gráfico escalona la franja y los límites, y el resumen y el Excel lo avisan. `HistorialDto.Rangos` trae los tramos y `Estadisticas.CantidadFueraDelLimite` el conteo exacto.
 - Avisos externos (Telegram + correo) solo para lo urgente: ruptura, sin señal, sensor. Botón "Lo estoy atendiendo"; escalamiento a los 15 min.
 - Revisión de rupturas de temperatura con el **Anexo N° 13** (NTS 242, págs. 81–83 de los anexos): una causa (lista según refrigeradora o termo), una forma de restablecimiento y "¿vacunas inmovilizadas?". "Otro/Otra causa" exige detalle. Los silencios y advertencias se revisan con texto libre (mín. 10 caracteres).
 - Plazo de notificación: 24 h desde la ruptura (numeral 6.10.2.1); se muestra en cada ruptura pendiente. El Excel del Anexo 13 se descarga desde el Historial; lo que el sistema no sabe (marca, lotes, stock, cargo) queda en celdas amarillas.
@@ -69,6 +70,7 @@ Credenciales (token de Telegram, correo) en **User Secrets**, sección `Notifica
 - Archivos estáticos con `app.MapStaticAssets()` (no `UseStaticFiles` ni `UseBlazorFrameworkFiles`: juntos dan error 500 en `_framework`). Tras el cambio, Ctrl+F5 una vez en cada navegador para soltar el CSS viejo en caché.
 - `GraficoHistorial` repite la cuenta de tramos de `HistorialController.Resumir` (periodo / 300, mínimo 1 min): si cambia en la API, cambiarla también en el gráfico.
 - El navegador integrado de pruebas con el panel oculto no dibuja: el evento `close` de `<dialog>` y los avisos de `ResizeObserver` no llegan. Probar diálogos y cambios de tamaño con el panel visible.
+- Algunos rangos guardados antes de la migración `DosNiveles` quedaron con óptimo 0–0 en la base real: `HistoriaRangos` los lee con la regla de esa migración (óptimo = límite), sin modificar la base.
 - Migraciones con datos existentes pueden necesitar `migrationBuilder.Sql(...)` manual.
 - Fechas: se guardan en UTC; Perú es UTC-5 (sin horario de verano).
 - Con el servidor encendido, `dotnet build` falla al copiar los `.dll` (bloqueados): detenerlo o compilar con `--configuration Release` (también para `dotnet ef`).
@@ -76,7 +78,7 @@ Credenciales (token de Telegram, correo) en **User Secrets**, sección `Notifica
 
 ## Pendiente (trabajo futuro)
 - Sensor DS18B20; firmware con almacenamiento sin conexión, hora NTP y alarma local.
-- Juzgar cada lectura (Historial y Reportes) con el rango vigente en ese momento, no con el actual.
+- Lecturas que llegan tarde (al reconectarse): el motor de alertas las clasifica con el rango vigente al recibirlas, no con el de su hora (caso raro: solo importa si el rango cambió durante la desconexión).
 - Llenar `docs/protocolo-prueba-de-campo.md` con los resultados reales del ESP32.
 - Plazo del Anexo 13 en alertas detectadas tarde: hoy cuenta desde la ruptura, no desde la sincronización (haría falta un campo nuevo en `Alerta`).
 - Anexo 13A (evaluación de la ruptura): lo hace la DIRESA, fuera del alcance por ahora.

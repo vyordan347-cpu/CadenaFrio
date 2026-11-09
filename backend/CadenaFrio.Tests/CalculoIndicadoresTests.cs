@@ -161,5 +161,47 @@ public class CalculoIndicadoresTests : IDisposable
         Assert.Null(fila.Promedio);
     }
 
+    // Rango que rige desde "fecha" para el equipo 1.
+    private void CambiarRango(DateTime fecha, double optimoMinimo, double optimoMaximo, double limiteMinimo, double limiteMaximo) =>
+        _base.Db.RangosTemperatura.Add(new RangoTemperatura
+        {
+            EquipoId = BaseDeDatosDePrueba.EquipoId,
+            FechaCambio = fecha,
+            OptimoMinimo = optimoMinimo, OptimoMaximo = optimoMaximo,
+            LimiteMinimo = limiteMinimo, LimiteMaximo = limiteMaximo,
+            ModificadoPor = "Prueba"
+        });
+
+    [Fact]
+    public async Task Cada_lectura_se_juzga_con_el_rango_que_regia_cuando_se_tomo()
+    {
+        // En la mañana el óptimo era 3–8 °C; al mediodía se cambió a 3–7 °C (el de hoy).
+        CambiarRango(Dia, 3, 8, 2, 9);
+        CambiarRango(Dia.AddHours(12), 3, 7, 2, 8);
+        Lecturas(Dia.AddHours(8), 10, 7.5);    // mañana: dentro del óptimo de ese momento
+        Lecturas(Dia.AddHours(14), 10, 7.5);   // tarde: fuera del óptimo nuevo
+        await _base.Db.SaveChangesAsync();
+
+        var indicadores = await _calculo.CalcularAsync(Dia, Dia.AddDays(1), ahoraUtc: Dia.AddDays(2));
+        var fila = Assert.Single(await _calculo.ResumenPorEquipoAsync(Dia, Dia.AddDays(1)));
+
+        // Con el rango de hoy daría 0 %; con el de cada momento, la mitad.
+        Assert.Equal(50, indicadores.PorcentajeOptimo);
+        Assert.Equal(50, fila.PorcentajeOptimo);
+    }
+
+    [Fact]
+    public async Task La_lectura_justo_en_el_cambio_usa_el_rango_nuevo()
+    {
+        CambiarRango(Dia, 3, 8, 2, 9);
+        CambiarRango(Dia.AddHours(12), 3, 7, 2, 8);
+        Lecturas(Dia.AddHours(12), 1, 7.5);    // a las 12:00 en punto ya rige 3–7
+        await _base.Db.SaveChangesAsync();
+
+        var indicadores = await _calculo.CalcularAsync(Dia, Dia.AddDays(1), ahoraUtc: Dia.AddDays(2));
+
+        Assert.Equal(0, indicadores.PorcentajeOptimo);
+    }
+
     public void Dispose() => _base.Dispose();
 }

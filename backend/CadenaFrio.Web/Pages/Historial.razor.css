@@ -440,6 +440,10 @@ h2 {
 .frase-ok { border-left-color: var(--ok); }
 .frase-ok .frase-icono { color: var(--ok-texto); }
 
+/* Aviso informativo (por ejemplo, el rango cambió): borde doble, distinto de los demás. */
+.frase-info { border-left-color: var(--info); border-left-style: double; }
+.frase-info .frase-icono { color: var(--info-texto); }
+
 .estado-informacion {
     display: flex;
     align-items: flex-start;

@@ -44,7 +44,8 @@ public static class ReporteExcel
             ("Equipos", (XLCellValue)d.Alcance, null),
             ("Desde", Local(d.Desde), FormatoFecha),
             ("Hasta", Local(d.Hasta), FormatoFecha),
-            ("Tiempo en rango óptimo", k.PorcentajeOptimo is { } po ? (XLCellValue)(po / 100) : Blank.Value, "0.0%"),
+            // Proporción de lecturas (cada una con el rango de su momento), no de tiempo.
+            ("Lecturas en rango óptimo", k.PorcentajeOptimo is { } po ? (XLCellValue)(po / 100) : Blank.Value, "0.0%"),
             ("Rupturas de temperatura", k.Rupturas, "0"),
             ("Tiempo promedio de respuesta (min)", k.MinutosPromedioRespuesta is { } m ? (XLCellValue)m : Blank.Value, "0.0"),
             ("Lecturas recibidas", k.PorcentajeDisponibilidad is { } pd ? (XLCellValue)(pd / 100) : Blank.Value, "0.0%"),
@@ -66,7 +67,7 @@ public static class ReporteExcel
 
         // Una fila por equipo, debajo de los indicadores.
         var inicioTabla = 4 + filas.Length + 2;
-        var titulos = new[] { "Equipo", "Ubicación", "Lecturas", "En óptimo", "Mínima (°C)", "Máxima (°C)", "Promedio (°C)", "Rupturas" };
+        var titulos = new[] { "Equipo", "Ubicación", "Lecturas", "Lecturas en óptimo", "Mínima (°C)", "Máxima (°C)", "Promedio (°C)", "Rupturas" };
         for (var c = 0; c < titulos.Length; c++)
         {
             hoja.Cell(inicioTabla, c + 1).Value = titulos[c];

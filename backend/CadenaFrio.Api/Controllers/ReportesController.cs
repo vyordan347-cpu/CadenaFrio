@@ -67,7 +67,8 @@ public class ReportesController : ControllerBase
             lecturas = new();
             foreach (var equipo in equipos)
             {
-                var limites = await _db.ObtenerLimitesAsync(equipo.EquipoId);
+                // Cada lectura se clasifica con el rango que regía cuando se tomó.
+                var historia = await HistoriaRangos.CargarAsync(_db, equipo.EquipoId);
                 var delEquipo = await _db.Lecturas
                     .AsNoTracking()
                     .Where(l => l.EquipoId == equipo.EquipoId && l.FechaMedicion >= desde && l.FechaMedicion < hasta)
@@ -77,7 +78,7 @@ public class ReportesController : ControllerBase
 
                 lecturas.AddRange(delEquipo.Select(l => new LecturaReporte(
                     equipo.Nombre, l.FechaMedicion, l.Temperatura,
-                    limites.Clasificar(l.Temperatura).Nivel switch
+                    historia.En(l.FechaMedicion).Clasificar(l.Temperatura).Nivel switch
                     {
                         NivelAlerta.Ruptura => "Ruptura",
                         NivelAlerta.Advertencia => "Advertencia",

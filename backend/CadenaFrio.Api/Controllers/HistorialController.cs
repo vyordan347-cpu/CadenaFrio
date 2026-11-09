@@ -4,6 +4,7 @@ using CadenaFrio.Domain.Entities;
 using CadenaFrio.Domain.Enums;
 using CadenaFrio.Domain.Valores;
 using CadenaFrio.Infrastructure.Data;
+using CadenaFrio.Infrastructure.Servicios;
 using CadenaFrio.Shared.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -47,7 +48,10 @@ public class HistorialController : ControllerBase
             return NotFound(new { mensaje = "Equipo no encontrado." });
         }
 
-        var limites = await _db.ObtenerLimitesAsync(equipoId);
+        // Cada lectura se juzga con el rango que regía cuando se tomó (no con el de hoy).
+        var historia = await HistoriaRangos.CargarAsync(_db, equipoId);
+        var tramos = historia.Tramos(desde, hasta);
+        var limites = tramos[^1].Limites;   // el que regía al final del periodo
         var lecturas = await LecturasAsync(equipoId, desde, hasta);
         var alertas = await AlertasAsync(equipoId, desde, hasta);
 
@@ -61,6 +65,15 @@ public class HistorialController : ControllerBase
             OptimoMaximo = limites.OptimoMaximo,
             LimiteMinimo = limites.LimiteMinimo,
             LimiteMaximo = limites.LimiteMaximo,
+            Rangos = tramos.Select(t => new TramoRangoDto
+            {
+                Desde = t.Desde,
+                Hasta = t.Hasta,
+                OptimoMinimo = t.Limites.OptimoMinimo,
+                OptimoMaximo = t.Limites.OptimoMaximo,
+                LimiteMinimo = t.Limites.LimiteMinimo,
+                LimiteMaximo = t.Limites.LimiteMaximo
+            }).ToList(),
             Puntos = Resumir(lecturas, desde, hasta),
             Alertas = alertas.Select(ConvertirAlerta).ToList()
         };
@@ -73,10 +86,11 @@ public class HistorialController : ControllerBase
             e.Minima = lecturas.Min(l => l.Temperatura);
             e.Maxima = lecturas.Max(l => l.Temperatura);
             e.Promedio = Math.Round(lecturas.Average(l => l.Temperatura), 2);
-            // Como se toma una lectura por minuto, la proporción de lecturas equivale
-            // a la proporción del tiempo dentro del rango óptimo.
-            var enOptimo = lecturas.Count(l => l.Temperatura >= limites.OptimoMinimo && l.Temperatura <= limites.OptimoMaximo);
-            e.PorcentajeOptimo = Math.Round(100.0 * enOptimo / lecturas.Count, 1);
+            // Proporción de LECTURAS (no de tiempo: si faltan datos, no equivalen) dentro del
+            // óptimo, y lecturas fuera del límite, cada una con el rango de su momento.
+            var conteo = historia.Contar(lecturas.Select(l => (l.FechaMedicion, l.Temperatura)));
+            e.PorcentajeOptimo = Math.Round(100.0 * conteo.EnOptimo / lecturas.Count, 1);
+            e.CantidadFueraDelLimite = conteo.FueraDelLimite;
         }
 
         e.CantidadAlertas = alertas.Count;
@@ -109,6 +123,9 @@ public class HistorialController : ControllerBase
 
         var alertas = await AlertasAsync(equipoId, historial.Desde, historial.Hasta);
 
+        // Cada lectura se clasifica con el rango que regía cuando se tomó.
+        var historia = await HistoriaRangos.CargarAsync(_db, equipoId);
+
         using var libro = new XLWorkbook();
 
         // ---- Hoja 1: Resumen ----
@@ -119,25 +136,47 @@ public class HistorialController : ControllerBase
         resumen.Cell("A2").Style.Font.SetFontColor(XLColor.Gray);
 
         var e = historial.Estadisticas;
-        var filas = new (string Etiqueta, XLCellValue Valor, string? Formato)[]
+        var filas = new List<(string Etiqueta, XLCellValue Valor, string? Formato)>
         {
             ("Equipo", (XLCellValue)historial.NombreEquipo, null),
             ("Desde", Local(historial.Desde), FormatoFecha),
-            ("Hasta", Local(historial.Hasta), FormatoFecha),
-            ("Rango óptimo (°C)", $"{historial.OptimoMinimo:0.0} a {historial.OptimoMaximo:0.0}", null),
-            ("Rango límite (°C)", $"{historial.LimiteMinimo:0.0} a {historial.LimiteMaximo:0.0}", null),
+            ("Hasta", Local(historial.Hasta), FormatoFecha)
+        };
+
+        // Rangos del periodo. Si cambió, uno por fila con la fecha desde la que rigió, y una nota:
+        // cada lectura se juzga con el rango de su momento.
+        if (historial.Rangos.Count <= 1)
+        {
+            filas.Add(("Rango óptimo (°C)", $"{historial.OptimoMinimo:0.0} a {historial.OptimoMaximo:0.0}", null));
+            filas.Add(("Rango límite (°C)", $"{historial.LimiteMinimo:0.0} a {historial.LimiteMaximo:0.0}", null));
+        }
+        else
+        {
+            foreach (var tramo in historial.Rangos)
+            {
+                filas.Add(($"Rango desde {Local(tramo.Desde):dd/MM/yyyy HH:mm}",
+                    $"óptimo {tramo.OptimoMinimo:0.0} a {tramo.OptimoMaximo:0.0} °C; límite {tramo.LimiteMinimo:0.0} a {tramo.LimiteMaximo:0.0} °C", null));
+            }
+            filas.Add(("Nota", "El rango cambió en el periodo: cada lectura se juzga con el rango que regía cuando se tomó.", null));
+        }
+
+        filas.AddRange(new (string, XLCellValue, string?)[]
+        {
             ("Lecturas", (double)e.CantidadLecturas, "#,##0"),
-            ("Tiempo en rango óptimo", e.PorcentajeOptimo is { } p ? (XLCellValue)(p / 100) : Blank.Value, "0.0%"),
+            // Proporción de lecturas, no de tiempo: si faltan datos no equivalen.
+            ("Lecturas en rango óptimo", e.PorcentajeOptimo is { } p ? (XLCellValue)(p / 100) : Blank.Value, "0.0%"),
+            ("Lecturas fuera del límite", (double)e.CantidadFueraDelLimite, "#,##0"),
             ("Temperatura mínima (°C)", e.Minima is { } mn ? (XLCellValue)mn : Blank.Value, "0.0"),
             ("Temperatura máxima (°C)", e.Maxima is { } mx ? (XLCellValue)mx : Blank.Value, "0.0"),
             ("Temperatura promedio (°C)", e.Promedio is { } pr ? (XLCellValue)pr : Blank.Value, "0.00"),
             ("Alertas", (double)e.CantidadAlertas, "0"),
             ("Rupturas", (double)e.CantidadRupturas, "0"),
-            ("Tiempo en ruptura (min)", e.MinutosEnRuptura, "#,##0"),
+            // Sale de las alertas abiertas, no de lecturas continuas (puede incluir tiempo sin datos).
+            ("Tiempo con alertas de ruptura abiertas (min)", e.MinutosEnRuptura, "#,##0"),
             ("Generado", Local(DateTime.UtcNow), FormatoFecha)
-        };
+        });
 
-        for (var i = 0; i < filas.Length; i++)
+        for (var i = 0; i < filas.Count; i++)
         {
             var fila = 4 + i;
             resumen.Cell(fila, 1).Value = filas[i].Etiqueta;
@@ -149,8 +188,9 @@ public class HistorialController : ControllerBase
                 resumen.Cell(fila, 2).Style.NumberFormat.Format = formato;
             }
         }
-        resumen.Column(1).Width = 30;
-        resumen.Column(2).Width = 34;
+        resumen.Column(1).Width = 40;
+        resumen.Column(2).Width = 56;
+        resumen.Column(2).Style.Alignment.SetWrapText(true);
 
         // ---- Hoja 2: Lecturas ----
         var hojaLecturas = libro.Worksheets.Add("Lecturas");
@@ -159,7 +199,7 @@ public class HistorialController : ControllerBase
         {
             var l = lecturas[i];
             var fila = i + 2;
-            var (estado, color) = Clasificar(l.Temperatura, historial);
+            var (estado, color) = Clasificar(l.Temperatura, historia.En(l.FechaMedicion));
 
             hojaLecturas.Cell(fila, 1).Value = Local(l.FechaMedicion);
             hojaLecturas.Cell(fila, 1).Style.NumberFormat.Format = FormatoFecha;
@@ -223,10 +263,14 @@ public class HistorialController : ControllerBase
     // ---------- Formato del Excel ----------
     // Colores, fechas y encabezados vienen de Reportes/EstiloExcel (compartido con Reportes).
 
-    private static (string Estado, XLColor? Color) Clasificar(double t, HistorialDto h) =>
-        t > h.LimiteMaximo || t < h.LimiteMinimo ? ("Ruptura", RojoSuave)
-        : t > h.OptimoMaximo || t < h.OptimoMinimo ? ("Advertencia", AmbarSuave)
-        : ("Normal", null);
+    // Misma regla que el resto del sistema (LimitesTemperatura.Clasificar), con el rango de la lectura.
+    private static (string Estado, XLColor? Color) Clasificar(double t, LimitesTemperatura limites) =>
+        limites.Clasificar(t).Nivel switch
+        {
+            NivelAlerta.Ruptura => ("Ruptura", RojoSuave),
+            NivelAlerta.Advertencia => ("Advertencia", AmbarSuave),
+            _ => ("Normal", null)
+        };
 
     // ---------- Consultas ----------
 

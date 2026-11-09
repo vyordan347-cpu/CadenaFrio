@@ -86,7 +86,14 @@
             <Icono Nombre="calendario" Tamano="16" />
             <strong>@historial.NombreEquipo</strong>
             <span>· @FormatoFecha.HoraPeru(historial.Desde)[..16] a @FormatoFecha.HoraPeru(historial.Hasta)[..16]</span>
-            <span class="dato-secundario">· óptimo @historial.OptimoMinimo.ToString("0.#")–@historial.OptimoMaximo.ToString("0.#") °C, límite @historial.LimiteMinimo.ToString("0.#")–@historial.LimiteMaximo.ToString("0.#") °C</span>
+            @if (historial.Rangos.Count > 1)
+            {
+                <span class="dato-secundario">· el rango cambió en el periodo; al final regía óptimo @historial.OptimoMinimo.ToString("0.#")–@historial.OptimoMaximo.ToString("0.#") °C, límite @historial.LimiteMinimo.ToString("0.#")–@historial.LimiteMaximo.ToString("0.#") °C</span>
+            }
+            else
+            {
+                <span class="dato-secundario">· óptimo @historial.OptimoMinimo.ToString("0.#")–@historial.OptimoMaximo.ToString("0.#") °C, límite @historial.LimiteMinimo.ToString("0.#")–@historial.LimiteMaximo.ToString("0.#") °C</span>
+            }
         </p>
 
         @* Resumen en palabras simples y estado de la información: lo primero que se lee.
@@ -164,12 +171,25 @@
                 <div class="tarjeta estadistica">
                     <p class="estadistica-etiqueta"><Icono Nombre="temperatura" Tamano="16" /> Temperatura más baja y más alta</p>
                     <p class="estadistica-valor cifras">@Grados(e.Minima) y @Grados(e.Maxima)</p>
-                    <p class="estadistica-texto">El límite permitido es de @historial.LimiteMinimo.ToString("0.#") a @historial.LimiteMaximo.ToString("0.#") °C.</p>
+                    <p class="estadistica-texto">
+                        @if (e.CantidadFueraDelLimite > 0)
+                        {
+                            @(e.CantidadFueraDelLimite == 1 ? "1 lectura quedó fuera del límite." : $"{e.CantidadFueraDelLimite:N0} lecturas quedaron fuera del límite.")
+                        }
+                        else if (historial.Rangos.Count > 1)
+                        {
+                            @("Ninguna lectura salió del límite de su momento.")
+                        }
+                        else
+                        {
+                            @($"El límite permitido es de {historial.LimiteMinimo:0.#} a {historial.LimiteMaximo:0.#} °C.")
+                        }
+                    </p>
                 </div>
                 <div class="tarjeta estadistica">
                     <p class="estadistica-etiqueta"><Icono Nombre="ok" Tamano="16" /> Lecturas en el rango recomendado</p>
                     <p class="estadistica-valor cifras">@LecturasEnRango(e)</p>
-                    <p class="estadistica-texto">Rango recomendado: @historial.OptimoMinimo.ToString("0.#") a @historial.OptimoMaximo.ToString("0.#") °C.</p>
+                    <p class="estadistica-texto">@(historial.Rangos.Count > 1 ? "Cada una con el rango recomendado de su momento." : $"Rango recomendado: {historial.OptimoMinimo:0.#} a {historial.OptimoMaximo:0.#} °C.")</p>
                 </div>
                 <div class="tarjeta estadistica @(e.CantidadRupturas > 0 ? "alerta" : "")">
                     <p class="estadistica-etiqueta"><Icono Nombre="ruptura" Tamano="16" /> Rupturas de temperatura</p>
@@ -235,10 +255,13 @@
                 <GraficoHistorial Puntos="historial.Puntos" Alertas="historial.Alertas"
                                   Desde="historial.Desde" Hasta="historial.Hasta"
                                   OptimoMinimo="historial.OptimoMinimo" OptimoMaximo="historial.OptimoMaximo"
-                                  LimiteMinimo="historial.LimiteMinimo" LimiteMaximo="historial.LimiteMaximo">
+                                  LimiteMinimo="historial.LimiteMinimo" LimiteMaximo="historial.LimiteMaximo"
+                                  Rangos="historial.Rangos">
                     @* Lo técnico solo aparece en la vista detallada del gráfico. *@
                     <DatosTecnicos>
                         <div><dt>Lecturas recibidas</dt><dd class="cifras">@e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture)</dd></div>
+                        <div><dt>Lecturas fuera del límite</dt><dd class="cifras">@e.CantidadFueraDelLimite.ToString("N0", CultureInfo.InvariantCulture)</dd></div>
+                        <div><dt>Cambios de rango en el periodo</dt><dd class="cifras">@(historial.Rangos.Count > 1 ? (historial.Rangos.Count - 1).ToString() : "Ninguno")</dd></div>
                         <div><dt>Promedio</dt><dd class="cifras">@Grados(e.Promedio)</dd></div>
                         <div><dt>Cumplimiento térmico</dt><dd class="cifras">@(e.PorcentajeOptimo is { } p ? $"{p:0.#} %" : "—") de las lecturas en rango óptimo</dd></div>
                         <div><dt>Tiempo con alertas de ruptura abiertas</dt><dd class="cifras">@(e.MinutosEnRuptura > 0 ? FormatoFecha.Duracion(TimeSpan.FromMinutes(e.MinutosEnRuptura)) : "—")</dd></div>

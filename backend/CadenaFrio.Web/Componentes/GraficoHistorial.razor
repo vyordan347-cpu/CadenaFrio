@@ -42,9 +42,15 @@
     <svg viewBox="0 0 @F(Ancho) @F(Alto)" role="img" aria-label="Gráfico de temperatura del periodo"
          @onmouseleave="() => indice = null">
 
-        @* Rango óptimo: una franja verde muy tenue. Es la única zona con color. *@
-        <rect x="@F(MargenIzq)" y="@F(Y(OptimoMaximo))" width="@F(AnchoUtil)"
-              height="@F(Math.Max(Y(OptimoMinimo) - Y(OptimoMaximo), 0))" class="franja-optimo" />
+        @* Rango óptimo: una franja verde muy tenue, la única zona con color. Si el rango cambió en
+           el periodo, hay una franja por tramo: cada lectura se ve contra el rango de su momento. *@
+        @foreach (var tramo in TramosRango)
+        {
+            var x1 = X(tramo.Desde);
+            var x2 = X(tramo.Hasta);
+            <rect x="@F(x1)" y="@F(Y(tramo.OptimoMaximo))" width="@F(Math.Max(x2 - x1, 0))"
+                  height="@F(Math.Max(Y(tramo.OptimoMinimo) - Y(tramo.OptimoMaximo), 0))" class="franja-optimo" />
+        }
 
         @* Escala vertical: líneas horizontales muy suaves. *@
         @foreach (var valor in MarcasY)
@@ -55,11 +61,13 @@
             </g>
         }
 
-        @* Límites permitidos: dos líneas discontinuas discretas, con su valor a la derecha. *@
-        @foreach (var limite in new[] { LimiteMaximo, LimiteMinimo })
+        @* Límites permitidos: dos líneas discontinuas discretas (escalonadas si el rango cambió),
+           con el valor que rige al final de la vista a la derecha. *@
+        <path d="@TrazoLimite(t => t.LimiteMaximo)" class="linea-limite" />
+        <path d="@TrazoLimite(t => t.LimiteMinimo)" class="linea-limite" />
+        @foreach (var limite in new[] { TramoFinal.LimiteMaximo, TramoFinal.LimiteMinimo })
         {
             <g>
-                <line x1="@F(MargenIzq)" x2="@F(Ancho - MargenDer)" y1="@F(Y(limite))" y2="@F(Y(limite))" class="linea-limite" />
                 <text x="@F(Ancho - MargenDer + 6)" y="@F(Y(limite) + 4)" class="limite-texto">@limite.ToString("0.#", CultureInfo.InvariantCulture) °C</text>
             </g>
         }
@@ -106,7 +114,7 @@
                 foreach (var p in segmento)
                 {
                     @* Si el valor ya está fuera del límite, el punto mismo va en rojo. *@
-                    <circle cx="@F(X(Centro(p)))" cy="@F(Y(p.Promedio))" r="@(FueraDe(p.Promedio) ? "4" : "3.5")" class="@(FueraDe(p.Promedio) ? "punto-fuera" : "punto")">
+                    <circle cx="@F(X(Centro(p)))" cy="@F(Y(p.Promedio))" r="@(FueraDe(p.Promedio, p) ? "4" : "3.5")" class="@(FueraDe(p.Promedio, p) ? "punto-fuera" : "punto")">
                         <title>@TituloDetalle(p) · @TextoDetalle(p)</title>
                     </circle>
                 }
@@ -178,12 +186,21 @@
     @* Leyenda: solo lo que aparece en el gráfico, según el modo. *@
     <ul class="grafico-leyenda" aria-label="Leyenda del gráfico">
         <li><span class="muestra muestra-linea"></span> Temperatura registrada</li>
-        @if (Puntos.Any(p => FueraDe(p.Maximo) || FueraDe(p.Minimo)))
+        @if (Puntos.Any(p => FueraDe(p.Maximo, p) || FueraDe(p.Minimo, p)))
         {
             <li><span class="muestra muestra-fuera"></span> Fuera del límite</li>
         }
-        <li><span class="muestra muestra-optimo"></span> Rango recomendado @OptimoMinimo.ToString("0.#", CultureInfo.InvariantCulture)–@OptimoMaximo.ToString("0.#", CultureInfo.InvariantCulture) °C</li>
-        <li><span class="muestra muestra-limite"></span> Límites permitidos @LimiteMinimo.ToString("0.#", CultureInfo.InvariantCulture) y @LimiteMaximo.ToString("0.#", CultureInfo.InvariantCulture) °C</li>
+        @if (TramosRango.Count > 1)
+        {
+            @* Con varios rangos, los valores no caben en la leyenda: están en el gráfico y en el resumen. *@
+            <li><span class="muestra muestra-optimo"></span> Rango recomendado (cambió en el periodo)</li>
+            <li><span class="muestra muestra-limite"></span> Límites permitidos (cambiaron en el periodo)</li>
+        }
+        else
+        {
+            <li><span class="muestra muestra-optimo"></span> Rango recomendado @OptimoMinimo.ToString("0.#", CultureInfo.InvariantCulture)–@OptimoMaximo.ToString("0.#", CultureInfo.InvariantCulture) °C</li>
+            <li><span class="muestra muestra-limite"></span> Límites permitidos @LimiteMinimo.ToString("0.#", CultureInfo.InvariantCulture) y @LimiteMaximo.ToString("0.#", CultureInfo.InvariantCulture) °C</li>
+        }
         @if (Huecos.Count > 0)
         {
             <li><span class="muestra muestra-hueco"></span> Sin datos</li>
@@ -253,6 +270,27 @@
     [Parameter] public double OptimoMaximo { get; set; }
     [Parameter] public double LimiteMinimo { get; set; }
     [Parameter] public double LimiteMaximo { get; set; }
+
+    // Rangos que rigieron en el periodo (de la API). Si no llega ninguno, se usa un solo tramo
+    // con los cuatro valores de arriba en todo el periodo.
+    [Parameter] public List<TramoRangoDto>? Rangos { get; set; }
+
+    private List<TramoRangoDto> TramosRango => Rangos is { Count: > 0 }
+        ? Rangos
+        : new() { new TramoRangoDto { Desde = Desde, Hasta = Hasta, OptimoMinimo = OptimoMinimo, OptimoMaximo = OptimoMaximo, LimiteMinimo = LimiteMinimo, LimiteMaximo = LimiteMaximo } };
+
+    // El tramo que rige en una fecha (el primero o el último si la fecha queda fuera).
+    private TramoRangoDto TramoEn(DateTime fecha) =>
+        TramosRango.FirstOrDefault(t => t.Desde <= fecha && fecha < t.Hasta)
+        ?? (fecha < TramosRango[0].Desde ? TramosRango[0] : TramosRango[^1]);
+
+    // El que rige al final de lo que se ve: sus límites van rotulados a la derecha.
+    private TramoRangoDto TramoFinal => TramoEn(VistaHasta.AddTicks(-1));
+
+    // Línea de un límite a lo largo de los tramos: un segmento horizontal por tramo, sin unirlos con
+    // líneas verticales (varios cambios seguidos se verían como una barra roja que parece un dato).
+    private string TrazoLimite(Func<TramoRangoDto, double> valor) =>
+        string.Join(" ", TramosRango.Select(t => $"M{F(X(t.Desde))} {F(Y(valor(t)))} H{F(X(t.Hasta))}"));
 
     // Filas extra para "Datos técnicos" de la vista detallada (por ejemplo, promedio y
     // cumplimiento, que vienen de las estadísticas de la página). Cada fila: <div><dt/><dd/></div>.
@@ -343,7 +381,13 @@
     // Con menos tramos seguidos que esto, se dibujan puntos sueltos en vez de una línea.
     private const int MinimoParaLinea = 3;
 
-    private bool FueraDe(double valor) => valor > LimiteMaximo || valor < LimiteMinimo;
+    // ¿Fuera del límite que regía en ese tramo del gráfico? Se usa el rango del centro del tramo:
+    // el conteo exacto, lectura por lectura, lo hace la API (CantidadFueraDelLimite).
+    private bool FueraDe(double valor, PuntoHistorialDto p)
+    {
+        var t = TramoEn(Centro(p));
+        return valor > t.LimiteMaximo || valor < t.LimiteMinimo;
+    }
 
     // Tramos con alguna lectura fuera del límite y el valor extremo que lo superó
     // (el máximo si pasó el límite superior, el mínimo si bajó del inferior).
@@ -359,7 +403,7 @@
                 foreach (var valor in new[] { p.Maximo, p.Minimo }.Distinct())
                 {
                     var yaDibujado = sueltos.Contains(p) && Math.Abs(valor - p.Promedio) < 0.05;
-                    if (FueraDe(valor) && !yaDibujado)
+                    if (FueraDe(valor, p) && !yaDibujado)
                     {
                         fuera.Add((p, valor));
                     }
@@ -411,8 +455,9 @@
     // ---------- Escalas ----------
 
     // El eje vertical siempre incluye los límites, con un margen; y se amplía si los datos los superan.
-    private double Minimo => Math.Floor(Math.Min(LimiteMinimo - 1, Puntos.Count > 0 ? Puntos.Min(p => p.Minimo) - 0.5 : double.MaxValue));
-    private double Maximo => Math.Ceiling(Math.Max(LimiteMaximo + 1, Puntos.Count > 0 ? Puntos.Max(p => p.Maximo) + 0.5 : double.MinValue));
+    // Incluye los límites de todos los tramos de rango del periodo.
+    private double Minimo => Math.Floor(Math.Min(TramosRango.Min(t => t.LimiteMinimo) - 1, Puntos.Count > 0 ? Puntos.Min(p => p.Minimo) - 0.5 : double.MaxValue));
+    private double Maximo => Math.Ceiling(Math.Max(TramosRango.Max(t => t.LimiteMaximo) + 1, Puntos.Count > 0 ? Puntos.Max(p => p.Maximo) + 0.5 : double.MinValue));
 
     // Escala de tiempo real sobre la vista (el periodo completo, o el tramo con datos si se ajustó).
     private double X(DateTime fecha)
