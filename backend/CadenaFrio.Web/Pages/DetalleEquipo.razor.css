@@ -1,5 +1,5 @@
-/* Detalle de un equipo: lectura actual y alertas por revisar.
-   En pantallas anchas, las alertas (con el formulario del Anexo 13) quedan a la derecha. */
+/* Detalle de un equipo: la temperatura a todo lo ancho (medidor, estado, cifras y última hora)
+   y, debajo, las alertas por revisar en dos columnas. */
 
 .pagina {
     max-width: var(--ancho-contenido);
@@ -74,23 +74,16 @@
     gap: var(--e-2);
 }
 
-/* ===== Dos columnas ===== */
+/* ===== Temperatura a lo ancho; alertas debajo ===== */
 
 .detalle {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--e-5);
-    align-items: start;
-}
-
-@media (min-width: 1280px) {
-    .detalle {
-        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-    }
 }
 
 .panel {
-    padding: var(--e-5);
+    padding: var(--e-5) var(--e-6);
 }
 
 .esqueleto-panel {
@@ -98,13 +91,24 @@
     gap: var(--e-4);
 }
 
-/* Lectura: medidor a la izquierda, datos de referencia a la derecha. */
+/* Medidor | estado y cifras | última hora. */
 .lectura {
     display: grid;
-    grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
+    grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr) minmax(12rem, 16rem);
     align-items: center;
     gap: var(--e-5) var(--e-6);
     margin-bottom: var(--e-5);
+}
+
+/* Pantallas medianas: la última hora pasa debajo, a lo ancho. */
+@media (max-width: 1099px) {
+    .lectura {
+        grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
+    }
+
+    .ultima-hora {
+        grid-column: 1 / -1;
+    }
 }
 
 .medidor {
@@ -140,23 +144,123 @@
     font-weight: 700;
 }
 
-.datos {
+/* Estado en palabras grandes, con ícono (nunca solo color). */
+.resumen {
     display: grid;
-    gap: var(--e-4);
+    gap: var(--e-3);
+    min-width: 0;
+}
+
+.estado-grande {
+    display: flex;
+    align-items: center;
+    gap: var(--e-2);
+    font-size: var(--t-2xl);
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.estado-grande.estado-ok { color: var(--ok-texto); }
+.estado-grande.estado-adv { color: var(--adv-texto); }
+.estado-grande.estado-rup { color: var(--rup-texto); }
+.estado-grande.estado-sen { color: var(--sen-texto); }
+
+/* Lectura antigua: el estado se atenúa (no es de ahora) y lleva una aclaración debajo. */
+.estado-grande.estado-antiguo {
+    color: var(--texto-2);
+    opacity: 0.8;
+}
+
+.estado-aclaracion {
+    margin-top: 0.2rem;
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.ultima {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--texto-2);
+    font-weight: 700;
+}
+
+/* Óptimo, límite y extremo de la alerta: casillas en fila. */
+.cifras-clave {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: var(--e-2);
     margin: 0;
+}
+
+.cifras-clave > div {
+    padding: var(--e-3);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+.cifras-clave dd {
+    font-size: var(--t-l);
+}
+
+/* El extremo de la alerta, con borde del color de ruptura y discontinuo si la lectura es antigua. */
+.cifra-alerta {
+    border-color: var(--rup) !important;
+}
+
+.antigua .cifra-alerta {
+    border-style: dashed !important;
+}
+
+/* Última hora: mini gráfico, con separador a la izquierda. */
+.ultima-hora {
+    display: grid;
+    gap: var(--e-2);
+    align-self: stretch;
+    align-content: center;
     padding-left: var(--e-5);
     border-left: 1px solid var(--borde);
 }
 
-.dato {
+.etiqueta {
     display: flex;
-    align-items: flex-start;
-    gap: var(--e-3);
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--texto-3);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
-.dato ::deep .dato-icono {
-    margin-top: 0.15rem;
-    color: var(--texto-3);
+.tendencia {
+    color: var(--acento);
+}
+
+.tendencia.estado-adv { color: var(--adv); }
+.tendencia.estado-rup { color: var(--rup); }
+.tendencia.estado-sen { color: var(--texto-3); }
+
+.tendencia ::deep .mini-grafico {
+    height: 4.5rem;
+}
+
+.rango-hora {
+    font-size: var(--t-l);
+    font-weight: 700;
+}
+
+.nota {
+    color: var(--texto-2);
+    font-size: var(--t-s);
+}
+
+.sin-hora {
+    padding: var(--e-3);
+    border: 1px dashed var(--borde-fuerte);
+    border-radius: var(--radio);
 }
 
 dt {
@@ -263,8 +367,27 @@ dd {
     font-size: var(--t-s);
 }
 
-.pendiente {
+/* Alertas en dos columnas en pantallas anchas. */
+.lista-pendientes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--e-3);
     margin-bottom: var(--e-3);
+}
+
+@media (min-width: 960px) {
+    .lista-pendientes {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* La que se está revisando ocupa todo el ancho: el formulario necesita espacio. */
+    .en-revision {
+        grid-column: 1 / -1;
+    }
+}
+
+.pendiente {
+    margin: 0;
     padding: var(--e-3) var(--e-4);
     border-left: 4px solid var(--rup);
     box-shadow: none;
@@ -440,11 +563,15 @@ dd {
         margin: 0 auto;
     }
 
-    .datos {
+    .ultima-hora {
         padding-left: 0;
         padding-top: var(--e-4);
         border-left: none;
         border-top: 1px solid var(--borde);
+    }
+
+    .estado-grande {
+        justify-content: center;
     }
 
     .pendiente-fila {
