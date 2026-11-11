@@ -1,0 +1,254 @@
+/* Escala térmica horizontal. Zonas con color y trama (nunca solo color), marcador calculado
+   y estado con ícono y palabra. Usa los colores del sistema: funciona en tema claro y oscuro. */
+
+.escala {
+    display: grid;
+    gap: var(--e-3);
+}
+
+.escala-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--e-2) var(--e-4);
+}
+
+.escala-lectura {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--e-3);
+}
+
+.escala-valor {
+    color: var(--texto);
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.escala-valor small {
+    color: var(--texto-2);
+    font-size: var(--t-m);
+    font-weight: 700;
+}
+
+.escala-sin-dato {
+    color: var(--texto-3);
+}
+
+/* Lectura antigua: el número se atenúa (no es de ahora). */
+.antigua .escala-valor {
+    color: var(--texto-2);
+}
+
+.escala-estado {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-weight: 700;
+}
+
+.escala-estado.estado-ok { color: var(--ok-texto); }
+.escala-estado.estado-adv { color: var(--adv-texto); }
+.escala-estado.estado-rup { color: var(--rup-texto); }
+.escala-estado.estado-sen { color: var(--sen-texto); }
+
+.escala-momento {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--e-2);
+}
+
+.escala-fecha {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.antigua .escala-fecha {
+    color: var(--adv-texto);
+}
+
+/* ===== Barra ===== */
+
+.barra {
+    position: relative;
+    height: 2.25rem;
+    margin-top: 1.9rem; /* espacio para la etiqueta del marcador */
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+.zona {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+}
+
+.zona:first-child {
+    border-radius: var(--radio) 0 0 var(--radio);
+}
+
+.zona:nth-child(5) {
+    border-radius: 0 var(--radio) var(--radio) 0;
+}
+
+/* Óptimo: liso. Advertencia: puntos. Ruptura: rayas diagonales. */
+.zona-ok {
+    background: var(--ok-fondo);
+    box-shadow: inset 0 0 0 2px var(--ok);
+}
+
+.zona-adv {
+    background-color: var(--adv-fondo);
+    background-image: radial-gradient(var(--adv) 1px, transparent 1.5px);
+    background-size: 7px 7px;
+}
+
+.zona-rup {
+    background-color: var(--rup-fondo);
+    background-image: repeating-linear-gradient(45deg, transparent 0 5px, color-mix(in srgb, var(--rup) 45%, transparent) 5px 7px);
+}
+
+/* ===== Marcador ===== */
+
+.marcador {
+    position: absolute;
+    top: -0.45rem;
+    bottom: -0.45rem;
+    width: 0.4rem;
+    margin-left: -0.2rem;
+    border-radius: 999px;
+    background: var(--texto);
+    box-shadow: 0 0 0 2px var(--superficie), 0 2px 6px rgba(0, 0, 0, 0.35);
+    transition: left 450ms var(--curva);
+}
+
+.marcador.estado-ok { background: var(--ok); }
+.marcador.estado-adv { background: var(--adv); }
+.marcador.estado-rup { background: var(--rup); }
+.marcador.estado-sen { background: var(--sen); }
+
+/* Lectura antigua: marcador hueco y discontinuo, no parece una medición de ahora. */
+.antigua .marcador {
+    width: 0.75rem;
+    margin-left: -0.375rem;
+    border: 2px dashed var(--texto-2);
+    background: var(--superficie);
+}
+
+.marcador-etiqueta {
+    position: absolute;
+    bottom: calc(100% + 0.3rem);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radio-s);
+    background: var(--texto);
+    color: var(--superficie);
+    font-size: var(--t-xs);
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.antigua .marcador-etiqueta {
+    border: 1px dashed var(--texto-2);
+    background: var(--superficie);
+    color: var(--texto-2);
+}
+
+/* ===== Marcas y leyenda ===== */
+
+.marcas {
+    position: relative;
+    height: 2.3rem;
+    color: var(--texto-2);
+    font-size: var(--t-xs);
+    font-weight: 700;
+}
+
+.marcas span {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+}
+
+/* Fila de abajo: los bordes del límite, con una rayita que los une a la barra. */
+.marcas .marca-limite {
+    top: 1.15rem;
+    color: var(--rup-texto);
+}
+
+.marcas .marca-limite::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    height: 1.15rem;
+    border-left: 1px dashed var(--borde-fuerte);
+}
+
+.marcas .marca-optimo {
+    color: var(--ok-texto);
+}
+
+/* Lectura antigua: el estado se atenúa. */
+.antigua .escala-estado {
+    color: var(--texto-2);
+}
+
+.leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--e-2) var(--e-4);
+    margin: 0;
+    padding: 0;
+    color: var(--texto-2);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    list-style: none;
+}
+
+.leyenda li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.muestra {
+    width: 1.4rem;
+    height: 0.75rem;
+    border: 1px solid var(--borde);
+    border-radius: 3px;
+}
+
+.escala-aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    padding: var(--e-2) var(--e-3);
+    border-radius: var(--radio);
+    background: var(--sen-fondo);
+    color: var(--sen-texto);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.escala-aviso-antigua {
+    border: 1px dashed var(--adv);
+    background: var(--adv-fondo);
+    color: var(--adv-texto);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .marcador {
+        transition: none;
+    }
+}

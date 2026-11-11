@@ -91,24 +91,23 @@
     gap: var(--e-4);
 }
 
-/* Medidor | estado y cifras | última hora. */
-.lectura {
+/* El panel: tres estados, la escala térmica, la acción, la atención y las últimas 24 horas. */
+.panel {
     display: grid;
-    grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr) minmax(12rem, 16rem);
-    align-items: center;
-    gap: var(--e-5) var(--e-6);
-    margin-bottom: var(--e-5);
+    gap: var(--e-4);
 }
 
-/* Pantallas medianas: la última hora pasa debajo, a lo ancho. */
-@media (max-width: 1099px) {
-    .lectura {
-        grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
-    }
+.antigua {
+    border-top: 4px dashed var(--sen);
+}
 
-    .ultima-hora {
-        grid-column: 1 / -1;
-    }
+/* ===== Velocímetro y los tres estados por separado ===== */
+
+.cabecera-panel {
+    display: grid;
+    grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--e-5);
 }
 
 .medidor {
@@ -128,10 +127,6 @@
     opacity: 0;
 }
 
-.antigua {
-    border-top: 4px dashed var(--sen);
-}
-
 .sello-antiguo {
     display: inline-flex;
     align-items: center;
@@ -144,11 +139,45 @@
     font-weight: 700;
 }
 
-/* Estado en palabras grandes, con ícono (nunca solo color). */
-.resumen {
+.estados {
     display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--e-3);
-    min-width: 0;
+}
+
+/* Medianas: los tres estados uno debajo del otro, al lado del velocímetro. */
+@media (max-width: 1279px) {
+    .estados {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.estado-tarjeta {
+    display: grid;
+    align-content: start;
+    gap: 0.3rem;
+    padding: var(--e-3) var(--e-4);
+    border: 1px solid var(--borde);
+    border-top-width: 4px;
+    border-radius: var(--radio);
+    background: var(--superficie-2);
+}
+
+/* Borde de arriba del color del estado; sin señal, discontinuo (no solo color). */
+.estado-tarjeta.borde-ok { border-top-color: var(--ok); }
+.estado-tarjeta.borde-adv { border-top-color: var(--adv); }
+.estado-tarjeta.borde-rup { border-top-color: var(--rup); }
+.estado-tarjeta.borde-sen { border-top-color: var(--sen); border-top-style: dashed; }
+
+.estado-etiqueta {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--texto-3);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .estado-grande {
@@ -160,68 +189,46 @@
     line-height: 1.1;
 }
 
-.estado-grande.estado-ok { color: var(--ok-texto); }
-.estado-grande.estado-adv { color: var(--adv-texto); }
-.estado-grande.estado-rup { color: var(--rup-texto); }
-.estado-grande.estado-sen { color: var(--sen-texto); }
-
-/* Lectura antigua: el estado se atenúa (no es de ahora) y lleva una aclaración debajo. */
-.estado-grande.estado-antiguo {
-    color: var(--texto-2);
-    opacity: 0.8;
-}
-
-.estado-aclaracion {
-    margin-top: 0.2rem;
-    color: var(--texto-2);
-    font-size: var(--t-s);
-    font-weight: 700;
-}
-
-.ultima {
+.estado-medio {
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    color: var(--texto-2);
-    font-weight: 700;
-}
-
-/* Óptimo, límite y extremo de la alerta: casillas en fila. */
-.cifras-clave {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-    gap: var(--e-2);
-    margin: 0;
-}
-
-.cifras-clave > div {
-    padding: var(--e-3);
-    border: 1px solid var(--borde);
-    border-radius: var(--radio);
-    background: var(--superficie-2);
-}
-
-.cifras-clave dd {
     font-size: var(--t-l);
+    font-weight: 800;
+    line-height: 1.2;
 }
 
-/* El extremo de la alerta, con borde del color de ruptura y discontinuo si la lectura es antigua. */
-.cifra-alerta {
-    border-color: var(--rup) !important;
+.estado-ok { color: var(--ok-texto); }
+.estado-adv { color: var(--adv-texto); }
+.estado-rup { color: var(--rup-texto); }
+.estado-sen { color: var(--sen-texto); }
+
+/* Lectura antigua: el estado de la temperatura se atenúa (no es de ahora). */
+.estado-grande.estado-antiguo {
+    color: var(--texto-2);
+    opacity: 0.85;
 }
 
-.antigua .cifra-alerta {
-    border-style: dashed !important;
+.estado-detalle {
+    color: var(--texto-2);
+    font-size: var(--t-s);
 }
 
-/* Última hora: mini gráfico, con separador a la izquierda. */
-.ultima-hora {
+/* ===== Últimas 24 horas ===== */
+
+.ultimas-24h {
     display: grid;
     gap: var(--e-2);
-    align-self: stretch;
-    align-content: center;
-    padding-left: var(--e-5);
-    border-left: 1px solid var(--borde);
+    padding-top: var(--e-4);
+    border-top: 1px solid var(--borde);
+}
+
+.ultimas-24h-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e-2);
 }
 
 .etiqueta {
@@ -235,20 +242,9 @@
     text-transform: uppercase;
 }
 
-.tendencia {
+.ver-analisis {
     color: var(--acento);
-}
-
-.tendencia.estado-adv { color: var(--adv); }
-.tendencia.estado-rup { color: var(--rup); }
-.tendencia.estado-sen { color: var(--texto-3); }
-
-.tendencia ::deep .mini-grafico {
-    height: 4.5rem;
-}
-
-.rango-hora {
-    font-size: var(--t-l);
+    font-size: var(--t-s);
     font-weight: 700;
 }
 
@@ -258,6 +254,9 @@
 }
 
 .sin-hora {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
     padding: var(--e-3);
     border: 1px dashed var(--borde-fuerte);
     border-radius: var(--radio);
@@ -554,24 +553,13 @@ dd {
         padding: var(--e-4);
     }
 
-    .lectura {
+    .cabecera-panel {
         grid-template-columns: minmax(0, 1fr);
     }
 
     .medidor {
         max-width: 17rem;
         margin: 0 auto;
-    }
-
-    .ultima-hora {
-        padding-left: 0;
-        padding-top: var(--e-4);
-        border-left: none;
-        border-top: 1px solid var(--borde);
-    }
-
-    .estado-grande {
-        justify-content: center;
     }
 
     .pendiente-fila {
@@ -587,4 +575,15 @@ dd {
     .acciones-pagina .boton {
         width: 100%;
     }
+}
+
+/* Ruptura que este rol no puede registrar: se dice quién la registra (NTS 242, 6.10.2). */
+.revisa-otro {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    max-width: 14rem;
+    color: var(--texto-2);
+    font-size: var(--t-xs);
+    font-weight: 700;
 }

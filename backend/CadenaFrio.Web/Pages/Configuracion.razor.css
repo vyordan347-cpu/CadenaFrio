@@ -76,15 +76,6 @@ h2 ::deep .icono {
     font-size: var(--t-s);
 }
 
-/* La temperatura de la aguja es antigua: se avisa con ícono y en color de advertencia. */
-.nota-antigua {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.35rem;
-    color: var(--adv-texto);
-    font-weight: 700;
-}
-
 .detalle {
     color: var(--texto-2);
     font-size: var(--t-s);
@@ -167,6 +158,37 @@ h2 ::deep .icono {
     font-weight: 400;
 }
 
+/* Bloqueada: no se puede guardar con las marcadas. Borde discontinuo, fondo apagado e ícono
+   con la razón en palabras (nunca solo color). */
+.vacuna-opcion.bloqueada {
+    border-style: dashed;
+    background: var(--superficie-2);
+    cursor: not-allowed;
+}
+
+.vacuna-opcion.bloqueada:hover {
+    border-color: var(--borde);
+}
+
+.vacuna-opcion.bloqueada .vacuna-nombre {
+    color: var(--texto-2);
+}
+
+.vacuna-motivo {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    margin-top: 0.35rem;
+    color: var(--rup-texto);
+    font-size: var(--t-s);
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+.vacuna-motivo ::deep .icono {
+    margin-top: 0.15rem;
+}
+
 /* Vigente ahora | Con las vacunas marcadas: lado a lado para compararlos de un vistazo. */
 .comparacion {
     display: grid;
@@ -219,12 +241,21 @@ h2 ::deep .icono {
     margin-bottom: var(--e-3);
 }
 
-/* Aguja con la temperatura del equipo y, al lado, qué muestra. */
-.vista-previa {
-    display: grid;
-    grid-template-columns: 9rem minmax(0, 1fr);
-    align-items: center;
-    gap: var(--e-4);
+/* Escala térmica (componente EscalaTermica) con una etiqueta que dice qué rango usa. */
+.escala-bloque {
+    padding: var(--e-4);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie);
+}
+
+.etiqueta-escala {
+    margin-bottom: var(--e-2);
+    color: var(--texto-3);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 .incompatible {
@@ -346,11 +377,40 @@ legend {
         width: 100%;
     }
 
-    .vista-previa {
-        grid-template-columns: 7.5rem minmax(0, 1fr);
-    }
-
     .comparacion {
         grid-template-columns: minmax(0, 1fr);
     }
+}
+
+/* ===== Solo lectura y ajuste avanzado ===== */
+
+/* Quien no configura rangos ve las vacunas sin poder cambiarlas. */
+.solo-lectura {
+    margin-top: var(--e-2);
+}
+
+.vacuna-opcion.lectura {
+    cursor: default;
+}
+
+.vacuna-opcion.lectura:hover {
+    border-color: var(--borde);
+}
+
+/* El rango que el ajuste avanzado no puede ampliar. */
+.limite-ajuste {
+    margin-bottom: var(--e-4);
+}
+
+.ajuste summary .insignia {
+    margin-left: var(--e-2);
+    font-weight: 700;
+}
+
+.ajuste ::deep textarea {
+    margin-top: 0.35rem;
+}
+
+.ajuste label {
+    margin-bottom: var(--e-4);
 }

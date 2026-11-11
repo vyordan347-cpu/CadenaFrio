@@ -14,7 +14,9 @@ using Microsoft.Extensions.Options;
 namespace CadenaFrio.Api.Controllers;
 
 // Revisión de alertas por el personal (RF08).
-// Cualquier usuario con sesión puede atenderlas: la enfermera suele ser quien está presente.
+// Cualquier usuario con sesión puede decir "Lo estoy atendiendo" y revisar silencios y
+// advertencias: el técnico suele ser quien está presente. La revisión de una ruptura (Anexo 13)
+// la registran el responsable de inmunizaciones, el médico jefe o el administrador (6.10.2).
 [ApiController]
 [Authorize]
 [Route("api/alertas")]
@@ -23,12 +25,15 @@ public class AlertasController : ControllerBase
     private readonly CadenaFrioDbContext _db;
     private readonly ReconocimientoAlertas _reconocimiento;
     private readonly Bitacora _bitacora;
+    private readonly IAuthorizationService _autorizacion;
 
-    public AlertasController(CadenaFrioDbContext db, ReconocimientoAlertas reconocimiento, Bitacora bitacora)
+    public AlertasController(CadenaFrioDbContext db, ReconocimientoAlertas reconocimiento, Bitacora bitacora,
+        IAuthorizationService autorizacion)
     {
         _db = db;
         _reconocimiento = reconocimiento;
         _bitacora = bitacora;
+        _autorizacion = autorizacion;
     }
 
     // POST /api/alertas/{id}/reconocer
@@ -188,6 +193,16 @@ public class AlertasController : ControllerBase
 
         if (CatalogoAnexo13.Aplica(alerta.Tipo, alerta.Nivel))
         {
+            // La notificación de la ruptura la hace el jefe del establecimiento a través del
+            // responsable de inmunizaciones (NTS 242, 6.10.2): los demás roles reciben 403.
+            if (!(await _autorizacion.AuthorizeAsync(User, Politicas.PuedeRevisarRupturas)).Succeeded)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    mensaje = "La revisión de una ruptura la registra el responsable de inmunizaciones o el médico jefe del establecimiento."
+                });
+            }
+
             // Ruptura de temperatura: notificación con las listas del Anexo N° 13.
             var error = CatalogoAnexo13.Validar(alerta.Equipo.Tipo,
                 solicitud.CausaRuptura, solicitud.DetalleCausa,

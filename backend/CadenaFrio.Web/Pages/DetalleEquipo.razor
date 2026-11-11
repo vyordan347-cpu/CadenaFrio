@@ -44,25 +44,11 @@
                 <p class="subtitulo">
                     @(datos.TipoEquipo == TipoEquipoDto.Termo ? "Termo portavacunas" : "Refrigeradora")@(string.IsNullOrWhiteSpace(datos.Ubicacion) ? "" : $" · {datos.Ubicacion}")
                 </p>
-                @* Estado térmico y comunicación, por separado y siempre con texto. *@
-                <div class="insignias">
-                    <span class="insignia insignia-@Termico.Clase @(Antigua ? "insignia-antigua" : "")"
-                          title="@(Antigua ? "Estado térmico de la última lectura conocida" : "Estado térmico")">
-                        <Icono Nombre="@Termico.Icono" Tamano="14" /> @Termico.Texto
-                        @if (EstadoEquipo.Antiguedad(datos!) is { } hace)
-                        {
-                            <span class="insignia-cuando">· @hace</span>
-                        }
-                    </span>
-                    <span class="insignia insignia-@Comunicacion.Clase" title="Comunicación con el dispositivo">
-                        <Icono Nombre="@Comunicacion.Icono" Tamano="14" /> @Comunicacion.Texto
-                    </span>
-                </div>
             </div>
             <div class="acciones-pagina">
-                <a class="boton" href="historial?equipo=@EquipoId"><Icono Nombre="grafico" Tamano="18" /> Ver historial</a>
+                <a class="boton" href="historial?equipo=@EquipoId"><Icono Nombre="grafico" Tamano="18" /> Ver análisis</a>
                 <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos">
-                    <a class="boton" href="configuracion?equipo=@EquipoId"><Icono Nombre="configuracion" Tamano="18" /> Configurar rango</a>
+                    <a class="boton" href="configuracion?equipo=@EquipoId"><Icono Nombre="temperatura" Tamano="18" /> Rango de conservación</a>
                 </AuthorizeView>
             </div>
         </header>
@@ -74,77 +60,69 @@
     {
         var vista = Vista;
 
-        <section class="tarjeta panel @(Antigua ? "antigua" : "")" aria-live="polite" aria-label="Temperatura del equipo">
-            <div class="lectura">
-                @* Con la lectura antigua, el medidor se atenúa y no pulsa: no es una medición en vivo. *@
-                <div class="medidor">
-                    <IndicadorTemperatura Temperatura="datos.Temperatura"
-                                          OptimoMinimo="datos.OptimoMinimo" OptimoMaximo="datos.OptimoMaximo"
-                                          LimiteMinimo="datos.LimiteMinimo" LimiteMaximo="datos.LimiteMaximo"
-                                          Estado="@vista.Clase" TextoEstado="@vista.Estado"
-                                          Historial="historial" />
-                    @if (Antigua && datos.Temperatura is not null)
-                    {
-                        <span class="sello-antiguo"><Icono Nombre="reloj" Tamano="14" /> Última temperatura conocida</span>
-                    }
-                </div>
-
-                @* Estado en palabras grandes, cuándo se midió y las cifras de referencia. *@
-                <div class="resumen">
-                    @* Con la lectura antigua, el estado se atenúa y se aclara que es el último conocido. *@
-                    <div>
-                        <p class="estado-grande estado-@Termico.Clase @(Antigua ? "estado-antiguo" : "")">
-                            <Icono Nombre="@Termico.Icono" Tamano="28" /> @Termico.Texto
-                        </p>
-                        @if (Antigua)
-                        {
-                            <p class="estado-aclaracion">Último estado conocido, no una medición actual.</p>
-                        }
-                    </div>
-                    <p class="ultima cifras @(Antigua ? "dato-antiguo" : "")">
-                        <Icono Nombre="reloj" Tamano="16" />
-                        @(datos.FechaMedicion is { } f ? $"Última lectura {FormatoFecha.Antiguedad(f)} · {FormatoFecha.HoraPeru(f)[..16]}" : "Todavía no hay lecturas")
+        <section class="tarjeta panel @(Antigua ? "antigua" : "")" aria-live="polite" aria-label="Estado del equipo">
+            @* 1. El velocímetro de siempre a la izquierda y, a su lado, los tres estados por separado,
+               en palabras cotidianas: temperatura, comunicación e incidentes. *@
+            <div class="cabecera-panel">
+            @* Con la lectura antigua, el medidor se atenúa y no pulsa: no es una medición en vivo. *@
+            <div class="medidor">
+                <IndicadorTemperatura Temperatura="datos.Temperatura"
+                                      OptimoMinimo="datos.OptimoMinimo" OptimoMaximo="datos.OptimoMaximo"
+                                      LimiteMinimo="datos.LimiteMinimo" LimiteMaximo="datos.LimiteMaximo"
+                                      Estado="@vista.Clase" TextoEstado="@vista.Estado"
+                                      Historial="UltimaHora" />
+                @if (Antigua && datos.Temperatura is not null)
+                {
+                    <span class="sello-antiguo"><Icono Nombre="reloj" Tamano="14" /> Última temperatura conocida</span>
+                }
+            </div>
+            <div class="estados">
+                <div class="estado-tarjeta borde-@Termico.Clase">
+                    <p class="estado-etiqueta"><Icono Nombre="temperatura" Tamano="14" /> Temperatura</p>
+                    <p class="estado-grande estado-@Termico.Clase @(Antigua ? "estado-antiguo" : "")">
+                        <Icono Nombre="@Termico.Icono" Tamano="26" /> @Termico.Texto
                     </p>
-                    <dl class="cifras-clave cifras">
-                        <div>
-                            <dt>Rango óptimo</dt>
-                            <dd>@datos.OptimoMinimo.ToString("0.0") – @datos.OptimoMaximo.ToString("0.0") °C</dd>
-                        </div>
-                        <div>
-                            <dt>Límite</dt>
-                            <dd>@datos.LimiteMinimo.ToString("0.0") – @datos.LimiteMaximo.ToString("0.0") °C</dd>
-                        </div>
-                        @if (datos.AlertaActiva is { } alerta)
-                        {
-                            <div class="cifra-alerta">
-                                <dt>@(alerta.Tipo == TipoAlertaDto.TemperaturaAlta ? "Máxima" : "Mínima") en esta alerta</dt>
-                                <dd>@alerta.ValorExtremo.ToString("0.0") °C</dd>
-                            </div>
-                        }
-                    </dl>
+                    <p class="estado-detalle">@DetalleTemperatura</p>
                 </div>
 
-                @* Última hora: cómo se movió la temperatura (las lecturas que la página ya trae). *@
-                <div class="ultima-hora">
-                    <p class="etiqueta"><Icono Nombre="grafico" Tamano="16" /> Última hora</p>
-                    @if (historial.Count >= 2)
-                    {
-                        <div class="tendencia estado-@vista.Clase"><MiniGrafico Valores="historial" /></div>
-                        <p class="cifras rango-hora">@historial.Min().ToString("0.0") a @historial.Max().ToString("0.0") °C</p>
-                        <p class="nota">@historial.Count lecturas</p>
-                    }
-                    else
-                    {
-                        <p class="nota sin-hora">Sin lecturas en la última hora.</p>
-                    }
+                <div class="estado-tarjeta borde-@Comunicacion.Clase">
+                    <p class="estado-etiqueta"><Icono Nombre="sin-senal" Tamano="14" /> Comunicación</p>
+                    <p class="estado-medio estado-@Comunicacion.Clase"><Icono Nombre="@Comunicacion.Icono" Tamano="20" /> @Comunicacion.Texto</p>
+                    <p class="estado-detalle cifras @(Antigua ? "dato-antiguo" : "")">
+                        @(datos.FechaMedicion is { } f ? $"Última lectura {FormatoFecha.Antiguedad(f)} · {FormatoFecha.HoraPeru(f)[..16]}" : "El dispositivo todavía no envió datos.")
+                    </p>
+                </div>
+
+                <div class="estado-tarjeta borde-@(pendientes.Count > 0 ? "rup" : "ok")">
+                    <p class="estado-etiqueta"><Icono Nombre="campana" Tamano="14" /> Incidentes</p>
+                    <p class="estado-medio estado-@(pendientes.Count > 0 ? "rup" : "ok")">
+                        <Icono Nombre="@(pendientes.Count > 0 ? "advertencia" : "ok")" Tamano="20" />
+                        @(pendientes.Count switch { 0 => "Nada por revisar", 1 => "1 por revisar", var n => $"{n} por revisar" })
+                    </p>
+                    <p class="estado-detalle">
+                        @(datos.AlertaUrgente is { } en
+                            ? (en.ReconocidaPor is null ? "Nadie confirmó que lo esté atendiendo." : $"Lo atiende {en.ReconocidaPor}.")
+                            : "Ningún incidente en curso.")
+                    </p>
                 </div>
             </div>
-
-            @* La acción a tomar, destacada y con el color del estado. *@
-            <div class="accion-caja estado-@vista.Clase">
-                <Icono Nombre="@(vista.Clase == "ok" ? "info" : vista.Icono)" />
-                <span>@vista.Accion</span>
             </div>
+
+            @* 2. Escala horizontal: última temperatura, su fecha, el rango recomendado y los límites.
+               La comunicación ya está arriba: no se repite. *@
+            <EscalaTermica Temperatura="datos.Temperatura" FechaMedicion="datos.FechaMedicion" Antigua="Antigua"
+                           OptimoMinimo="datos.OptimoMinimo" OptimoMaximo="datos.OptimoMaximo"
+                           LimiteMinimo="datos.LimiteMinimo" LimiteMaximo="datos.LimiteMaximo"
+                           Estado="@Termico.Clase" TextoEstado="@Termico.Texto" />
+
+            @* 3. Qué hacer, solo cuando hay un problema. *@
+            @if (vista.Clase != "ok")
+            {
+                <div class="accion-caja estado-@vista.Clase" role="alert">
+                    <Icono Nombre="@vista.Icono" />
+                    <span>@vista.Accion</span>
+                </div>
+            }
 
             @* "Lo estoy atendiendo": detiene el escalamiento y avisa a los demás. *@
             @if (datos.AlertaUrgente is { } urgente)
@@ -164,6 +142,34 @@
                     }
                 </div>
             }
+
+            @* 4. Últimas 24 horas: solo con datos suficientes y recientes; si no, se dice por qué
+               (nunca un gráfico vacío). *@
+            <div class="ultimas-24h">
+                <div class="ultimas-24h-cabecera">
+                    <p class="etiqueta"><Icono Nombre="grafico" Tamano="16" /> Últimas 24 horas</p>
+                    <a class="ver-analisis" href="historial?equipo=@EquipoId">Ver análisis completo</a>
+                </div>
+                @if (!Antigua && lecturas24.Count >= MinimoLecturasGrafico)
+                {
+                    <GraficoUltimas24h Lecturas="lecturas24" Ahora="DateTime.UtcNow"
+                                       OptimoMinimo="datos.OptimoMinimo" OptimoMaximo="datos.OptimoMaximo"
+                                       LimiteMinimo="datos.LimiteMinimo" LimiteMaximo="datos.LimiteMaximo" />
+                    <p class="nota cifras">
+                        Entre @lecturas24.Min(l => l.Temperatura).ToString("0.0") y @lecturas24.Max(l => l.Temperatura).ToString("0.0") °C ·
+                        @lecturas24.Count lecturas. La línea se corta donde faltan datos.
+                    </p>
+                }
+                else
+                {
+                    <p class="nota sin-hora">
+                        <Icono Nombre="info" Tamano="16" />
+                        @(Antigua
+                            ? "No hay lecturas recientes: el gráfico aparece cuando el equipo vuelva a enviar datos."
+                            : "Todavía no hay lecturas suficientes de las últimas 24 horas para dibujar el gráfico.")
+                    </p>
+                }
+            </div>
         </section>
     }
 
@@ -227,9 +233,18 @@
                     </div>
                     @if (alertaEnRevision != pendiente.Id)
                     {
-                        <button class="revisar" @onclick="() => IniciarRevision(pendiente.Id)">
-                            <Icono Nombre="ojo" Tamano="18" /> Revisar
-                        </button>
+                        @* La revisión de una ruptura (Anexo 13) la registran el responsable de inmunizaciones
+                           o el médico jefe (NTS 242, 6.10.2); la API también lo exige. *@
+                        <AuthorizeView Policy="@(pendiente.RequiereAnexo13 ? Politicas.PuedeRevisarRupturas : null)">
+                            <Authorized>
+                                <button class="revisar" @onclick="() => IniciarRevision(pendiente.Id)">
+                                    <Icono Nombre="ojo" Tamano="18" /> Revisar
+                                </button>
+                            </Authorized>
+                            <NotAuthorized>
+                                <p class="revisa-otro"><Icono Nombre="info" Tamano="16" /> La registra el responsable de inmunizaciones o el médico jefe.</p>
+                            </NotAuthorized>
+                        </AuthorizeView>
                     }
                 </div>
 
@@ -359,8 +374,18 @@
 
     private TemperaturaActualDto? datos;
 
-    // Lecturas de la última hora, para el mini gráfico y la tendencia del indicador.
-    private List<double> historial = new();
+    // Lecturas de las últimas 24 horas, para el gráfico compacto.
+    private List<LecturaPuntoDto> lecturas24 = new();
+
+    // Temperaturas de la última hora: la tendencia que muestra el velocímetro.
+    private List<double> UltimaHora => lecturas24
+        .Where(l => l.FechaMedicion >= DateTime.UtcNow.AddHours(-1))
+        .OrderBy(l => l.FechaMedicion)
+        .Select(l => l.Temperatura)
+        .ToList();
+
+    // Con menos lecturas no se dibuja el gráfico (media hora de datos, una por minuto).
+    private const int MinimoLecturasGrafico = 30;
     private List<AlertaPendienteDto> pendientes = new();
     private string? error;
     private readonly CancellationTokenSource cancelacion = new();
@@ -380,7 +405,7 @@
         {
             equipoCargado = EquipoId;
             datos = null;
-            historial = new();
+            lecturas24 = new();
             await CargarAsync();
         }
     }
@@ -409,9 +434,8 @@
                 $"api/equipos/{EquipoId}/temperatura-actual", cancelacion.Token);
             pendientes = await Http.GetFromJsonAsync<List<AlertaPendienteDto>>(
                 $"api/alertas/pendientes?equipoId={EquipoId}", cancelacion.Token) ?? new();
-            var recientes = await Http.GetFromJsonAsync<List<LecturaPuntoDto>>(
-                $"api/equipos/{EquipoId}/lecturas-recientes?minutos=60", cancelacion.Token);
-            historial = recientes?.Select(l => l.Temperatura).ToList() ?? new();
+            lecturas24 = await Http.GetFromJsonAsync<List<LecturaPuntoDto>>(
+                $"api/equipos/{EquipoId}/lecturas-recientes?minutos=1440", cancelacion.Token) ?? new();
             error = null;
         }
         catch (OperationCanceledException)
@@ -431,6 +455,16 @@
     // Estado térmico y comunicación por separado (las mismas reglas que el panel).
     private Dimension Termico => EstadoEquipo.Termico(datos!);
     private Dimension Comunicacion => EstadoEquipo.Comunicacion(datos!);
+
+    // Una línea bajo el estado de la temperatura, en palabras cotidianas.
+    private string DetalleTemperatura => datos! switch
+    {
+        { Temperatura: null } => "Todavía no hay lecturas.",
+        _ when Antigua => "Último estado conocido, no una medición actual.",
+        { SensorSinVariacionDesde: not null } => "El sensor marca siempre lo mismo: verifique con un termómetro.",
+        { AlertaActiva: { } a } => $"{(a.Tipo == TipoAlertaDto.TemperaturaAlta ? "Llegó a" : "Bajó a")} {a.ValorExtremo:0.0} °C en esta alerta.",
+        _ => "Dentro de lo recomendado."
+    };
     private bool Antigua => EstadoEquipo.LecturaAntigua(datos!);
 
     // ---------- Pendientes de revisión ----------

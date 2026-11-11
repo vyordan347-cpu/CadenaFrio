@@ -102,14 +102,8 @@ builder.Services
         };
     });
 
-// Permisos por rol.
-builder.Services.AddAuthorization(opciones =>
-{
-    opciones.AddPolicy(Politicas.PuedeConfigurarRangos, politica =>
-        politica.RequireRole(Roles.ResponsableInmunizaciones, Roles.Administrador));
-    opciones.AddPolicy(Politicas.EsAdministrador, politica =>
-        politica.RequireRole(Roles.Administrador));
-});
+// Permisos por rol: la matriz está en Shared (Politicas.RolesPermitidos), la misma que usa la web.
+builder.Services.AddAuthorization(Politicas.Configurar);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

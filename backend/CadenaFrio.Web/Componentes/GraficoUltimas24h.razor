@@ -1,0 +1,102 @@
+@using System.Globalization
+@using CadenaFrio.Shared.Contracts
+
+@* Gráfico compacto de las últimas 24 horas para el detalle del equipo. Franja verde del rango
+   recomendado, límites con línea discontinua y la temperatura en turquesa. La línea se corta
+   donde faltan datos (más de 5 min sin lecturas): no se inventa lo que no se midió. Lo que salió
+   del límite va en rojo. El análisis completo está en "Análisis de temperaturas".
+   El dibujo se estira al ancho con una altura fija; las etiquetas van en HTML para que el texto
+   no se deforme, y los puntos son líneas de largo cero con extremo redondo (siempre circulares). *@
+
+<div class="grafico-24h" role="img" aria-label="@Descripcion">
+    <div class="area">
+        <svg viewBox="0 0 @Ancho @Alto" preserveAspectRatio="none" aria-hidden="true">
+            <rect class="banda-optima" x="0" y="@F(Y(OptimoMaximo))" width="@Ancho" height="@F(Y(OptimoMinimo) - Y(OptimoMaximo))" />
+            <line class="limite" x1="0" x2="@Ancho" y1="@F(Y(LimiteMaximo))" y2="@F(Y(LimiteMaximo))" />
+            <line class="limite" x1="0" x2="@Ancho" y1="@F(Y(LimiteMinimo))" y2="@F(Y(LimiteMinimo))" />
+
+            @foreach (var tramo in Tramos)
+            {
+                @if (tramo.Count == 1)
+                {
+                    <line class="punto" x1="@F(X(tramo[0].FechaMedicion))" x2="@F(X(tramo[0].FechaMedicion))"
+                          y1="@F(Y(tramo[0].Temperatura))" y2="@F(Y(tramo[0].Temperatura))" />
+                }
+                else
+                {
+                    <polyline class="linea" points="@string.Join(" ", tramo.Select(l => $"{F(X(l.FechaMedicion))},{F(Y(l.Temperatura))}"))" />
+                }
+            }
+
+            @* Lo que salió del límite, en rojo. *@
+            @foreach (var l in Lecturas.Where(l => l.Temperatura > LimiteMaximo || l.Temperatura < LimiteMinimo))
+            {
+                <line class="fuera" x1="@F(X(l.FechaMedicion))" x2="@F(X(l.FechaMedicion))" y1="@F(Y(l.Temperatura))" y2="@F(Y(l.Temperatura))" />
+            }
+        </svg>
+
+        @* Límites, a la izquierda, a la altura de su línea. *@
+        <span class="eje-y cifras" style="top: @P(Y(LimiteMaximo))%">@G(LimiteMaximo) °C</span>
+        <span class="eje-y cifras" style="top: @P(Y(LimiteMinimo))%">@G(LimiteMinimo) °C</span>
+    </div>
+    <div class="eje-x" aria-hidden="true">
+        <span>hace 24 h</span>
+        <span>hace 12 h</span>
+        <span>ahora</span>
+    </div>
+</div>
+
+@code {
+    // Lecturas de las últimas 24 horas, en cualquier orden.
+    [Parameter] public IReadOnlyList<LecturaPuntoDto> Lecturas { get; set; } = Array.Empty<LecturaPuntoDto>();
+
+    // Momento de "ahora" (UTC): el borde derecho del gráfico.
+    [Parameter] public DateTime Ahora { get; set; } = DateTime.UtcNow;
+
+    [Parameter] public double OptimoMinimo { get; set; }
+    [Parameter] public double OptimoMaximo { get; set; }
+    [Parameter] public double LimiteMinimo { get; set; }
+    [Parameter] public double LimiteMaximo { get; set; }
+
+    private const double Ancho = 1000, Alto = 100;
+    private static readonly TimeSpan Hueco = TimeSpan.FromMinutes(5);
+
+    private DateTime Desde => Ahora.AddHours(-24);
+
+    // Escala vertical: los límites con margen, ampliada si alguna lectura queda afuera.
+    private double Minimo => Math.Min(LimiteMinimo, Lecturas.Count > 0 ? Lecturas.Min(l => l.Temperatura) : LimiteMinimo) - 1;
+    private double Maximo => Math.Max(LimiteMaximo, Lecturas.Count > 0 ? Lecturas.Max(l => l.Temperatura) : LimiteMaximo) + 1;
+
+    private double X(DateTime fecha) =>
+        Math.Clamp((fecha - Desde).TotalMinutes / (Ahora - Desde).TotalMinutes, 0, 1) * Ancho;
+
+    private double Y(double valor) => Alto - (valor - Minimo) / (Maximo - Minimo) * Alto;
+
+    // Lecturas seguidas, cortadas donde pasan más de 5 minutos sin datos.
+    private List<List<LecturaPuntoDto>> Tramos
+    {
+        get
+        {
+            var tramos = new List<List<LecturaPuntoDto>>();
+            foreach (var l in Lecturas.OrderBy(l => l.FechaMedicion))
+            {
+                if (tramos.Count == 0 || l.FechaMedicion - tramos[^1][^1].FechaMedicion > Hueco)
+                {
+                    tramos.Add(new List<LecturaPuntoDto>());
+                }
+                tramos[^1].Add(l);
+            }
+            return tramos;
+        }
+    }
+
+    private string Descripcion =>
+        Lecturas.Count == 0
+            ? "Sin lecturas en las últimas 24 horas."
+            : $"Temperatura de las últimas 24 horas: entre {G(Lecturas.Min(l => l.Temperatura))} y {G(Lecturas.Max(l => l.Temperatura))} °C, " +
+              $"{Lecturas.Count} lecturas. Límite permitido de {G(LimiteMinimo)} a {G(LimiteMaximo)} °C.";
+
+    private static string P(double y) => (y / Alto * 100).ToString("0.##", CultureInfo.InvariantCulture);
+    private static string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+    private static string G(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+}

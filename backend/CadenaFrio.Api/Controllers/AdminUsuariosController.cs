@@ -58,7 +58,7 @@ public class AdminUsuariosController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ContrasenaTemporalDto>> Crear(CrearUsuarioRequest solicitud)
     {
-        if (!Enum.TryParse<RolUsuario>(solicitud.Rol, out var rol))
+        if (!Enum.TryParse<RolUsuario>(solicitud.Rol, out var rol) || !Enum.IsDefined(rol))
         {
             return BadRequest(new { mensaje = "Rol no válido." });
         }
@@ -91,7 +91,7 @@ public class AdminUsuariosController : ControllerBase
     [HttpPut("{id:int}/rol")]
     public async Task<ActionResult<UsuarioAdminDto>> CambiarRol(int id, CambiarRolRequest solicitud)
     {
-        if (!Enum.TryParse<RolUsuario>(solicitud.Rol, out var rol))
+        if (!Enum.TryParse<RolUsuario>(solicitud.Rol, out var rol) || !Enum.IsDefined(rol))
         {
             return BadRequest(new { mensaje = "Rol no válido." });
         }

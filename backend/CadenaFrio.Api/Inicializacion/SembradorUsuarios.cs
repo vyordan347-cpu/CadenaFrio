@@ -25,6 +25,7 @@ public static class SembradorUsuarios
         {
             Crear("enfermera", "Enfermera de prueba", RolUsuario.Enfermera, "Enfermera123!"),
             Crear("responsable", "Responsable de prueba", RolUsuario.ResponsableInmunizaciones, "Responsable123!"),
+            Crear("medico", "Médico jefe de prueba", RolUsuario.MedicoJefe, "Medico123!"),
             Crear("admin", "Administrador de prueba", RolUsuario.Administrador, "Admin123!")
         };
 

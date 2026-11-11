@@ -24,6 +24,12 @@ public class ConfigurarRangoRequest : IValidatableObject
     [Range(-50.0, 60.0, ErrorMessage = MensajeRangoFisico)]
     public double? LimiteMaximo { get; set; }
 
+    // Por qué se ajusta a mano (por ejemplo, el inserto de una vacuna nueva). Queda en el
+    // historial de rangos y en la bitácora. Máximo 250: cabe en RangoTemperatura.Detalle (300).
+    [Required(ErrorMessage = "Escriba el motivo del ajuste.")]
+    [StringLength(250, MinimumLength = 10, ErrorMessage = "El motivo debe tener entre 10 y 250 caracteres.")]
+    public string? Motivo { get; set; }
+
     // Reglas entre campos (RF04):
     // límite mínimo ≤ óptimo mínimo < óptimo máximo ≤ límite máximo.
     // Se permite igualar el óptimo con el límite cuando un lado no necesita franja de advertencia.

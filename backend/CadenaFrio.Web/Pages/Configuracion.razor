@@ -2,20 +2,26 @@
 @using System.Net.Http.Json
 @using System.Text.Json
 @using CadenaFrio.Shared.Contracts
+@using CadenaFrio.Shared.Utilidades
 @using CadenaFrio.Web.Componentes
 @using CadenaFrio.Web.Utilidades
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Policy = Politicas.PuedeConfigurarRangos)]
+@using Microsoft.AspNetCore.Components.Authorization
+@* Todos los roles ven los rangos; solo el responsable de inmunizaciones (NTS 242, 5.1.43) y el
+   administrador los cambian. La API también lo exige. *@
+@attribute [Authorize]
 @inject HttpClient Http
 @inject NavigationManager Navegacion
+@inject AuthenticationStateProvider Autenticacion
+@inject IAuthorizationService Autorizacion
 
-<PageTitle>Configuración · Cadena de Frío</PageTitle>
+<PageTitle>Rangos de conservación · Cadena de Frío</PageTitle>
 
 <main class="pagina">
     <header class="encabezado">
-        <span class="encabezado-icono"><Icono Nombre="configuracion" Tamano="26" /></span>
+        <span class="encabezado-icono"><Icono Nombre="temperatura" Tamano="26" /></span>
         <div class="encabezado-texto">
-            <h1>Configuración de rangos</h1>
+            <h1>Rangos de conservación</h1>
             <p class="subtitulo">Elija el equipo y las vacunas que guarda: el sistema calcula su rango seguro.</p>
         </div>
         @if (equipos is { Count: > 0 })
@@ -53,20 +59,41 @@
                 <h2 id="titulo-vacunas"><Icono Nombre="vacuna" /> Vacunas que guarda</h2>
                 <span class="insignia insignia-neutra cifras">@seleccion.Count de @catalogo.Count</span>
             </header>
-            <p class="nota">Marque las vacunas de este equipo. El rango seguro es el que sirve para todas a la vez.</p>
+            @if (puedeConfigurar)
+            {
+                <p class="nota">Marque las vacunas de este equipo. Puede marcar varias si tienen una temperatura en común; las que no se pueden guardar con las marcadas quedan bloqueadas.</p>
+            }
+            else
+            {
+                <p class="aviso aviso-info aviso-con-icono solo-lectura">
+                    <Icono Nombre="info" Tamano="18" />
+                    <span><strong>Solo lectura.</strong> Los rangos los configura el responsable de inmunizaciones (NTS 242, 5.1.43).</span>
+                </p>
+            }
 
                 <div class="vacunas">
                     @foreach (var vacuna in catalogo)
                     {
                         var marcada = seleccion.Contains(vacuna.Id);
-                        <label class="vacuna-opcion @(marcada ? "marcada" : "")">
-                            <input type="checkbox" checked="@marcada" @onchange="() => Alternar(vacuna.Id)" />
+                        @* Una vacuna no marcada que no se cruza con las marcadas se bloquea y dice por qué.
+                           La API vuelve a validar al guardar. *@
+                        var motivo = marcada || !puedeConfigurar ? null : CompatibilidadVacunas.Motivo(vacuna, Elegidas);
+                        <label class="vacuna-opcion @(marcada ? "marcada" : "") @(motivo is null ? "" : "bloqueada") @(puedeConfigurar ? "" : "lectura")">
+                            <input type="checkbox" checked="@marcada" disabled="@(motivo is not null || !puedeConfigurar)"
+                                   aria-describedby="@(motivo is null ? null : $"motivo-{vacuna.Id}")"
+                                   @onchange="() => Alternar(vacuna.Id)" />
                             <span class="vacuna-texto">
                                 <span class="vacuna-nombre">@vacuna.Nombre</span>
                                 <span class="vacuna-rango cifras">
                                     Óptimo @vacuna.OptimoMinimo.ToString("0.0")–@vacuna.OptimoMaximo.ToString("0.0") °C,
                                     límite @vacuna.LimiteMinimo.ToString("0.0")–@vacuna.LimiteMaximo.ToString("0.0") °C
                                 </span>
+                                @if (motivo is not null)
+                                {
+                                    <span class="vacuna-motivo" id="motivo-@vacuna.Id">
+                                        <Icono Nombre="ruptura" Tamano="14" /> <span><b>No compatible.</b> @motivo</span>
+                                    </span>
+                                }
                             </span>
                         </label>
                     }
@@ -77,54 +104,72 @@
                 </div>
         </section>
 
-        @* Ajuste manual, para casos especiales *@
-        <details class="tarjeta ajuste">
-            <summary><Icono Nombre="editar" /> Ajuste manual</summary>
-            <p class="nota">Solo para casos especiales. Queda registrado como "Ajuste manual" en el historial.
-                Si luego cambia las vacunas del equipo, el rango se volverá a calcular.</p>
+        @* Ajuste avanzado: solo para casos especiales y personal autorizado. Pide motivo y
+           confirmación, queda en el historial y en la bitácora, y no puede ampliar el rango de
+           las vacunas del equipo ni el de la NTS 242 (la API lo valida). *@
+        @if (puedeConfigurar)
+        {
+            var (referencia, origenReferencia) = ReferenciaAjuste;
+            <details class="tarjeta ajuste">
+                <summary><Icono Nombre="editar" /> Ajuste avanzado <span class="insignia insignia-neutra">Personal autorizado</span></summary>
+                <p class="nota">Solo para casos especiales. Queda en el historial y en la bitácora con su motivo.
+                    Si luego cambia las vacunas del equipo, el rango se volverá a calcular.</p>
+                <p class="aviso aviso-info aviso-con-icono limite-ajuste">
+                    <Icono Nombre="info" Tamano="18" />
+                    <span>Puede hacerlo <strong>más estricto, nunca más amplio</strong> que el rango de @origenReferencia:
+                        óptimo dentro de <b class="cifras">@referencia.OptimoMin.ToString("0.0")–@referencia.OptimoMax.ToString("0.0") °C</b>
+                        y límite dentro de <b class="cifras">@referencia.LimiteMin.ToString("0.0")–@referencia.LimiteMax.ToString("0.0") °C</b>.</span>
+                </p>
 
-            <EditForm Model="manual" OnValidSubmit="GuardarManualAsync">
-                <DataAnnotationsValidator />
-                @* Los rangos se pueden escribir en °F (insertos importados); se guardan en °C. *@
-                <SelectorUnidad @bind-Fahrenheit="enFahrenheit" />
+                <EditForm Model="manual" OnValidSubmit="ConfirmarAjusteAsync">
+                    <DataAnnotationsValidator />
+                    @* Los rangos se pueden escribir en °F (insertos importados); se guardan en °C. *@
+                    <SelectorUnidad @bind-Fahrenheit="enFahrenheit" />
 
-                <fieldset>
-                    <legend>Rango óptimo</legend>
-                    <div class="campos">
-                        <label>Mínimo (@Unidad)
-                            <EntradaTemperatura @bind-Valor="manual.OptimoMinimo" Fahrenheit="enFahrenheit" />
-                            <ValidationMessage For="() => manual.OptimoMinimo" />
-                        </label>
-                        <label>Máximo (@Unidad)
-                            <EntradaTemperatura @bind-Valor="manual.OptimoMaximo" Fahrenheit="enFahrenheit" />
-                            <ValidationMessage For="() => manual.OptimoMaximo" />
-                        </label>
-                    </div>
-                </fieldset>
-                <fieldset>
-                    <legend>Rango límite</legend>
-                    <div class="campos">
-                        <label>Mínimo (@Unidad)
-                            <EntradaTemperatura @bind-Valor="manual.LimiteMinimo" Fahrenheit="enFahrenheit" />
-                            <ValidationMessage For="() => manual.LimiteMinimo" />
-                        </label>
-                        <label>Máximo (@Unidad)
-                            <EntradaTemperatura @bind-Valor="manual.LimiteMaximo" Fahrenheit="enFahrenheit" />
-                            <ValidationMessage For="() => manual.LimiteMaximo" />
-                        </label>
-                    </div>
-                </fieldset>
+                    <fieldset>
+                        <legend>Rango óptimo</legend>
+                        <div class="campos">
+                            <label>Mínimo (@Unidad)
+                                <EntradaTemperatura @bind-Valor="manual.OptimoMinimo" Fahrenheit="enFahrenheit" />
+                                <ValidationMessage For="() => manual.OptimoMinimo" />
+                            </label>
+                            <label>Máximo (@Unidad)
+                                <EntradaTemperatura @bind-Valor="manual.OptimoMaximo" Fahrenheit="enFahrenheit" />
+                                <ValidationMessage For="() => manual.OptimoMaximo" />
+                            </label>
+                        </div>
+                    </fieldset>
+                    <fieldset>
+                        <legend>Rango límite</legend>
+                        <div class="campos">
+                            <label>Mínimo (@Unidad)
+                                <EntradaTemperatura @bind-Valor="manual.LimiteMinimo" Fahrenheit="enFahrenheit" />
+                                <ValidationMessage For="() => manual.LimiteMinimo" />
+                            </label>
+                            <label>Máximo (@Unidad)
+                                <EntradaTemperatura @bind-Valor="manual.LimiteMaximo" Fahrenheit="enFahrenheit" />
+                                <ValidationMessage For="() => manual.LimiteMaximo" />
+                            </label>
+                        </div>
+                    </fieldset>
 
-                @if (mensajeManual is not null)
-                {
-                    <p class="aviso @(errorManual ? "aviso-error" : "aviso-ok")">@mensajeManual</p>
-                }
+                    <label>Motivo del ajuste
+                        <InputTextArea @bind-Value="manual.Motivo" rows="2" maxlength="250"
+                                       placeholder="Por ejemplo: el inserto de la vacuna nueva indica un rango más estricto." />
+                        <ValidationMessage For="() => manual.Motivo" />
+                    </label>
 
-                <button type="submit" class="boton" disabled="@guardandoManual">
-                    @(guardandoManual ? "Guardando…" : "Guardar ajuste manual")
-                </button>
-            </EditForm>
-        </details>
+                    @if (mensajeManual is not null)
+                    {
+                        <p class="aviso @(errorManual ? "aviso-error" : "aviso-ok")">@mensajeManual</p>
+                    }
+
+                    <button type="submit" class="boton" disabled="@guardandoManual">
+                        @(guardandoManual ? "Guardando…" : "Revisar y guardar el ajuste")
+                    </button>
+                </EditForm>
+            </details>
+        }
         </div>
 
         @* Rango del equipo: el vigente frente al de las vacunas marcadas, que se recalcula al
@@ -189,49 +234,48 @@
 
             @if (seleccion.Count > 0 && calculo is null)
             {
-                <div class="aviso aviso-error aviso-con-icono incompatible">
+                <div class="aviso aviso-error aviso-con-icono incompatible" role="alert">
                     <Icono Nombre="ruptura" />
-                    <span>Estas vacunas <strong>no pueden almacenarse juntas</strong>: no existe una temperatura segura para todas. Quite alguna para continuar.</span>
+                    <span><strong>Estas vacunas no pueden guardarse juntas.</strong> No hay una temperatura que sirva para todas: quite alguna para continuar. La escala muestra el rango vigente.</span>
                 </div>
             }
-            else if (calculo is not null && temperaturaActual is not null)
-            {
-                @* La aguja muestra la temperatura del equipo juzgada con el rango calculado. *@
-                var (estado, texto) = EstadoVista(calculo.Value);
-                <div class="vista-previa">
-                    <IndicadorTemperatura Compacto="true" Temperatura="temperaturaActual"
-                                          OptimoMinimo="calculo.Value.OptimoMin" OptimoMaximo="calculo.Value.OptimoMax"
-                                          LimiteMinimo="calculo.Value.LimiteMin" LimiteMaximo="calculo.Value.LimiteMax"
-                                          Estado="@estado" TextoEstado="@texto" />
-                    @if (antiguedadLectura is { } hace)
-                    {
-                        <p class="nota nota-antigua">
-                            <Icono Nombre="reloj" Tamano="14" />
-                            La aguja muestra la última temperatura conocida (@hace), no una lectura actual.
-                        </p>
-                    }
-                    else
-                    {
-                        <p class="nota">La aguja muestra la temperatura actual del equipo con el rango calculado.</p>
-                    }
-                </div>
+
+            @* Escala térmica: la última temperatura juzgada con el rango calculado (o el vigente, si
+               no hay un cálculo válido). Sustituye al velocímetro en esta pantalla. *@
+            @{
+                var rangoEscala = calculo ?? new Rangos(vigente.OptimoMinimo, vigente.OptimoMaximo, vigente.LimiteMinimo, vigente.LimiteMaximo);
+                var (estadoEscala, textoEscala) = EstadoVista(rangoEscala);
             }
+            <div class="escala-bloque">
+                <p class="etiqueta-escala">
+                    @(calculo is not null ? "Última temperatura con el rango calculado" : "Última temperatura con el rango vigente")
+                </p>
+                <EscalaTermica Temperatura="actual?.Temperatura" FechaMedicion="actual?.FechaMedicion"
+                               Antigua="@(actual is not null && EstadoEquipo.LecturaAntigua(actual))"
+                               OptimoMinimo="rangoEscala.OptimoMin" OptimoMaximo="rangoEscala.OptimoMax"
+                               LimiteMinimo="rangoEscala.LimiteMin" LimiteMaximo="rangoEscala.LimiteMax"
+                               Estado="@estadoEscala" TextoEstado="@textoEscala"
+                               Comunicacion="@(actual is null ? null : EstadoEquipo.Comunicacion(actual))" />
+            </div>
 
             @if (mensajeVacunas is not null)
             {
                 <p class="aviso @(errorVacunas ? "aviso-error" : "aviso-ok")">@mensajeVacunas</p>
             }
 
-            <div class="acciones">
-                @if (HayCambiosEnVacunas)
-                {
-                    <span class="cambios-pendientes"><Icono Nombre="editar" Tamano="14" /> Cambios sin guardar</span>
-                }
-                <button class="boton boton-primario" disabled="@(guardandoVacunas || !HayCambiosEnVacunas || (seleccion.Count > 0 && calculo is null))"
-                        @onclick="GuardarVacunasAsync">
-                    @(guardandoVacunas ? "Guardando…" : "Guardar vacunas y aplicar rango")
-                </button>
-            </div>
+            @if (puedeConfigurar)
+            {
+                <div class="acciones">
+                    @if (HayCambiosEnVacunas)
+                    {
+                        <span class="cambios-pendientes"><Icono Nombre="editar" Tamano="14" /> Cambios sin guardar</span>
+                    }
+                    <button class="boton boton-primario" disabled="@(guardandoVacunas || !HayCambiosEnVacunas || (seleccion.Count > 0 && calculo is null))"
+                            @onclick="GuardarVacunasAsync">
+                        @(guardandoVacunas ? "Guardando…" : "Guardar vacunas y aplicar rango")
+                    </button>
+                </div>
+            }
         </aside>
         </div>
 
@@ -274,6 +318,8 @@
     }
 </main>
 
+<DialogoConfirmacion @ref="dialogo" />
+
 @code {
     // Permite abrir la página con un equipo elegido: /configuracion?equipo=2
     [SupplyParameterFromQuery(Name = "equipo")]
@@ -289,9 +335,8 @@
     private List<VacunaDto>? catalogo;
     private HashSet<int> seleccion = new();
     private HashSet<int> seleccionGuardada = new();
-    private double? temperaturaActual;
-    // "hace 18 días" si esa temperatura no es reciente; nulo si es una lectura actual.
-    private string? antiguedadLectura;
+    // Última lectura del equipo (temperatura, fecha, comunicación), para la escala térmica.
+    private TemperaturaActualDto? actual;
 
     private RangoTemperaturaDto? vigente;
     private List<RangoTemperaturaDto> historial = new();
@@ -302,11 +347,18 @@
     private string? mensajeVacunas;
     private bool errorVacunas;
     private bool guardandoManual;
+
+    // ¿Este usuario puede cambiar los rangos? (responsable de inmunizaciones o administrador)
+    private bool puedeConfigurar;
+    private DialogoConfirmacion? dialogo;
     private string? mensajeManual;
     private bool errorManual;
 
     protected override async Task OnInitializedAsync()
     {
+        var usuario = (await Autenticacion.GetAuthenticationStateAsync()).User;
+        puedeConfigurar = (await Autorizacion.AuthorizeAsync(usuario, Politicas.PuedeConfigurarRangos)).Succeeded;
+
         try
         {
             equipos = await Http.GetFromJsonAsync<List<EquipoResumenDto>>("api/equipos/lista") ?? new();
@@ -344,9 +396,7 @@
         seleccion = asignadas.ToHashSet();
         seleccionGuardada = asignadas.ToHashSet();
 
-        var actual = await Http.GetFromJsonAsync<TemperaturaActualDto>($"api/equipos/{equipoId}/temperatura-actual");
-        temperaturaActual = actual?.Temperatura;
-        antiguedadLectura = actual is null ? null : EstadoEquipo.Antiguedad(actual);
+        actual = await Http.GetFromJsonAsync<TemperaturaActualDto>($"api/equipos/{equipoId}/temperatura-actual");
 
         await CargarRangosAsync();
     }
@@ -371,10 +421,19 @@
     {
         if (!seleccion.Remove(vacunaId))
         {
+            // Una vacuna incompatible con las marcadas no se agrega (su casilla ya está bloqueada).
+            var vacuna = catalogo!.First(v => v.Id == vacunaId);
+            if (CompatibilidadVacunas.Motivo(vacuna, Elegidas) is not null)
+            {
+                return;
+            }
             seleccion.Add(vacunaId);
         }
         mensajeVacunas = null;
     }
+
+    // Vacunas marcadas en este momento (aún sin guardar).
+    private List<VacunaDto> Elegidas => catalogo!.Where(v => seleccion.Contains(v.Id)).ToList();
 
     private bool HayCambiosEnVacunas => !seleccion.SetEquals(seleccionGuardada);
 
@@ -401,7 +460,7 @@
     }
 
     // Estado que tendría la temperatura actual con el rango calculado.
-    private (string Estado, string Texto) EstadoVista(Rangos r) => temperaturaActual switch
+    private (string Estado, string Texto) EstadoVista(Rangos r) => actual?.Temperatura switch
     {
         null => ("sen", "Sin lecturas"),
         var t when t > r.LimiteMax || t < r.LimiteMin => ("rup", "Ruptura"),
@@ -443,6 +502,42 @@
     }
 
     // ---------- Ajuste manual ----------
+
+    // Rango que el ajuste avanzado no puede ampliar: el común de las vacunas guardadas del equipo
+    // o, si no guarda ninguna, el de la NTS 242. La misma regla que valida la API.
+    private (Rangos Rango, string Origen) ReferenciaAjuste
+    {
+        get
+        {
+            var guardadas = catalogo!.Where(v => seleccionGuardada.Contains(v.Id)).ToList();
+            if (guardadas.Count > 0)
+            {
+                var r = new Rangos(
+                    guardadas.Max(v => v.OptimoMinimo), guardadas.Min(v => v.OptimoMaximo),
+                    guardadas.Max(v => v.LimiteMinimo), guardadas.Min(v => v.LimiteMaximo));
+                if (r.OptimoMin < r.OptimoMax)
+                {
+                    return (r, "las vacunas que guarda");
+                }
+            }
+            return (new Rangos(3.0, 7.0, 2.0, 8.0), "la NTS 242");
+        }
+    }
+
+    // Antes de guardar, se confirma mostrando el rango vigente, el nuevo y el motivo.
+    private async Task ConfirmarAjusteAsync()
+    {
+        var antes = $"óptimo {vigente!.OptimoMinimo:0.0}–{vigente.OptimoMaximo:0.0} °C, límite {vigente.LimiteMinimo:0.0}–{vigente.LimiteMaximo:0.0} °C";
+        var despues = $"óptimo {manual.OptimoMinimo:0.0}–{manual.OptimoMaximo:0.0} °C, límite {manual.LimiteMinimo:0.0}–{manual.LimiteMaximo:0.0} °C";
+        var confirmado = await dialogo!.PreguntarAsync(
+            "¿Aplicar el ajuste manual del rango?",
+            $"Antes: {antes}. Después: {despues}. Motivo: {manual.Motivo?.Trim()}. Las alertas usarán el rango nuevo desde ahora y el cambio queda en la bitácora.",
+            "Aplicar ajuste");
+        if (confirmado)
+        {
+            await GuardarManualAsync();
+        }
+    }
 
     private async Task GuardarManualAsync()
     {

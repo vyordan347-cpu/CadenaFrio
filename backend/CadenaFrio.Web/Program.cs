@@ -18,13 +18,7 @@ builder.Services.AddScoped(sp => new HttpClient(new ManejadorSesion(sp) { InnerH
 
 // Las mismas políticas que la API, para decidir qué mostrar en pantalla.
 // La seguridad real está en la API: la web solo oculta lo que el usuario no puede usar.
-builder.Services.AddAuthorizationCore(opciones =>
-{
-    opciones.AddPolicy(Politicas.PuedeConfigurarRangos, politica =>
-        politica.RequireRole(Roles.ResponsableInmunizaciones, Roles.Administrador));
-    opciones.AddPolicy(Politicas.EsAdministrador, politica =>
-        politica.RequireRole(Roles.Administrador));
-});
+builder.Services.AddAuthorizationCore(Politicas.Configurar);
 
 // Hace disponible el estado de la sesión en todos los componentes.
 builder.Services.AddCascadingAuthenticationState();

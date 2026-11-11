@@ -150,9 +150,9 @@
 
 .estadisticas {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--e-3);
-    margin-bottom: var(--e-4);
+    margin-top: var(--e-3);
 }
 
 .estadistica {
@@ -290,7 +290,7 @@ h2 {
 /* ===== Pantallas medianas y celular ===== */
 
 @media (max-width: 1000px) {
-    .estadisticas,
+    .indicadores,
     .esqueletos {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -379,15 +379,6 @@ h2 {
 
 /* ===== Resumen del periodo: frases simples y estado de la información ===== */
 
-.resumen-historial {
-    margin-bottom: var(--e-4);
-    padding: var(--e-4) var(--e-5);
-}
-
-.resumen-historial h2 {
-    margin-bottom: var(--e-3);
-}
-
 .frases {
     display: grid;
     gap: var(--e-2);
@@ -459,12 +450,7 @@ h2 {
 
 /* ===== Qué hacer: una acción por fila, con su ícono y, si corresponde, su botón ===== */
 
-.que-hacer {
-    margin-bottom: var(--e-4);
-    padding: var(--e-4) var(--e-5);
-}
-
-.que-hacer h2 {
+.que-hacer h3 {
     margin-bottom: var(--e-3);
 }
 
@@ -509,31 +495,213 @@ h2 {
     font-weight: 700;
 }
 
-/* ===== Descargas del encabezado: Excel del periodo y hoja del Anexo 10 del mes ===== */
+/* ===== Exportar: Excel del equipo y hoja del Anexo 10 del mes, en una sola franja ===== */
 
-.descargas {
+.exportar {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-end;
-    gap: var(--e-3);
+    align-items: center;
+    gap: var(--e-2);
+    padding: var(--e-2) var(--e-3);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie);
 }
 
-.anexo10 {
-    display: grid;
-    gap: 0.2rem;
-}
-
-.anexo10 label {
+.exportar-etiqueta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
     color: var(--texto-2);
     font-size: var(--t-s);
     font-weight: 700;
 }
 
-.anexo10-fila {
-    display: flex;
-    gap: var(--e-2);
+.exportar-separador {
+    width: 1px;
+    height: 1.5rem;
+    background: var(--borde);
 }
 
-.anexo10-fila input {
+.exportar-anexo {
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.exportar-mes {
     width: auto;
+    min-height: 2rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* ===== Aviso breve: la información no está al día o faltan datos ===== */
+
+.aviso-breve {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin-bottom: var(--e-3);
+    padding: var(--e-2) var(--e-3);
+    border: 1px dashed var(--adv);
+    border-radius: var(--radio);
+    background: var(--adv-fondo);
+    color: var(--adv-texto);
+    font-size: var(--t-s);
+}
+
+.aviso-breve span {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.4rem;
+}
+
+/* ===== Indicadores compactos: cuatro en una fila ===== */
+
+.indicadores {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--e-3);
+    margin-bottom: var(--e-4);
+}
+
+/* Medianas y celular: dos por fila (va después de la regla de cuatro para ganarle). */
+@media (max-width: 1000px) {
+    .indicadores {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.indicador {
+    padding: var(--e-3) var(--e-4);
+}
+
+.indicador-etiqueta {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.indicador-valor {
+    margin-top: 0.15rem;
+    color: var(--texto);
+    font-size: var(--t-xl);
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+.indicador-texto {
+    color: var(--texto-2);
+    font-size: var(--t-xs);
+}
+
+.indicador-accion {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: var(--acento);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+.indicador-accion ::deep .flecha {
+    transform: rotate(-90deg);
+}
+
+/* Algo que atender (rupturas, pendientes): borde rojo arriba y cifra en rojo. */
+.indicador.alerta {
+    border-top: 4px solid var(--rup);
+}
+
+.indicador.alerta .indicador-valor {
+    color: var(--rup-texto);
+}
+
+/* Periodos sin datos: borde gris discontinuo (distinto de una ruptura, no solo por color). */
+.indicador.aviso-sen {
+    border-top: 4px dashed var(--sen);
+}
+
+/* ===== Resumen explicativo y qué hacer: desplegable al final ===== */
+
+.explicacion {
+    margin-top: var(--e-4);
+    padding: var(--e-4) var(--e-5);
+}
+
+.explicacion summary {
+    display: flex;
+    align-items: center;
+    gap: var(--e-2);
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+}
+
+.explicacion summary::-webkit-details-marker {
+    display: none;
+}
+
+.explicacion summary::after {
+    content: "▾";
+    margin-left: auto;
+    color: var(--texto-3);
+    transition: transform var(--duracion) var(--curva);
+}
+
+.explicacion[open] summary::after {
+    transform: rotate(180deg);
+}
+
+.explicacion summary ::deep .icono {
+    color: var(--acento);
+}
+
+.explicacion-titulo {
+    font-size: var(--t-l);
+}
+
+.explicacion-cuerpo {
+    display: grid;
+    gap: var(--e-5);
+    margin-top: var(--e-4);
+}
+
+.explicacion-cuerpo h3 {
+    margin-bottom: var(--e-3);
+    font-size: var(--t-m);
+}
+
+@media (max-width: 640px) {
+    .indicador-valor {
+        font-size: var(--t-l);
+    }
+
+    .explicacion {
+        padding: var(--e-3);
+    }
+
+    .estadisticas {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .explicacion summary::after {
+        transition: none;
+    }
+}
+
+/* Alertas del periodo: el mismo desplegable que el resumen, un poco más separado del gráfico. */
+.alertas-periodo .explicacion-cuerpo {
+    display: block;
+}
+
+.alertas-periodo summary .insignia-rup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
 }

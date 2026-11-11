@@ -93,12 +93,15 @@
             }
             else if (estados is not null)
             {
-                @* Una tarjeta por equipo, los que tienen problemas primero. *@
+                @* Una tarjeta horizontal por equipo, una debajo de otra; los que tienen problemas primero.
+                   Tres áreas: temperatura, estado del equipo y atención. *@
                 @foreach (var (equipo, vista) in Ordenados)
                 {
                     var antigua = EstadoEquipo.LecturaAntigua(equipo);
                     var termico = EstadoEquipo.Termico(equipo);
                     var comunicacion = EstadoEquipo.Comunicacion(equipo);
+                    var pendientesEquipo = pendientes.Count(p => p.EquipoId == equipo.EquipoId);
+                    var dia = resumen24h.GetValueOrDefault(equipo.EquipoId);
                     <article class="tarjeta equipo borde-@vista.Clase @(antigua ? "antigua" : "")" aria-labelledby="equipo-@equipo.EquipoId">
                         <header class="equipo-cabecera">
                             <span class="equipo-icono">
@@ -108,94 +111,106 @@
                                 <h2 class="equipo-nombre" id="equipo-@equipo.EquipoId">@equipo.NombreEquipo</h2>
                                 <p class="equipo-lugar">@(string.IsNullOrWhiteSpace(equipo.Ubicacion) ? (equipo.TipoEquipo == TipoEquipoDto.Termo ? "Termo portavacunas" : "Refrigeradora") : equipo.Ubicacion)</p>
                             </div>
-                            @* Con lectura antigua, la insignia va con borde discontinuo y dice de cuándo es. *@
-                            <span class="insignia insignia-@termico.Clase @(antigua ? "insignia-antigua" : "")"
-                                  title="@(antigua ? "Estado térmico de la última lectura conocida" : "Estado térmico")">
-                                <Icono Nombre="@termico.Icono" Tamano="14" /> @termico.Texto
-                                @if (EstadoEquipo.Antiguedad(equipo) is { } hace)
-                                {
-                                    <span class="insignia-cuando">· @hace</span>
-                                }
-                            </span>
                         </header>
 
-                        <div class="equipo-cuerpo">
-                            @* Con la lectura antigua, el medidor se atenúa y no pulsa: no es una medición en vivo. *@
-                            <div class="equipo-medidor">
-                                <IndicadorTemperatura Compacto="true" Temperatura="equipo.Temperatura"
-                                                      OptimoMinimo="equipo.OptimoMinimo" OptimoMaximo="equipo.OptimoMaximo"
-                                                      LimiteMinimo="equipo.LimiteMinimo" LimiteMaximo="equipo.LimiteMaximo"
-                                                      Estado="@vista.Clase" TextoEstado="@vista.Estado" />
-                                @if (antigua && equipo.Temperatura is not null)
-                                {
-                                    <span class="sello-antiguo"><Icono Nombre="reloj" Tamano="14" /> Última conocida</span>
-                                }
-                            </div>
-
-                            <dl class="equipo-datos">
-                                @* Comunicación y última lectura juntas: responden la misma pregunta
-                                   (¿la temperatura de la aguja es de ahora?). *@
-                                <div>
-                                    <dt>Comunicación</dt>
-                                    <dd class="cifras">
-                                        <span class="insignia insignia-@comunicacion.Clase">
-                                            <Icono Nombre="@comunicacion.Icono" Tamano="14" /> @comunicacion.Texto
-                                        </span>
+                        <div class="equipo-areas">
+                            @* 1. TEMPERATURA: velocímetro compacto, estado, de cuándo es y rango. Con una lectura
+                               antigua todo se atenúa y dice "última conocida": no parece de ahora. *@
+                            <section class="area area-temperatura" aria-label="Temperatura">
+                                <div class="equipo-medidor">
+                                    <IndicadorTemperatura Compacto="true" Temperatura="equipo.Temperatura"
+                                                          OptimoMinimo="equipo.OptimoMinimo" OptimoMaximo="equipo.OptimoMaximo"
+                                                          LimiteMinimo="equipo.LimiteMinimo" LimiteMaximo="equipo.LimiteMaximo"
+                                                          Estado="@vista.Clase" TextoEstado="@vista.Estado" />
+                                    @if (antigua && equipo.Temperatura is not null)
+                                    {
+                                        <span class="sello-antiguo"><Icono Nombre="reloj" Tamano="14" /> Última conocida</span>
+                                    }
+                                </div>
+                                <div class="area-texto">
+                                    <p class="area-titulo">Temperatura</p>
+                                    <p class="equipo-estado estado-@termico.Clase @(antigua ? "estado-antiguo" : "")">
+                                        <Icono Nombre="@termico.Icono" Tamano="20" /> @termico.Texto
+                                    </p>
+                                    <p class="equipo-cuando cifras @(antigua ? "dato-antiguo" : "")"
+                                       title="@(equipo.FechaMedicion is { } fm ? FormatoFecha.HoraPeru(fm)[..16] : null)">
                                         @if (equipo.FechaMedicion is { } f)
                                         {
-                                            <span class="@(antigua ? "dato-antiguo" : "")" title="@FormatoFecha.HoraPeru(f)[..16]">
-                                                <span class="solo-lector">Última lectura </span>@FormatoFecha.Antiguedad(f)
-                                            </span>
-                                            @* La fecha exacta solo importa si la lectura es antigua. *@
-                                            @if (antigua)
+                                            @($"{(antigua ? "Última conocida · " : "Medida ")}{FormatoFecha.Antiguedad(f)}")
+                                        }
+                                        else
+                                        {
+                                            @("Todavía no hay lecturas")
+                                        }
+                                    </p>
+                                    <p class="equipo-rango cifras">
+                                        Permitido @equipo.LimiteMinimo.ToString("0.#")–@equipo.LimiteMaximo.ToString("0.#") °C
+                                        <span class="dato-secundario">· ideal @equipo.OptimoMinimo.ToString("0.#")–@equipo.OptimoMaximo.ToString("0.#") °C</span>
+                                    </p>
+                                </div>
+                            </section>
+
+                            @* 2. ESTADO DEL EQUIPO: comunicación, tiempo sin datos y lecturas disponibles. *@
+                            <section class="area" aria-label="Estado del equipo">
+                                <p class="area-titulo">Estado del equipo</p>
+                                <span class="insignia insignia-@comunicacion.Clase"><Icono Nombre="@comunicacion.Icono" Tamano="14" /> @comunicacion.Texto</span>
+                                <dl class="area-datos cifras">
+                                    <div>
+                                        <dt>Sin datos</dt>
+                                        <dd class="@(antigua ? "dato-antiguo" : "")">
+                                            @(equipo.FechaMedicion is null ? "Nunca envió datos" : antigua && equipo.FechaMedicion is { } fs ? $"desde {FormatoFecha.Antiguedad(fs)}" : "No: está enviando")
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt>Última hora</dt>
+                                        <dd>@(equipo.Recientes.Count == 1 ? "1 lectura" : $"{equipo.Recientes.Count} lecturas")</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Últimas 24 h</dt>
+                                        <dd>
+                                            @* Mínima y máxima solo con datos suficientes; si no, se dice. *@
+                                            @if (dia is { Lecturas: >= MinimoLecturas24h })
                                             {
-                                                <span class="dato-secundario">@FormatoFecha.HoraPeru(f)[..16]</span>
+                                                @($"{dia.Minima:0.0} a {dia.Maxima:0.0} °C")
                                             }
-                                        }
-                                        else
-                                        {
-                                            <span>Todavía no hay lecturas</span>
-                                        }
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt>Rango permitido</dt>
-                                    <dd class="cifras">
-                                        <span>Óptimo @equipo.OptimoMinimo.ToString("0.#")–@equipo.OptimoMaximo.ToString("0.#") °C</span>
-                                        <span class="dato-secundario">Límite @equipo.LimiteMinimo.ToString("0.#")–@equipo.LimiteMaximo.ToString("0.#") °C</span>
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt>Última hora</dt>
-                                    <dd>
-                                        @if (!antigua && Tendencia(equipo.Recientes) is { } tendencia)
-                                        {
-                                            <span class="tendencia-texto @tendencia.Clase">@tendencia.Texto</span>
-                                            <MiniGrafico Valores="equipo.Recientes" />
-                                        }
-                                        else
-                                        {
-                                            <span class="dato-secundario">Sin datos recientes</span>
-                                        }
-                                    </dd>
-                                </div>
-                            </dl>
+                                            else if (dia is null)
+                                            {
+                                                <span class="dato-secundario">Calculando…</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="dato-secundario">Pocas lecturas (@dia.Lecturas)</span>
+                                            }
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </section>
+
+                            @* 3. ATENCIÓN: alertas pendientes, quién atiende, qué hacer (breve) y el detalle. *@
+                            <section class="area area-atencion" aria-label="Atención">
+                                <p class="area-titulo">Atención</p>
+                                <p class="atencion-pendientes estado-@(pendientesEquipo > 0 ? "rup" : "ok")">
+                                    <Icono Nombre="@(pendientesEquipo > 0 ? "campana" : "ok")" Tamano="18" />
+                                    @(pendientesEquipo switch { 0 => "Nada por revisar", 1 => "1 alerta por revisar", var n => $"{n} alertas por revisar" })
+                                </p>
+                                @if (equipo.AlertaUrgente is { } urgente)
+                                {
+                                    <span class="insignia @(urgente.ReconocidaPor is null ? "insignia-rup" : "insignia-ok")">
+                                        <Icono Nombre="atendiendo" Tamano="14" />
+                                        @(urgente.ReconocidaPor is null ? "Nadie lo atiende" : $"Lo atiende {urgente.ReconocidaPor}")
+                                    </span>
+                                }
+                                @* Qué hacer, en una frase y solo si hay un problema. *@
+                                @if (vista.Clase != "ok")
+                                {
+                                    <p class="equipo-accion accion-@vista.Clase">@AccionBreve(vista.Accion)</p>
+                                }
+                                @* El enlace cubre toda la tarjeta: se puede tocar en cualquier parte. *@
+                                <a class="ver-detalle" href="equipos/@equipo.EquipoId">
+                                    Ver detalle<span class="solo-lector"> de @equipo.NombreEquipo</span> <Icono Nombre="abajo" Tamano="16" Clase="flecha" />
+                                </a>
+                            </section>
                         </div>
-
-                        <p class="equipo-accion accion-@vista.Clase">@vista.Accion</p>
-
-                        @if (equipo.AlertaUrgente is { } urgente)
-                        {
-                            <p class="equipo-atencion @(urgente.ReconocidaPor is null ? "sin-atender" : "")">
-                                <Icono Nombre="atendiendo" Tamano="16" />
-                                @(urgente.ReconocidaPor is null ? "Nadie la está atendiendo" : $"Atendiendo: {urgente.ReconocidaPor}")
-                            </p>
-                        }
-
-                        @* El enlace cubre toda la tarjeta: se puede tocar en cualquier parte. *@
-                        <a class="ver-detalle" href="equipos/@equipo.EquipoId">
-                            Ver detalle<span class="solo-lector"> de @equipo.NombreEquipo</span> <Icono Nombre="abajo" Tamano="16" Clase="flecha" />
-                        </a>
                     </article>
                 }
             }
@@ -306,13 +321,15 @@
         }
     }
 
-    // Dos peticiones para todo el panel, sin importar cuántos equipos haya.
+    // Dos peticiones para todo el panel, sin importar cuántos equipos haya; la mínima y máxima
+    // de 24 h de cada equipo se piden aparte, como mucho una vez por minuto.
     private async Task CargarAsync()
     {
         try
         {
             estados = await Http.GetFromJsonAsync<List<TemperaturaActualDto>>("api/equipos/estado", cancelacion.Token);
             pendientes = await Http.GetFromJsonAsync<List<AlertaPendienteDto>>("api/alertas/pendientes", cancelacion.Token) ?? new();
+            await CargarResumen24hAsync();
             error = null;
             ultimaActualizacion = DateTime.UtcNow;
             await AvisarSiHayNuevosProblemasAsync();
@@ -324,6 +341,47 @@
         {
             error = ex.Message;
         }
+    }
+
+    // ---------- Últimas 24 horas de cada equipo (mínima y máxima) ----------
+
+    // Lecturas de 24 h, cuántas hubo y sus extremos. Sin lecturas: Minima y Maxima quedan en 0.
+    private record Resumen24h(int Lecturas, double Minima, double Maxima);
+
+    // Con menos lecturas no se muestra la mínima y máxima (media hora de datos, una por minuto).
+    private const int MinimoLecturas24h = 30;
+    private static readonly TimeSpan IntervaloResumen24h = TimeSpan.FromMinutes(1);
+
+    private Dictionary<int, Resumen24h> resumen24h = new();
+    private DateTime? ultimoResumen24h;
+
+    // Usa la misma consulta que el detalle del equipo (lecturas-recientes, hasta 24 h). No hay
+    // ruta nueva en la API: se pide una vez por equipo y por minuto, no en cada actualización.
+    private async Task CargarResumen24hAsync()
+    {
+        if (estados is null || (ultimoResumen24h is { } u && DateTime.UtcNow - u < IntervaloResumen24h))
+        {
+            return;
+        }
+
+        var nuevo = new Dictionary<int, Resumen24h>();
+        foreach (var equipo in estados)
+        {
+            var lecturas = await Http.GetFromJsonAsync<List<LecturaPuntoDto>>(
+                $"api/equipos/{equipo.EquipoId}/lecturas-recientes?minutos=1440", cancelacion.Token) ?? new();
+            nuevo[equipo.EquipoId] = lecturas.Count == 0
+                ? new Resumen24h(0, 0, 0)
+                : new Resumen24h(lecturas.Count, lecturas.Min(l => l.Temperatura), lecturas.Max(l => l.Temperatura));
+        }
+        resumen24h = nuevo;
+        ultimoResumen24h = DateTime.UtcNow;
+    }
+
+    // Qué hacer en una sola frase: la primera del mensaje completo (el detalle tiene el resto).
+    private static string AccionBreve(string accion)
+    {
+        var punto = accion.IndexOf(". ", StringComparison.Ordinal);
+        return punto > 0 ? accion[..(punto + 1)] : accion;
     }
 
     // Los equipos con problemas primero; a igual gravedad, por nombre.
@@ -372,28 +430,6 @@
                 new GrupoResumen("pendientes", "campana", pendientes.Count == 1 ? "alerta por revisar" : "alertas por revisar", pendientes.Count)
             };
         }
-    }
-
-    // ---------- Tendencia de cada tarjeta ----------
-
-    private record InfoTendencia(string Texto, string Clase);
-
-    private static InfoTendencia? Tendencia(List<double> recientes)
-    {
-        if (recientes.Count < 2)
-        {
-            return null;
-        }
-
-        var diferencia = recientes[^1] - recientes[^2];
-        if (Math.Abs(diferencia) < 0.05)
-        {
-            return new("● estable", "estable");
-        }
-
-        return diferencia > 0
-            ? new($"▲ subiendo {diferencia:0.0}°", "sube")
-            : new($"▼ bajando {Math.Abs(diferencia):0.0}°", "baja");
     }
 
     // ---------- Avisos ----------

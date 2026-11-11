@@ -117,10 +117,13 @@
     }
 }
 
+/* Una tarjeta horizontal por equipo, una debajo de otra, a todo el ancho de la columna.
+   El reparto de las tres áreas depende del ancho de esta columna (no de la pantalla). */
 .equipos {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--e-4);
+    container-type: inline-size;
 }
 
 /* ===== Tarjeta de equipo ===== */
@@ -154,17 +157,11 @@
     border-top-style: dashed;
 }
 
-/* Si la insignia no cabe junto al nombre (p. ej. "Ruptura · hace 18 días"), baja a su
-   propia línea, alineada a la derecha, en vez de apretar el nombre del equipo. */
 .equipo-cabecera {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: var(--e-2) var(--e-3);
-}
-
-.equipo-cabecera > .insignia {
-    margin-left: auto;
 }
 
 .equipo-icono {
@@ -198,12 +195,45 @@
     white-space: nowrap;
 }
 
-/* El medidor mide 7.5rem (antes 9.5rem): conserva su forma y deja más lugar a los datos. */
-.equipo-cuerpo {
+/* Tres áreas lado a lado: Temperatura | Estado del equipo | Atención, separadas por líneas. */
+.equipo-areas {
     display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--e-4);
+}
+
+.area {
+    display: grid;
+    align-content: start;
+    justify-items: start;
+    gap: var(--e-2);
+    min-width: 0;
+}
+
+.area + .area {
+    padding-left: var(--e-4);
+    border-left: 1px solid var(--borde);
+}
+
+.area-titulo {
+    color: var(--texto-3);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* Temperatura: velocímetro compacto a la izquierda y el texto a su lado. */
+.area-temperatura {
     grid-template-columns: 7.5rem minmax(0, 1fr);
     align-items: center;
     gap: var(--e-4);
+}
+
+.area-texto {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
 }
 
 .equipo-medidor {
@@ -238,31 +268,40 @@
     font-weight: 700;
 }
 
-.equipo-datos {
-    display: grid;
-    gap: var(--e-2);
-    margin: 0;
-}
-
-.equipo-datos > div {
-    display: grid;
-    gap: 0.1rem;
-}
-
-.equipo-datos dt {
-    color: var(--texto-3);
-    font-size: var(--t-xs);
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
-
-.equipo-datos dd {
+.equipo-estado {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 0.2rem var(--e-2);
-    margin: 0;
+    gap: 0.4rem;
+    font-size: var(--t-xl);
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+/* Solo el texto del estado y de las alertas pendientes (el resumen de arriba usa las mismas clases). */
+.equipo-estado.estado-ok, .atencion-pendientes.estado-ok { color: var(--ok-texto); }
+.equipo-estado.estado-adv { color: var(--adv-texto); }
+.equipo-estado.estado-rup, .atencion-pendientes.estado-rup { color: var(--rup-texto); }
+.equipo-estado.estado-sen { color: var(--sen-texto); }
+
+/* Lectura antigua: el estado se atenúa (es el último conocido, no el de ahora). */
+.equipo-estado.estado-antiguo {
+    color: var(--texto-2);
+}
+
+.equipo-cuando {
+    color: var(--texto-2);
+    font-size: var(--t-s);
+    font-weight: 700;
+}
+
+/* "hace 17 días": la antigüedad de la lectura, en color de advertencia cuando ya no es reciente. */
+.dato-antiguo {
+    color: var(--adv-texto);
+    font-weight: 700;
+}
+
+.equipo-rango {
+    color: var(--texto-2);
     font-size: var(--t-s);
 }
 
@@ -270,20 +309,42 @@
     color: var(--texto-3);
 }
 
-/* "hace 17 días": la antigüedad de la lectura, en negrita cuando ya no es reciente. */
-.dato-antiguo {
-    color: var(--adv-texto);
+/* Estado del equipo: datos cortos, la etiqueta a la izquierda y el valor a la derecha. */
+.area-datos {
+    display: grid;
+    gap: 0.3rem;
+    width: 100%;
+    margin: 0;
+    font-size: var(--t-s);
+}
+
+.area-datos > div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0 var(--e-2);
+}
+
+.area-datos dt {
+    color: var(--texto-2);
+}
+
+.area-datos dd {
+    margin: 0;
+    color: var(--texto);
     font-weight: 700;
 }
 
-.tendencia-texto {
-    font-weight: 700;
+.area .insignia {
     white-space: nowrap;
 }
 
-.tendencia-texto.sube { color: var(--adv-texto); }
-.tendencia-texto.baja { color: var(--acento); }
-.tendencia-texto.estable { color: var(--texto-2); }
+.atencion-pendientes {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 800;
+}
 
 /* Qué hacer: con el color del estado, pero siempre con texto. */
 .equipo-accion {
@@ -295,29 +356,13 @@
 .accion-rup { background: var(--rup-fondo); color: var(--rup-texto); font-weight: 700; }
 .accion-adv { background: var(--adv-fondo); color: var(--adv-texto); }
 .accion-sen { background: var(--sen-fondo); color: var(--sen-texto); }
-.accion-ok { padding: 0; color: var(--texto-2); }
-
-.equipo-atencion {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    color: var(--ok-texto);
-    font-size: var(--t-s);
-    font-weight: 700;
-}
-
-.equipo-atencion.sin-atender {
-    color: var(--rup-texto);
-}
 
 /* "Ver detalle": su zona táctil cubre toda la tarjeta. */
 .ver-detalle {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    margin-top: auto;
-    padding-top: var(--e-2);
-    border-top: 1px solid var(--borde);
+    margin-top: var(--e-1);
     color: var(--acento);
     font-size: var(--t-s);
     font-weight: 700;
@@ -555,6 +600,44 @@
 
 /* ===== Pantallas medianas y celular ===== */
 
+/* Columna mediana: la temperatura arriba a lo ancho; estado y atención debajo, lado a lado. */
+@container (max-width: 900px) {
+    .equipo-areas {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .area-temperatura {
+        grid-column: 1 / -1;
+    }
+
+    .area + .area {
+        padding-left: 0;
+        border-left: none;
+    }
+
+    .area-temperatura ~ .area {
+        padding-top: var(--e-3);
+        border-top: 1px solid var(--borde);
+    }
+
+    .area-atencion {
+        padding-left: var(--e-4) !important;
+        border-left: 1px solid var(--borde) !important;
+    }
+}
+
+/* Columna angosta (celular): las tres áreas una debajo de otra. */
+@container (max-width: 520px) {
+    .equipo-areas {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .area-atencion {
+        padding-left: 0 !important;
+        border-left: none !important;
+    }
+}
+
 @media (max-width: 1100px) {
     .resumen {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -584,8 +667,9 @@
         scroll-snap-align: start;
     }
 
-    .equipo-cuerpo {
+    .area-temperatura {
         grid-template-columns: 6.5rem minmax(0, 1fr);
         gap: var(--e-3);
     }
+
 }

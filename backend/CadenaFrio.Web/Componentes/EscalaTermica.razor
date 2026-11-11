@@ -1,0 +1,126 @@
+@using System.Globalization
+@using CadenaFrio.Web.Utilidades
+
+@* Escala térmica horizontal: zonas de ruptura, advertencia y óptimo con un marcador en la última
+   temperatura. La posición del marcador se calcula con el rango recibido. Una lectura antigua se
+   dibuja con el marcador hueco y discontinuo y se dice "última conocida": nunca parece de ahora.
+   Nunca solo color: cada zona tiene trama y palabra, y el estado va con ícono y texto. *@
+
+<div class="escala @(Antigua ? "antigua" : "")">
+    <div class="escala-cabecera">
+        @if (Temperatura is { } t)
+        {
+            <div class="escala-lectura">
+                <span class="escala-valor cifras">@G(t) <small>°C</small></span>
+                <span class="escala-estado estado-@Estado"><Icono Nombre="@IconoEstado" Tamano="16" /> @TextoEstado@(Antigua ? " · última conocida" : "")</span>
+            </div>
+        }
+        else
+        {
+            <div class="escala-lectura">
+                <span class="escala-valor escala-sin-dato">— <small>°C</small></span>
+            </div>
+        }
+        <div class="escala-momento">
+            @if (Comunicacion is { } c)
+            {
+                <span class="insignia insignia-@c.Clase"><Icono Nombre="@c.Icono" Tamano="14" /> @c.Texto</span>
+            }
+            @if (FechaMedicion is { } f)
+            {
+                <span class="escala-fecha cifras"><Icono Nombre="reloj" Tamano="14" /> @FormatoFecha.HoraPeru(f)[..16] · @FormatoFecha.Antiguedad(f)</span>
+            }
+        </div>
+    </div>
+
+    <div class="barra" role="img" aria-label="@Descripcion">
+        <span class="zona zona-rup" style="left: 0; width: @P(LimiteMinimo)%"></span>
+        <span class="zona zona-adv" style="left: @P(LimiteMinimo)%; width: @Ancho(LimiteMinimo, OptimoMinimo)%"></span>
+        <span class="zona zona-ok" style="left: @P(OptimoMinimo)%; width: @Ancho(OptimoMinimo, OptimoMaximo)%"></span>
+        <span class="zona zona-adv" style="left: @P(OptimoMaximo)%; width: @Ancho(OptimoMaximo, LimiteMaximo)%"></span>
+        <span class="zona zona-rup" style="left: @P(LimiteMaximo)%; width: @Ancho(LimiteMaximo, Maximo)%"></span>
+
+        @if (Temperatura is { } temp)
+        {
+            <span class="marcador estado-@Estado" style="left: @P(temp)%">
+                <span class="marcador-etiqueta cifras">@G(temp) °C</span>
+            </span>
+        }
+    </div>
+
+    @* Marcas en los bordes del rango: el óptimo en la primera fila y el límite en la segunda,
+       para que no se encimen cuando la franja de advertencia es angosta. *@
+    <div class="marcas cifras" aria-hidden="true">
+        <span class="marca-optimo" style="left: @P(OptimoMinimo)%">@G(OptimoMinimo)</span>
+        <span class="marca-optimo" style="left: @P(OptimoMaximo)%">@G(OptimoMaximo)</span>
+        <span class="marca-limite" style="left: @P(LimiteMinimo)%">@G(LimiteMinimo)</span>
+        <span class="marca-limite" style="left: @P(LimiteMaximo)%">@G(LimiteMaximo)</span>
+    </div>
+
+    <ul class="leyenda" aria-hidden="true">
+        <li><span class="muestra zona-ok"></span> Óptimo @G(OptimoMinimo)–@G(OptimoMaximo) °C</li>
+        <li><span class="muestra zona-adv"></span> Advertencia</li>
+        <li><span class="muestra zona-rup"></span> Ruptura: fuera de @G(LimiteMinimo)–@G(LimiteMaximo) °C</li>
+    </ul>
+
+    @if (Temperatura is null)
+    {
+        <p class="escala-aviso"><Icono Nombre="sin-senal" Tamano="16" /> Este equipo todavía no envió lecturas. La escala muestra solo el rango.</p>
+    }
+    else if (Antigua && FechaMedicion is { } fa)
+    {
+        <p class="escala-aviso escala-aviso-antigua">
+            <Icono Nombre="reloj" Tamano="16" />
+            Última temperatura conocida (@FormatoFecha.Antiguedad(fa)), no una lectura actual. Revise el equipo y verifique con un termómetro.
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter] public double? Temperatura { get; set; }
+    [Parameter] public DateTime? FechaMedicion { get; set; }
+
+    // La lectura no es reciente: se muestra como "última conocida".
+    [Parameter] public bool Antigua { get; set; }
+
+    [Parameter] public double OptimoMinimo { get; set; }
+    [Parameter] public double OptimoMaximo { get; set; }
+    [Parameter] public double LimiteMinimo { get; set; }
+    [Parameter] public double LimiteMaximo { get; set; }
+
+    // "ok", "adv", "rup" o "sen", y su texto ("Normal", "Ruptura"…), juzgados con este rango.
+    [Parameter] public string Estado { get; set; } = "ok";
+    [Parameter] public string TextoEstado { get; set; } = "Normal";
+
+    // Comunicación con el dispositivo (En línea, Sin señal…), aparte del estado térmico.
+    [Parameter] public Dimension? Comunicacion { get; set; }
+
+    // Extremos de la escala: el rango límite con margen, ampliado si la temperatura queda afuera.
+    private double Minimo => Math.Min(LimiteMinimo - Margen, (Temperatura ?? LimiteMinimo) - 1);
+    private double Maximo => Math.Max(LimiteMaximo + Margen, (Temperatura ?? LimiteMaximo) + 1);
+    private double Margen => Math.Max(2, (LimiteMaximo - LimiteMinimo) * 0.35);
+
+    // Posición en la barra (0 a 100 %).
+    private string P(double valor) =>
+        F(Math.Clamp((valor - Minimo) / (Maximo - Minimo) * 100, 0, 100));
+
+    private string Ancho(double desde, double hasta) =>
+        F(Math.Max(0, (hasta - desde) / (Maximo - Minimo) * 100));
+
+    private string IconoEstado => Estado switch
+    {
+        "rup" => "ruptura",
+        "adv" => "advertencia",
+        "sen" => "sin-senal",
+        _ => "ok"
+    };
+
+    private string Descripcion =>
+        $"Escala térmica. Óptimo de {G(OptimoMinimo)} a {G(OptimoMaximo)} °C; ruptura fuera de {G(LimiteMinimo)} a {G(LimiteMaximo)} °C. " +
+        (Temperatura is { } t
+            ? $"{(Antigua ? "Última temperatura conocida" : "Temperatura actual")}: {G(t)} °C, {TextoEstado}."
+            : "Sin lecturas.");
+
+    private static string G(double v) => v.ToString("0.0", CultureInfo.InvariantCulture);
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+}

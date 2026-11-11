@@ -8,34 +8,28 @@
 @attribute [Authorize]
 @inject HttpClient Http
 
-<PageTitle>Historial · Cadena de Frío</PageTitle>
+<PageTitle>Análisis de temperaturas · Cadena de Frío</PageTitle>
 
 <main class="pagina">
     <header class="encabezado">
         <span class="encabezado-icono"><Icono Nombre="grafico" Tamano="24" /></span>
         <div class="encabezado-texto">
-            <h1>Historial</h1>
-            <p class="subtitulo">Temperaturas, alertas y revisiones de cada equipo, para revisar incidentes y sustentar reportes.</p>
+            <h1>Análisis de temperaturas</h1>
+            <p class="subtitulo">Cómo estuvo la temperatura de cada equipo: gráfico, alertas y descargas para sustentar reportes.</p>
         </div>
         @if (historial is not null)
         {
-            @* El Excel trae el mismo equipo y periodo que se ven en pantalla. *@
-            <div class="descargas">
-                <a class="boton boton-primario boton-excel" href="@UrlExcel" download>
-                    <Icono Nombre="descargar" Tamano="18" /> Descargar Excel del equipo
-                </a>
-
-                @* Hoja oficial de control diario (Anexo 10 de la NTS 242) del mes elegido, llenada
-                   con las lecturas del sensor: mañana y tarde de cada día. *@
-                <div class="anexo10">
-                    <label for="mes-anexo10">Hoja del Anexo 10</label>
-                    <div class="anexo10-fila">
-                        <input id="mes-anexo10" type="month" @bind="mesAnexo10" max="@MesActual" />
-                        <a class="boton" href="@UrlAnexo10" download title="Hoja de control y registro diario de la temperatura, llenada con las lecturas del sensor">
-                            <Icono Nombre="descargar" Tamano="18" /> Descargar
-                        </a>
-                    </div>
-                </div>
+            @* Exportar, en una sola franja: el Excel del equipo y periodo que se ven en pantalla, y la
+               hoja oficial de control diario (Anexo 10 de la NTS 242) del mes elegido. *@
+            <div class="exportar" role="group" aria-labelledby="etiqueta-exportar">
+                <span class="exportar-etiqueta" id="etiqueta-exportar"><Icono Nombre="descargar" Tamano="16" /> Exportar</span>
+                <a class="boton boton-chico boton-primario boton-excel" href="@UrlExcel" download
+                   title="Resumen, lecturas y alertas del equipo y el periodo elegidos">Excel del equipo</a>
+                <span class="exportar-separador" aria-hidden="true"></span>
+                <label class="exportar-anexo" for="mes-anexo10">Anexo 10</label>
+                <input id="mes-anexo10" class="exportar-mes" type="month" @bind="mesAnexo10" max="@MesActual" />
+                <a class="boton boton-chico" href="@UrlAnexo10" download
+                   title="Hoja de control y registro diario de la temperatura del mes elegido, llenada con las lecturas del sensor">Descargar</a>
             </div>
         }
     </header>
@@ -110,121 +104,63 @@
             }
         </p>
 
-        @* Resumen en palabras simples y estado de la información: lo primero que se lee.
-           Las frases salen de ResumenHistorial (solo hechos, sin conclusiones clínicas). *@
-        @if (e.CantidadLecturas > 0)
-        {
-            var esperadas = ResumenHistorial.LecturasEsperadas(historial);
-            var huecos = TramosHistorial.Huecos(historial.Puntos, historial.Desde, historial.Hasta);
-            <section class="tarjeta resumen-historial" aria-labelledby="titulo-resumen">
-                <h2 id="titulo-resumen">Resumen del periodo</h2>
-                <ul class="frases">
-                    @foreach (var frase in ResumenHistorial.Frases(historial, huecos))
-                    {
-                        <li class="frase frase-@frase.Clase">
-                            <span class="frase-icono"><Icono Nombre="@frase.Icono" Tamano="20" /></span>
-                            <div>
-                                <p class="frase-titulo">@frase.Titulo</p>
-                                <p class="frase-detalle">@frase.Detalle</p>
-                            </div>
-                        </li>
-                    }
-                </ul>
-
-                @* Cuántos datos hay y si están al día. Es un conteo, no un porcentaje de tiempo. *@
-                <p class="estado-informacion cifras @(ultimaLecturaAntigua ? "desactualizada" : "")">
-                    <Icono Nombre="@(ultimaLecturaAntigua ? "advertencia" : "reloj")" Tamano="16" />
-                    <span>
-                        Se recibieron @e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture) de unas @esperadas.ToString("N0", CultureInfo.InvariantCulture) lecturas esperadas (una por minuto).
-                        @if (ultimaLectura is { } u)
-                        {
-                            @if (ultimaLecturaAntigua)
-                            {
-                                <strong>Esta información no está al día: la última lectura del equipo es de @FormatoFecha.Antiguedad(u) (@FormatoFecha.HoraPeru(u)[..16]).</strong>
-                            }
-                            else
-                            {
-                                <span>Última lectura del equipo: @FormatoFecha.Antiguedad(u).</span>
-                            }
-                        }
-                    </span>
-                </p>
-            </section>
-        }
-
-        @* Qué hacer, justo después de lo que pasó. Se muestra también sin lecturas: es cuando
-           más importa revisar el equipo y las alertas pendientes. Los textos están en
-           AccionesRecomendadas (para que los valide la persona responsable de inmunizaciones). *@
-        var cantidadHuecos = TramosHistorial.Huecos(historial.Puntos, historial.Desde, historial.Hasta).Count;
+        @* Datos que usan los indicadores, el aviso y la explicación de abajo. Salen de las mismas
+           funciones de siempre (ResumenHistorial, TramosHistorial): no se calcula nada nuevo. *@
+        var esperadas = ResumenHistorial.LecturasEsperadas(historial);
+        var huecos = TramosHistorial.Huecos(historial.Puntos, historial.Desde, historial.Hasta);
+        var sinRevisar = historial.Alertas.Count(a => a.RequiereRevision && a.AtendidaPor is null);
         var sinDatosAlDia = ultimaLecturaAntigua || e.CantidadLecturas == 0;
-            <section class="tarjeta que-hacer" aria-labelledby="titulo-que-hacer">
-                <h2 id="titulo-que-hacer">Qué hacer</h2>
-                <ol class="acciones-lista">
-                    @foreach (var accion in AccionesRecomendadas.Para(historial, cantidadHuecos, sinDatosAlDia))
-                    {
-                        <li>
-                            <span class="accion-icono"><Icono Nombre="@accion.Icono" Tamano="18" /></span>
-                            <div>
-                                <p>@accion.Texto</p>
-                                @if (accion.Enlace is not null)
-                                {
-                                    <a class="boton boton-chico boton-primario" href="@accion.Enlace">@accion.TextoEnlace</a>
-                                }
-                            </div>
-                        </li>
-                    }
-                </ol>
-            </section>
+        var acciones = AccionesRecomendadas.Para(historial, huecos.Count, sinDatosAlDia);
 
-        @* Cifras clave en palabras cotidianas. Los términos técnicos (cumplimiento térmico,
-           promedio) van en la línea de abajo y, más adelante, en la vista detallada. *@
-        @if (e.CantidadLecturas > 0)
+        @* Aviso breve, siempre visible: la información no está al día o faltan datos. *@
+        @if (e.CantidadLecturas > 0 && (ultimaLecturaAntigua || huecos.Count > 0))
         {
-            var sinRevisar = historial.Alertas.Count(a => a.RequiereRevision && a.AtendidaPor is null);
-            <section class="estadisticas" aria-label="Cifras del periodo">
-                <div class="tarjeta estadistica">
-                    <p class="estadistica-etiqueta"><Icono Nombre="temperatura" Tamano="16" /> Temperatura más baja y más alta</p>
-                    <p class="estadistica-valor cifras">@Grados(e.Minima) y @Grados(e.Maxima)</p>
-                    <p class="estadistica-texto">
-                        @if (e.CantidadFueraDelLimite > 0)
-                        {
-                            @(e.CantidadFueraDelLimite == 1 ? "1 lectura quedó fuera del límite." : $"{e.CantidadFueraDelLimite:N0} lecturas quedaron fuera del límite.")
-                        }
-                        else if (historial.Rangos.Count > 1)
-                        {
-                            @("Ninguna lectura salió del límite de su momento.")
-                        }
-                        else
-                        {
-                            @($"El límite permitido es de {historial.LimiteMinimo:0.#} a {historial.LimiteMaximo:0.#} °C.")
-                        }
-                    </p>
-                </div>
-                <div class="tarjeta estadistica">
-                    <p class="estadistica-etiqueta"><Icono Nombre="ok" Tamano="16" /> Lecturas en el rango recomendado</p>
-                    <p class="estadistica-valor cifras">@LecturasEnRango(e)</p>
-                    <p class="estadistica-texto">@(historial.Rangos.Count > 1 ? "Cada una con el rango recomendado de su momento." : $"Rango recomendado: {historial.OptimoMinimo:0.#} a {historial.OptimoMaximo:0.#} °C.")</p>
-                </div>
-                <div class="tarjeta estadistica @(e.CantidadRupturas > 0 ? "alerta" : "")">
-                    <p class="estadistica-etiqueta"><Icono Nombre="ruptura" Tamano="16" /> Rupturas de temperatura</p>
-                    <p class="estadistica-valor cifras">@(e.CantidadRupturas switch { 0 => "Ninguna", 1 => "1 episodio", var n => $"{n} episodios" })</p>
-                    <p class="estadistica-texto">Veces que la temperatura salió del límite permitido.</p>
-                </div>
-                <div class="tarjeta estadistica @(sinRevisar > 0 ? "alerta" : "")">
-                    <p class="estadistica-etiqueta"><Icono Nombre="campana" Tamano="16" /> Alertas sin revisar</p>
-                    <p class="estadistica-valor cifras">@(sinRevisar == 0 ? "Ninguna" : sinRevisar.ToString())</p>
-                    @if (sinRevisar > 0)
+            <p class="aviso-breve cifras" role="status">
+                <Icono Nombre="advertencia" Tamano="16" />
+                <span>
+                    @if (ultimaLecturaAntigua && ultimaLectura is { } u)
                     {
-                        @* La revisión se registra en el detalle del equipo, donde está el formulario. *@
-                        <a class="estadistica-accion" href="equipos/@historial.EquipoId">Revisar ahora <Icono Nombre="abajo" Tamano="16" Clase="flecha" /></a>
+                        <strong>No está al día: la última lectura del equipo es de @FormatoFecha.Antiguedad(u) (@FormatoFecha.HoraPeru(u)[..16]).</strong>
                     }
-                    else
+                    @if (huecos.Count > 0)
                     {
-                        <p class="estadistica-texto">Todas las que lo necesitaban ya se revisaron.</p>
+                        <span>@(huecos.Count == 1 ? "Hubo 1 periodo sin datos" : $"Hubo {huecos.Count} periodos sin datos"); el gráfico los marca en gris.</span>
                     }
-                </div>
-            </section>
+                </span>
+            </p>
         }
+
+        @* Indicadores compactos: lo esencial del periodo en una fila. *@
+        <section class="indicadores" aria-label="Indicadores del periodo">
+            <div class="tarjeta indicador @(e.CantidadRupturas > 0 ? "alerta" : "")">
+                <p class="indicador-etiqueta"><Icono Nombre="ruptura" Tamano="16" /> Rupturas</p>
+                <p class="indicador-valor cifras">@(e.CantidadRupturas == 0 ? "Ninguna" : e.CantidadRupturas.ToString())</p>
+                <p class="indicador-texto">Veces que salió del límite permitido</p>
+            </div>
+            <div class="tarjeta indicador @(huecos.Count > 0 ? "aviso-sen" : "")">
+                <p class="indicador-etiqueta"><Icono Nombre="sin-senal" Tamano="16" /> Periodos sin datos</p>
+                <p class="indicador-valor cifras">@(huecos.Count == 0 ? "Ninguno" : huecos.Count.ToString())</p>
+                <p class="indicador-texto">Más de 5 minutos sin lecturas</p>
+            </div>
+            <div class="tarjeta indicador">
+                <p class="indicador-etiqueta"><Icono Nombre="reloj" Tamano="16" /> Lecturas recibidas</p>
+                <p class="indicador-valor cifras">@e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture)</p>
+                <p class="indicador-texto cifras">de unas @esperadas.ToString("N0", CultureInfo.InvariantCulture) esperadas (una por minuto)</p>
+            </div>
+            <div class="tarjeta indicador @(sinRevisar > 0 ? "alerta" : "")">
+                <p class="indicador-etiqueta"><Icono Nombre="campana" Tamano="16" /> Pendientes de revisión</p>
+                <p class="indicador-valor cifras">@(sinRevisar == 0 ? "Ninguno" : sinRevisar.ToString())</p>
+                @if (sinRevisar > 0)
+                {
+                    @* La revisión se registra en el detalle del equipo, donde está el formulario. *@
+                    <a class="indicador-accion" href="equipos/@historial.EquipoId">Revisar ahora <Icono Nombre="abajo" Tamano="16" Clase="flecha" /></a>
+                }
+                else
+                {
+                    <p class="indicador-texto">Incidentes que exigen revisión</p>
+                }
+            </div>
+        </section>
 
         @* Gráfico *@
         <section class="tarjeta seccion" aria-labelledby="titulo-grafico">
@@ -286,15 +222,20 @@
             }
         </section>
 
-        @* Alertas del periodo *@
-        <section class="tarjeta seccion" aria-labelledby="titulo-alertas">
-            <header class="seccion-cabecera">
-                <h2 id="titulo-alertas"><Icono Nombre="campana" /> Alertas del periodo</h2>
-                @if (historial.Alertas.Count > 0)
+        @* Alertas del periodo, en un desplegable como el resumen de abajo. Se abre solo si hay
+           alguna sin revisar; el título dice cuántas hay y cuántas faltan revisar. *@
+        <details class="tarjeta explicacion alertas-periodo" open="@(sinRevisar > 0)">
+            <summary>
+                <Icono Nombre="campana" />
+                <span class="explicacion-titulo" id="titulo-alertas">Alertas del periodo</span>
+                <span class="insignia insignia-neutra">@(historial.Alertas.Count switch { 0 => "Ninguna", 1 => "1 alerta", var n => $"{n} alertas" })</span>
+                @if (sinRevisar > 0)
                 {
-                    <span class="insignia insignia-neutra">@historial.Alertas.Count</span>
+                    <span class="insignia insignia-rup"><Icono Nombre="advertencia" Tamano="14" /> @(sinRevisar == 1 ? "1 sin revisar" : $"{sinRevisar} sin revisar")</span>
                 }
-            </header>
+            </summary>
+
+            <div class="explicacion-cuerpo">
 
             @if (historial.Alertas.Count == 0)
             {
@@ -363,7 +304,105 @@
                     </table>
                 </div>
             }
-        </section>
+            </div>
+        </details>
+
+        @* Resumen explicativo y qué hacer: debajo del gráfico y las alertas, en un desplegable.
+           Se abre solo cuando hay algo que hacer (revisiones pendientes o datos que no están al día).
+           Las frases salen de ResumenHistorial y las acciones de AccionesRecomendadas. *@
+        <details class="tarjeta explicacion" open="@(sinRevisar > 0 || sinDatosAlDia)">
+            <summary>
+                <Icono Nombre="info" />
+                <span class="explicacion-titulo">Resumen explicativo y qué hacer</span>
+                <span class="insignia insignia-neutra">@(acciones.Count == 1 ? "1 acción" : $"{acciones.Count} acciones")</span>
+            </summary>
+
+            <div class="explicacion-cuerpo">
+                @if (e.CantidadLecturas > 0)
+                {
+                    <section aria-labelledby="titulo-resumen">
+                        <h3 id="titulo-resumen">Resumen del periodo</h3>
+                        <ul class="frases">
+                            @foreach (var frase in ResumenHistorial.Frases(historial, huecos))
+                            {
+                                <li class="frase frase-@frase.Clase">
+                                    <span class="frase-icono"><Icono Nombre="@frase.Icono" Tamano="20" /></span>
+                                    <div>
+                                        <p class="frase-titulo">@frase.Titulo</p>
+                                        <p class="frase-detalle">@frase.Detalle</p>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+
+                        @* Cuántos datos hay y si están al día. Es un conteo, no un porcentaje de tiempo. *@
+                        <p class="estado-informacion cifras @(ultimaLecturaAntigua ? "desactualizada" : "")">
+                            <Icono Nombre="@(ultimaLecturaAntigua ? "advertencia" : "reloj")" Tamano="16" />
+                            <span>
+                                Se recibieron @e.CantidadLecturas.ToString("N0", CultureInfo.InvariantCulture) de unas @esperadas.ToString("N0", CultureInfo.InvariantCulture) lecturas esperadas (una por minuto).
+                                @if (ultimaLectura is { } u)
+                                {
+                                    @if (ultimaLecturaAntigua)
+                                    {
+                                        <strong>Esta información no está al día: la última lectura del equipo es de @FormatoFecha.Antiguedad(u) (@FormatoFecha.HoraPeru(u)[..16]).</strong>
+                                    }
+                                    else
+                                    {
+                                        <span>Última lectura del equipo: @FormatoFecha.Antiguedad(u).</span>
+                                    }
+                                }
+                            </span>
+                        </p>
+
+                        @* Cifras en palabras cotidianas (los términos técnicos están en la vista detallada del gráfico). *@
+                        <div class="estadisticas">
+                            <div class="tarjeta estadistica">
+                                <p class="estadistica-etiqueta"><Icono Nombre="temperatura" Tamano="16" /> Temperatura más baja y más alta</p>
+                                <p class="estadistica-valor cifras">@Grados(e.Minima) y @Grados(e.Maxima)</p>
+                                <p class="estadistica-texto">
+                                    @if (e.CantidadFueraDelLimite > 0)
+                                    {
+                                        @(e.CantidadFueraDelLimite == 1 ? "1 lectura quedó fuera del límite." : $"{e.CantidadFueraDelLimite:N0} lecturas quedaron fuera del límite.")
+                                    }
+                                    else if (historial.Rangos.Count > 1)
+                                    {
+                                        @("Ninguna lectura salió del límite de su momento.")
+                                    }
+                                    else
+                                    {
+                                        @($"El límite permitido es de {historial.LimiteMinimo:0.#} a {historial.LimiteMaximo:0.#} °C.")
+                                    }
+                                </p>
+                            </div>
+                            <div class="tarjeta estadistica">
+                                <p class="estadistica-etiqueta"><Icono Nombre="ok" Tamano="16" /> Lecturas en el rango recomendado</p>
+                                <p class="estadistica-valor cifras">@LecturasEnRango(e)</p>
+                                <p class="estadistica-texto">@(historial.Rangos.Count > 1 ? "Cada una con el rango recomendado de su momento." : $"Rango recomendado: {historial.OptimoMinimo:0.#} a {historial.OptimoMaximo:0.#} °C.")</p>
+                            </div>
+                        </div>
+                    </section>
+                }
+
+                <section class="que-hacer" aria-labelledby="titulo-que-hacer">
+                    <h3 id="titulo-que-hacer">Qué hacer</h3>
+                    <ol class="acciones-lista">
+                        @foreach (var accion in acciones)
+                        {
+                            <li>
+                                <span class="accion-icono"><Icono Nombre="@accion.Icono" Tamano="18" /></span>
+                                <div>
+                                    <p>@accion.Texto</p>
+                                    @if (accion.Enlace is not null)
+                                    {
+                                        <a class="boton boton-chico boton-primario" href="@accion.Enlace">@accion.TextoEnlace</a>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ol>
+                </section>
+            </div>
+        </details>
     }
 </main>
 
@@ -468,7 +507,7 @@
         }
     }
 
-    // La última lectura del equipo (la misma consulta que usan el panel y Configuración).
+    // La última lectura del equipo (la misma consulta que usan el panel y Rangos de temperatura).
     // Si falla, el estado vacío muestra su mensaje de siempre y el resumen no dice nada de ella.
     private DateTime? ultimaLectura;
     private bool ultimaLecturaConsultada;

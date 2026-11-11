@@ -35,20 +35,19 @@
                     <NavLink class="enlace" href="alertas" title="Alertas">
                         <Icono Nombre="campana" /> <span class="texto">Alertas</span>
                     </NavLink>
-                    <NavLink class="enlace" href="historial" title="Historial">
-                        <Icono Nombre="grafico" /> <span class="texto">Historial</span>
+                    <NavLink class="enlace" href="historial" title="Análisis de temperaturas">
+                        <Icono Nombre="grafico" /> <span class="texto">Análisis de temperaturas</span>
                     </NavLink>
                     <NavLink class="enlace" href="reportes" title="Reportes">
                         <Icono Nombre="lista" /> <span class="texto">Reportes</span>
                     </NavLink>
 
-                    @* "Configuración" solo para quien tiene permiso de cambiar rangos. *@
-                    <AuthorizeView Policy="@Politicas.PuedeConfigurarRangos" Context="permiso">
-                        <p class="grupo">Gestión</p>
-                        <NavLink class="enlace" href="configuracion" title="Configuración de rangos">
-                            <Icono Nombre="configuracion" /> <span class="texto">Configuración</span>
-                        </NavLink>
-                    </AuthorizeView>
+                    @* "Rangos de temperatura" (ruta /configuracion): todos los roles los ven; solo el
+                       responsable de inmunizaciones y el administrador los cambian (lo decide la página). *@
+                    <p class="grupo">Gestión</p>
+                    <NavLink class="enlace" href="configuracion" title="Rangos de conservación de las vacunas">
+                        <Icono Nombre="temperatura" /> <span class="texto">Rangos de temperatura</span>
+                    </NavLink>
 
                     @* Administración solo para el rol Administrador (RF19). *@
                     <AuthorizeView Policy="@Politicas.EsAdministrador" Context="administrador">
@@ -244,9 +243,9 @@
         {
             "" => new("Monitoreo", "Panel"),
             "alertas" => new("Monitoreo", "Alertas"),
-            "historial" => new("Monitoreo", "Historial"),
+            "historial" => new("Monitoreo", "Análisis de temperaturas"),
             "reportes" => new("Monitoreo", "Reportes"),
-            "configuracion" => new("Gestión", "Configuración"),
+            "configuracion" => new("Gestión", "Rangos de temperatura"),
             "admin/equipos" => new("Administración", "Equipos"),
             "admin/vacunas" => new("Administración", "Vacunas"),
             "admin/usuarios" => new("Administración", "Usuarios"),

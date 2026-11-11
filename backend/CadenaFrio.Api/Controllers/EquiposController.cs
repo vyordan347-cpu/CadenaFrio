@@ -208,7 +208,8 @@ public class EquiposController : ControllerBase
     // Solo el personal autorizado (responsable o administrador) puede usarlo: los demás reciben 403.
     [Authorize(Policy = Politicas.PuedeConfigurarRangos)]
     [HttpPost("{id:int}/rango")]
-    public async Task<ActionResult<RangoTemperaturaDto>> ConfigurarRango(int id, ConfigurarRangoRequest solicitud)
+    public async Task<ActionResult<RangoTemperaturaDto>> ConfigurarRango(int id, ConfigurarRangoRequest solicitud,
+        [FromServices] GestionRangos rangos)
     {
         var equipo = await _db.Equipos.FirstOrDefaultAsync(e => e.Id == id);
 
@@ -227,6 +228,16 @@ public class EquiposController : ControllerBase
             solicitud.OptimoMaximo!.Value,
             solicitud.LimiteMinimo!.Value,
             solicitud.LimiteMaximo!.Value);
+
+        // Regla sanitaria: el ajuste manual puede ser más estricto que el rango de las vacunas del
+        // equipo (o el de la NTS 242), nunca más amplio. 422: los datos son válidos pero no permitidos.
+        var (referencia, origen) = await rangos.ReferenciaAjusteAsync(id);
+        if (GestionRangos.ValidarAjusteManual(nuevos, referencia, origen) is { } error)
+        {
+            return UnprocessableEntity(new { mensaje = error });
+        }
+
+        var motivo = solicitud.Motivo!.Trim();
 
         // Si los rangos son iguales a los vigentes, no se registra nada: el historial
         // solo debe contener cambios reales. Al ser un record, LimitesTemperatura
@@ -248,13 +259,13 @@ public class EquiposController : ControllerBase
             LimiteMaximo = nuevos.LimiteMaximo,
             // Quién hizo el cambio se toma de la sesión, no de lo que envíe la pantalla.
             ModificadoPor = User.FindFirstValue(ClaimTiposCadenaFrio.NombreCompleto) ?? User.Identity!.Name!,
-            Detalle = "Ajuste manual",
+            Detalle = $"Ajuste manual: {motivo}",
             FechaCambio = DateTime.UtcNow
         };
 
         _db.RangosTemperatura.Add(rango);
         _bitacora.Registrar(CategoriaAuditoria.Rangos, "Ajustó el rango a mano", rango.ModificadoPor,
-            $"{equipo.Nombre}: {Bitacora.DescribirRango(nuevos)}.");
+            $"{equipo.Nombre}: {Bitacora.DescribirRango(nuevos)}. Motivo: {motivo}");
         await _db.SaveChangesAsync();
 
         // 201 Created: indica que se creó un recurso nuevo y dónde consultarlo.

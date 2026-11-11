@@ -17,6 +17,12 @@ public record LimitesTemperatura(
     // - Oscilación normal: de +3 a +7 °C (la temperatura media ideal es de +4 a +6 °C).
     public static LimitesTemperatura PorDefecto { get; } = new(3.0, 7.0, 2.0, 8.0);
 
+    // ¿Este rango es igual o más estricto que la referencia? Su óptimo y su límite deben quedar
+    // dentro de los de la referencia: un ajuste manual puede estrechar el rango, nunca ampliarlo.
+    public bool DentroDe(LimitesTemperatura referencia) =>
+        OptimoMinimo >= referencia.OptimoMinimo && OptimoMaximo <= referencia.OptimoMaximo &&
+        LimiteMinimo >= referencia.LimiteMinimo && LimiteMaximo <= referencia.LimiteMaximo;
+
     // Rango común de varias vacunas: donde TODAS están seguras (la intersección de sus rangos).
     // Devuelve null si no existe una temperatura óptima común: no pueden guardarse juntas.
     public static LimitesTemperatura? Interseccion(IEnumerable<LimitesTemperatura> rangos)

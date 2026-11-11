@@ -24,6 +24,28 @@ public class GestionRangos
     private static LimitesTemperatura Limites(Vacuna v) =>
         new(v.OptimoMinimo, v.OptimoMaximo, v.LimiteMinimo, v.LimiteMaximo);
 
+    // Rango que un ajuste manual no puede ampliar: el de las vacunas que guarda el equipo o,
+    // si no guarda ninguna (o no tienen una temperatura común), el de la NTS 242.
+    public async Task<(LimitesTemperatura Referencia, string Origen)> ReferenciaAjusteAsync(int equipoId)
+    {
+        var vacunas = await _db.EquipoVacunas
+            .Where(a => a.EquipoId == equipoId && a.Vacuna.Activo)
+            .Select(a => a.Vacuna)
+            .ToListAsync();
+
+        return vacunas.Count > 0 && LimitesTemperatura.Interseccion(vacunas.Select(Limites)) is { } comun
+            ? (comun, $"las vacunas que guarda ({string.Join(", ", vacunas.Select(v => v.Nombre).Order())})")
+            : (LimitesTemperatura.PorDefecto, "la NTS 242");
+    }
+
+    // Regla sanitaria del ajuste manual: igual o más estricto que la referencia. Devuelve el error, o null.
+    public static string? ValidarAjusteManual(LimitesTemperatura nuevos, LimitesTemperatura referencia, string origen) =>
+        nuevos.DentroDe(referencia)
+            ? null
+            : $"El ajuste manual no puede ampliar el rango de {origen}: el óptimo debe quedar dentro de " +
+              $"{referencia.OptimoMinimo:0.0}–{referencia.OptimoMaximo:0.0} °C y el límite dentro de " +
+              $"{referencia.LimiteMinimo:0.0}–{referencia.LimiteMaximo:0.0} °C. Puede hacerlo más estricto, nunca más amplio.";
+
     // Asigna las vacunas que guarda un equipo y registra el rango calculado.
     public async Task<ResultadoAsignacion> AsignarVacunasAsync(int equipoId, IReadOnlyCollection<int> vacunaIds, string usuario)
     {
